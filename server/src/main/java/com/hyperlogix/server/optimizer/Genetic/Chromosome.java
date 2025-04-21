@@ -2,6 +2,7 @@ package com.hyperlogix.server.optimizer.Genetic;
 
 import com.hyperlogix.server.domain.*;
 import com.hyperlogix.server.util.AStar;
+import lombok.Getter;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -9,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+@Getter
 public class Chromosome {
   private Routes routes;
   private double fitness;
@@ -18,15 +20,7 @@ public class Chromosome {
     this.fitness = (routes != null) ? routes.getCost() : Double.POSITIVE_INFINITY;
   }
 
-  public Routes getRoutes() {
-    return routes;
-  }
-
-  public double getFitness() {
-    return fitness;
-  }
-
-  public void setRoutes(Routes routes) {
+    public void setRoutes(Routes routes) {
     this.routes = routes;
     this.fitness = (routes != null) ? routes.getCost() : Double.POSITIVE_INFINITY;
   }
@@ -62,11 +56,9 @@ public class Chromosome {
       double truckRouteCost = 0;
       LocalDateTime currentTime = algorithmStartDate;
 
-      if (!stops.isEmpty()) {
-        stops.get(0).setArrivalTime(currentTime);
-      }
+        stops.getFirst().setArrivalTime(currentTime);
 
-      for (int i = 0; i < stops.size() - 1; i++) {
+        for (int i = 0; i < stops.size() - 1; i++) {
         Stop originStop = stops.get(i);
         Stop destinationStop = stops.get(i + 1);
 

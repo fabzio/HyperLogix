@@ -44,7 +44,7 @@ public class Ant {
     }
     while (!nodesLeft.stream().filter(node -> node.getType() == NodeType.DELIVERY).toList().isEmpty()) {
       for (Truck truck : network.getTrucks()) {
-        Stop currentNode = routes.get(truck.getId()).get(routes.get(truck.getId()).size() - 1);
+        Stop currentNode = routes.get(truck.getId()).getLast();
         Stop nextNode = getNextNode(currentNode, truck);
         if (nextNode == null) {
           continue;
@@ -93,7 +93,7 @@ public class Ant {
         double fuelAfterDelivery = truck.getCurrentFuel() - fuelConsumption;
         double fuelToNearestStation = graph.getAdjacencyMap().get(node).entrySet().stream()
             .filter(entry -> entry.getKey().getType() == NodeType.STATION)
-            .map(entry -> entry.getValue().length()).mapToDouble(t -> truck.getFuelConsumption(t)).min()
+            .map(entry -> entry.getValue().length()).mapToDouble(truck::getFuelConsumption).min()
             .orElse(Double.POSITIVE_INFINITY);
         if (fuelToNearestStation > fuelAfterDelivery)
           continue;
@@ -174,9 +174,9 @@ public class Ant {
     network.getTrucksCapacity();
     this.nodesLeft = new ArrayList<>(graph.getAdjacencyMap().keySet().stream().toList());
     this.routes = network.getTrucks().stream()
-        .collect(Collectors.toMap(Truck::getId, truck -> List.of()));
+        .collect(Collectors.toMap(Truck::getId, truck -> new ArrayList<>())); // Use mutable list
     this.paths = network.getTrucks().stream()
-        .collect(Collectors.toMap(Truck::getId, truck -> List.of()));
+        .collect(Collectors.toMap(Truck::getId, truck -> new ArrayList<>())); // Use mutable list
     this.tourTime = network.getTrucks().stream()
         .collect(Collectors.toMap(Truck::getId, truck -> Duration.ZERO));
     this.tourCost = network.getTrucks().stream()
