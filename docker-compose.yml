@@ -1,0 +1,36 @@
+services:
+  backend:
+    container_name: hyperlogix-backend
+    build:
+      context: ./server
+    environment:
+      - DB_URL=jdbc:postgresql://db:5432/postgres
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=admin
+    depends_on:
+      - db
+    networks:
+      - app-network
+
+  db:
+    image: postgres:latest
+    container_name: hyperlogix-db
+    environment:
+      POSTGRES_PASSWORD: admin
+    networks:
+      - app-network
+
+  frontend:
+    container_name: hyperlogix-frontend
+    build:
+      context: ./client
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

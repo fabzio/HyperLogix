@@ -1,0 +1,22 @@
+{
+  "name": "hyperlogix",
+  "scripts": {
+    "dev": "turbo dev",
+    "format": "turbo format",
+    "lint": "turbo lint",
+    "build": "turbo build",
+    "test": "turbo test",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "@commitlint/cli": "^19.8.0",
+    "@commitlint/config-conventional": "^19.8.0",
+    "turbo": "2.5.0"
+  },
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "packageManager": "bun@1.2.10"
+}

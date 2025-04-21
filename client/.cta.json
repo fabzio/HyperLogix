@@ -1,0 +1,18 @@
+{
+  "framework": "react",
+  "typescript": true,
+  "projectName": "HyperLogix",
+  "mode": "file-router",
+  "tailwind": true,
+  "packageManager": "bun",
+  "toolchain": "biome",
+  "variableValues": {},
+  "git": true,
+  "version": 1,
+  "existingAddOns": [
+    "shadcn",
+    "table",
+    "tanstack-query",
+    "t3env"
+  ]
+}
