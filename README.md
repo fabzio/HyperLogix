@@ -20,6 +20,11 @@ HyperLogix es una herramienta avanzada diseñada para optimizar y simular operac
 
 ## Instalación
 
+### Automática
+
+Ejecuta el script develop.ps1 (Windows) o develop.sh (Linux)
+
+### Manual
 1. Clona el repositorio:
    ```bash
    git clone https://github.com/fabzio/hyperlogix.git
