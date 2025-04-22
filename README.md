@@ -26,50 +26,25 @@ HyperLogix es una herramienta avanzada diseñada para optimizar y simular operac
    cd hyperlogix
    ```
 
-2. Configura el backend:
-   ```bash
-   cd server
-   ./mvnw clean install
-   ```
-
-3. Configura el frontend:
-   ```bash
-   cd ../client
+2. En la carpeta raíz:
+```bash
    bun install
-   ```
+```
 
 ## Ejecución
 
-### Backend
-Ejecuta el servidor Spring Boot:
+En la carpeta raiz
 ```bash
-cd server
-./mvnw spring-boot:run
-```
-
-### Frontend
-Ejecuta el cliente React:
-```bash
-cd client
-bun run dev
+bun dev
 ```
 
 Accede a la aplicación en [http://localhost:5173](http://localhost:5173).
 
 ## Pruebas
 
-### Backend
-Ejecuta las pruebas con Maven:
+En la carpeta raíz:
 ```bash
-cd server
-./mvnw test
-```
-
-### Frontend
-Ejecuta las pruebas con Vitest:
-```bash
-cd client
-bun run test
+   bun run test
 ```
 
 ## Construcción para Producción
