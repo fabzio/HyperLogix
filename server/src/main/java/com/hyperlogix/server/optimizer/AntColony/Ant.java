@@ -11,17 +11,19 @@ import java.util.Random;
 import java.util.stream.Collectors;
 
 public class Ant {
-  private final PLGNetwork network;
+  private PLGNetwork network;
+  private final PLGNetwork originalNetwork;
   private final Graph graph;
   private final AntColonyConfig antColonyConfig;
   private List<Node> nodesLeft;
+  private Map<Node, Map<Node, Path>> adjacencyMap;
   private Map<String, List<Stop>> routes;
   private Map<String, List<Path>> paths;
   private Map<String, Duration> tourTime;
   private Map<String, Double> tourCost;
 
   public Ant(PLGNetwork network, Graph graph, AntColonyConfig antColonyConfig) {
-    this.network = network.clone();
+    this.originalNetwork = network.clone();
     this.graph = graph;
     this.antColonyConfig = antColonyConfig;
 
@@ -64,7 +66,7 @@ public class Ant {
     for (Node node : nodesLeft) {
       if (node.getId().equals(currentNode.getNode().getId()))
         continue;
-      int distance = graph.getAdjacencyMap().get(currentNode.getNode()).get(node).length();
+      int distance = adjacencyMap.get(currentNode.getNode()).get(node).length();
       Duration timeToDestination = truck.getTimeToDestination(distance);
       LocalDateTime arrivalTime = currentNode.getArrivalTime().plus(timeToDestination);
       double fuelConsumption = truck.getFuelConsumption(distance);
@@ -91,7 +93,7 @@ public class Ant {
         // ||
         // currentNode.getArrivalTime().plus(timeToDestination).isBefore(order.getMinDeliveryDate()))
         double fuelAfterDelivery = truck.getCurrentFuel() - fuelConsumption;
-        double fuelToNearestStation = graph.getAdjacencyMap().get(node).entrySet().stream()
+        double fuelToNearestStation = adjacencyMap.get(node).entrySet().stream()
             .filter(entry -> entry.getKey().getType() == NodeType.STATION)
             .map(entry -> entry.getValue().length()).mapToDouble(truck::getFuelConsumption).min()
             .orElse(Double.POSITIVE_INFINITY);
@@ -110,9 +112,12 @@ public class Ant {
     }
     List<Double> scores = new ArrayList<>();
     for (Stop node : availableNodes) {
-      int distance = graph.getAdjacencyMap().get(currentNode.getNode()).get(node.getNode()).length();
+      int distance = adjacencyMap.get(currentNode.getNode()).get(node.getNode()).length();
       double pheromone = graph.getPheromoneMap().get(currentNode.getNode()).get(node.getNode());
-      double heuristic = 1.0 / distance;
+      double penalization = node.getNode().getType() == NodeType.STATION ?
+                (double) (1 + truck.getCurrentCapacity() / truck.getMaxCapacity())
+              : 1.0 /  (1 + (double) truck.getCurrentCapacity() / truck.getMaxCapacity());
+      double heuristic = 1.0 /( penalization * distance);
       double score = Math.pow(pheromone, antColonyConfig.ALPHA()) * Math.pow(heuristic, antColonyConfig.BETA());
       scores.add(score);
     }
@@ -129,15 +134,15 @@ public class Ant {
         return availableNodes.get(i);
       }
     }
-    return availableNodes.get(availableNodes.size() - 1);
+    return availableNodes.getLast();
   }
 
   private void moveToNode(Truck truck, Stop currentNode, Stop nextNode) {
     this.routes.get(truck.getId()).add(nextNode);
-    Path path = graph.getAdjacencyMap().get(currentNode.getNode()).get(nextNode.getNode());
+    Path path = adjacencyMap.get(currentNode.getNode()).get(nextNode.getNode());
     this.paths.get(truck.getId()).add(path);
     int distance = path.length();
-    graph.updateAdjacencyMap(nextNode.getArrivalTime());
+    this.adjacencyMap = graph.createAdjacencyMap(nextNode.getArrivalTime());
     Duration timeToDestination = truck.getTimeToDestination(distance);
     double fuelConsumption = truck.getFuelConsumption(distance);
 
@@ -163,16 +168,17 @@ public class Ant {
       else
         order.setDeliveredGLP(order.getDeliveredGLP() + glpToDeliver);
       truck.setCurrentCapacity(truck.getCurrentCapacity() - glpToDeliver);
+      truck.setCurrentFuel(truck.getCurrentFuel() - fuelConsumption);
     }
-    truck.setCurrentFuel(truck.getCurrentFuel() - fuelConsumption);
     this.tourTime.put(truck.getId(), this.tourTime.get(truck.getId()).plus(timeToDestination));
     this.tourCost.put(truck.getId(), this.tourCost.get(truck.getId()) + fuelConsumption);
 
   }
 
   public void resetState() {
-    network.getTrucksCapacity();
-    this.nodesLeft = new ArrayList<>(graph.getAdjacencyMap().keySet().stream().toList());
+    this.network = originalNetwork.clone();
+    this.adjacencyMap = graph.createAdjacencyMap(graph.getAlgorithmStartDate());
+    this.nodesLeft = new ArrayList<>(adjacencyMap.keySet().stream().toList());
     this.routes = network.getTrucks().stream()
         .collect(Collectors.toMap(Truck::getId, truck -> new ArrayList<>())); // Use mutable list
     this.paths = network.getTrucks().stream()

@@ -3,6 +3,7 @@ package com.hyperlogix.server.optimizer.AntColony;
 import com.hyperlogix.server.domain.*;
 import com.hyperlogix.server.util.AStar;
 import lombok.Data;
+import lombok.Getter;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -10,22 +11,21 @@ import java.util.List;
 import java.util.Map;
 
 @Data
+@Getter
 public class Graph {
   private final PLGNetwork plgNetwork;
   private final AntColonyConfig antColonyConfig;
   private LocalDateTime algorithmStartDate;
-  private Map<Node, Map<Node, Path>> adjacencyMap;
   private final Map<Node, Map<Node, Double>> pheromoneMap;
 
   public Graph(PLGNetwork network, LocalDateTime algorithmStartDate, AntColonyConfig antColonyConfig) {
     this.plgNetwork = network;
     this.algorithmStartDate = algorithmStartDate;
     this.antColonyConfig = antColonyConfig;
-    updateAdjacencyMap(algorithmStartDate);
     this.pheromoneMap = createPheromoneMap();
   }
 
-  public void updateAdjacencyMap(LocalDateTime currentTime) {
+  public Map<Node, Map<Node, Path>>  createAdjacencyMap(LocalDateTime currentTime) {
     List<Node> ordersNode = plgNetwork.getOrders().stream()
         .map(Node::new)
         .toList();
@@ -51,15 +51,25 @@ public class Graph {
         adjacencyMap.get(destination).put(origin, path);
       }
     }
-    this.adjacencyMap = adjacencyMap;
+    return adjacencyMap;
   }
 
   private Map<Node, Map<Node, Double>> createPheromoneMap() {
     Map<Node, Map<Node, Double>> pheromoneMap = new HashMap<>();
-    for (Node origin : adjacencyMap.keySet()) {
-      pheromoneMap.putIfAbsent(origin, new HashMap<>());
-      for (Node destination : adjacencyMap.get(origin).keySet()) {
-        pheromoneMap.get(origin).put(destination, antColonyConfig.INITIAL_PHEROMONE());
+    List<Node> ordersNode = plgNetwork.getOrders().stream()
+        .map(Node::new)
+        .toList();
+    List<Node> stationsNodes = plgNetwork.getStations().stream()
+        .map(Node::new)
+        .toList();
+    List<Node> allNodes = new java.util.ArrayList<>(ordersNode);
+    allNodes.addAll(stationsNodes);
+    for (Node origin : allNodes) {
+      pheromoneMap.put(origin, new HashMap<>());
+      for (Node destination : allNodes) {
+        if (!origin.equals(destination)) {
+          pheromoneMap.get(origin).put(destination, antColonyConfig.INITIAL_PHEROMONE());
+        }
       }
     }
     return pheromoneMap;
@@ -85,4 +95,14 @@ public class Graph {
       }
     }
   }
+  public void printPheromoneMapInMatrixFormat() {
+    System.out.println("Pheromone Map:");
+    for (Node origin : pheromoneMap.keySet()) {
+      for (Node destination : pheromoneMap.get(origin).keySet()) {
+        System.out.print(pheromoneMap.get(origin).get(destination) + "\t");
+      }
+      System.out.println();
+    }
+  }
+
 }

@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
  */
 @AllArgsConstructor
 @Data
-public class Truck {
+public class Truck implements Cloneable { // Implement Cloneable
   /**
    * Identificador único del camión.
    */
@@ -95,5 +95,22 @@ public class Truck {
   public void endMaintenance() {
     this.status = TruckState.ACTIVE;
     this.nextMaintenance = LocalDateTime.now().plus(Constants.MAINTENANCE_TRUCK_PERIOD);
+  }
+
+  // Add clone method using super.clone()
+  @Override
+  public Truck clone() {
+    try {
+      // Perform a shallow copy first using super.clone()
+      Truck cloned = (Truck) super.clone();
+      // Since all fields (String, enums, primitives, LocalDateTime, Point record)
+      // are effectively immutable or primitive, the shallow copy from super.clone()
+      // results in a functionally deep copy for this class.
+      // No need to manually copy fields here.
+      return cloned;
+    } catch (CloneNotSupportedException e) {
+      // This should not happen since we implement Cloneable
+      throw new AssertionError("Cloning failed for Truck", e);
+    }
   }
 }

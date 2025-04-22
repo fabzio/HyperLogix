@@ -28,10 +28,10 @@ public class Benchmark {
     Duration maxDuration = Duration.ofSeconds(10); // Max time per optimizer run
 
     // Configure Optimizers
-    AntColonyConfig antConfig = new AntColonyConfig(10, 50, 1.0, 2.0, 0.5, 10.0, 1);
+    AntColonyConfig antConfig = new AntColonyConfig(4, 3, 1.0, 3, 0.5, 100.0, 1);
     Optimizer antOptimizer = new AntColonyOptmizer(antConfig);
 
-    GeneticConfig geneticConfig = new GeneticConfig(50, 100, 5, 0.1);
+    GeneticConfig geneticConfig = new GeneticConfig(12, 100, 5, 0.1);
     Optimizer geneticOptimizer = new GeneticOptimizer(geneticConfig);
 
     System.out.println("\n--- Running Ant Colony Optimizer ---");
