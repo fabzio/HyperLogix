@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 
 @Data
 @AllArgsConstructor
-public class Order {
+public class Order implements Cloneable { // Implement Cloneable
   /**
    * Código del pedido
    */
@@ -39,6 +39,7 @@ public class Order {
    */
   Duration duration;
 
+
   /**
    * @return Fecha máxima de entrega
    */
@@ -52,5 +53,16 @@ public class Order {
    */
   public LocalDateTime getMinDeliveryDate() {
     return date.minus(Constants.MIN_DELIVERY_TIME);
+  }
+
+  // Add clone method using the copy constructor
+  @Override
+  public Order clone() {
+    try {
+      Order cloned = (Order) super.clone();
+      return cloned;
+    } catch (CloneNotSupportedException e) {
+      throw new AssertionError(); // Can't happen
+    }
   }
 }

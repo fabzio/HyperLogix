@@ -5,7 +5,7 @@
     "format": "turbo format",
     "lint": "turbo lint",
     "build": "turbo build",
-    "test": "turbo test",
+    "test": "turbo test --filter=[HEAD^]...",
     "prepare": "husky"
   },
   "devDependencies": {
