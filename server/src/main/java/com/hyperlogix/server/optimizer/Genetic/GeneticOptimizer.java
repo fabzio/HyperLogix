@@ -1,24 +1,23 @@
 package com.hyperlogix.server.optimizer.Genetic;
 
-import com.hyperlogix.server.domain.Path;
-import com.hyperlogix.server.domain.Routes;
-import com.hyperlogix.server.domain.Stop;
+import com.hyperlogix.server.domain.*;
+import com.hyperlogix.server.optimizer.AntColony.Ant;
+import com.hyperlogix.server.optimizer.AntColony.AntColonyConfig;
+import com.hyperlogix.server.optimizer.Graph;
 import com.hyperlogix.server.optimizer.Optimizer;
 import com.hyperlogix.server.optimizer.OptimizerContext;
 import com.hyperlogix.server.optimizer.OptimizerResult;
-import com.hyperlogix.server.optimizer.AntColony.Ant;
-import com.hyperlogix.server.optimizer.AntColony.Graph;
-import com.hyperlogix.server.domain.PLGNetwork;
+
 import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicReference;
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.stream.Collectors;
-import com.hyperlogix.server.optimizer.AntColony.AntColonyConfig;
 
 public class GeneticOptimizer implements Optimizer {
   private final GeneticConfig config;
-  private final Random random = new Random();
-
+  private final ThreadLocal<Random> threadLocalRandom = ThreadLocal.withInitial(Random::new);
+  
   public GeneticOptimizer(GeneticConfig geneticConfig) {
     this.config = geneticConfig;
   }
@@ -27,129 +26,305 @@ public class GeneticOptimizer implements Optimizer {
   public OptimizerResult run(OptimizerContext context, Duration timeLimit, boolean verbose) {
     final PLGNetwork network = context.plgNetwork;
     final LocalDateTime startTime = context.algorithmStartDate;
-    List<Chromosome> population = initializePopulation(network, startTime);
-    Chromosome best = null;
-    if (!population.isEmpty()) {
-      best = Collections.min(population, Comparator.comparingDouble(Chromosome::getFitness));
-    }
-    for (int gen = 0; gen < config.NUM_GENERATIONS(); gen++) {
-      List<Chromosome> newPopulation = new ArrayList<>();
-      if (population.isEmpty()) {
-        System.err.println("Warning: Population became empty during generation " + gen);
-        break;
-      }
-      while (newPopulation.size() < config.POPULATION_SIZE()) {
-        Chromosome parent1 = tournamentSelection(population);
-        Chromosome parent2 = tournamentSelection(population);
-        Chromosome child = crossover(parent1, parent2);
-        mutate(child, network, startTime);
-        newPopulation.add(child);
-      }
-      population = newPopulation;
-      if (!population.isEmpty()) {
-        Chromosome genBest = Collections.min(population, Comparator.comparingDouble(Chromosome::getFitness));
-        if (best == null || genBest.getFitness() < best.getFitness()) {
-          best = genBest;
+    int eliteSelection = (int) (config.POPULATION_SIZE() * config.ELITISM_RATE());
+    final AntColonyConfig antColonyConfig = new AntColonyConfig(0, 0, 1, 2, 0, 0, 100);
+    
+    ThreadLocal<Graph> threadLocalGraph = ThreadLocal.withInitial(() -> 
+        new Graph(network, startTime, antColonyConfig));
+    
+    ThreadLocal<Ant> threadLocalAnt = ThreadLocal.withInitial(() -> {
+        Graph graph = threadLocalGraph.get();
+        return new Ant(network, graph, antColonyConfig);
+    });
+    
+    AtomicReference<Chromosome> bestOverallRef = new AtomicReference<>(null);
+    
+    // Usar un contenedor para la población que es final pero su contenido puede cambiar
+    final AtomicReference<List<Chromosome>> populationRef = new AtomicReference<>(
+        initializePopulation(network, startTime, threadLocalGraph, threadLocalAnt)
+    );
+    
+    int threadsToUse = Math.min(Runtime.getRuntime().availableProcessors(), 4);
+    ExecutorService executorService = Executors.newFixedThreadPool(threadsToUse);
+    
+    try {
+        List<Chromosome> elite = Collections.synchronizedList(new ArrayList<>());
+        List<Chromosome> population = populationRef.get();
+        
+        if (!population.isEmpty()) {
+            synchronized (population) {
+                population.sort(Comparator.comparingDouble(Chromosome::getFitness));
+                for (int i = 0; i < eliteSelection && i < population.size(); i++) {
+                    elite.add(population.get(i).clone());
+                }
+            }
         }
-      }
-      if (verbose && best != null) {
-        System.out.println("Generation " + gen + " best cost: " + best.getFitness());
-      } else if (verbose) {
-        System.out.println("Generation " + gen + " - No valid solutions found yet.");
-      }
+        
+        for (int gen = 0; gen < config.NUM_GENERATIONS(); gen++) {
+            population = populationRef.get();
+            if (population.isEmpty()) {
+                System.err.println("Warning: Population became empty during generation " + gen);
+                break;
+            }
+            
+            List<Chromosome> newPopulation = Collections.synchronizedList(new ArrayList<>());
+            List<Future<?>> futures = new ArrayList<>();
+            
+            for (int i = 0; i < config.POPULATION_SIZE(); i++) {
+                futures.add(executorService.submit(() -> {
+                    Random random = threadLocalRandom.get();
+                    Graph graph = threadLocalGraph.get();
+                    Ant ant = threadLocalAnt.get();
+                    List<Chromosome> currentPop = populationRef.get();
+                    
+                    Chromosome parent1, parent2;
+                    synchronized (currentPop) {
+                        parent1 = tournamentSelection(currentPop, random);
+                        parent2 = tournamentSelection(currentPop, random);
+                    }
+                    
+                    Chromosome[] children = crossover(parent1, parent2);
+                    
+                    Chromosome bestOverall = bestOverallRef.get();
+                    mutate(children[0], bestOverall, random);
+                    
+                    Graph childGraph = graph.clone();
+                    childGraph.setPheromoneMap(children[0].getSeed());
+                    ant.setGraph(childGraph);
+                    children[0].recalculateFitness(ant);
+                    ant.resetState();
+                    
+                    synchronized (newPopulation) {
+                        newPopulation.add(children[0]);
+                    }
+                }));
+            }
+            
+            for (Future<?> future : futures) {
+                try {
+                    future.get();
+                } catch (InterruptedException | ExecutionException e) {
+                    e.printStackTrace();
+                    Thread.currentThread().interrupt();
+                }
+            }
+            
+            synchronized (newPopulation) {
+                newPopulation.sort(Comparator.comparingDouble(Chromosome::getFitness));
+                
+                for (int i = 0; i < eliteSelection && i < elite.size(); i++) {
+                    if (i < newPopulation.size()) {
+                        newPopulation.set(newPopulation.size() - 1 - i, elite.get(i).clone());
+                    }
+                }
+                
+                newPopulation.sort(Comparator.comparingDouble(Chromosome::getFitness));
+                
+                // Actualizar la referencia a la población en lugar de reasignar la variable
+                populationRef.set(new ArrayList<>(newPopulation));
+                
+                elite.clear();
+                List<Chromosome> updatedPopulation = populationRef.get();
+                for (int i = 0; i < eliteSelection && i < updatedPopulation.size(); i++) {
+                    elite.add(updatedPopulation.get(i).clone());
+                }
+                
+                if (!updatedPopulation.isEmpty()) {
+                    Chromosome currentBest = updatedPopulation.get(0);
+                    Chromosome previous = bestOverallRef.get();
+                    if (previous == null || currentBest.getFitness() < previous.getFitness()) {
+                        bestOverallRef.set(currentBest.clone());
+                    }
+                }
+            }
+            
+            population = populationRef.get();
+            if (verbose && !population.isEmpty()) {
+                System.out.println("Generation " + gen + " best cost: " + population.get(0).getFitness());
+            } else if (!population.isEmpty()) {
+                System.out.println("Generation " + gen + " - Best cost: " + population.get(0).getFitness());
+            } else {
+                System.out.println("Generation " + gen + " - No valid solutions found yet.");
+            }
+        }
+    } finally {
+        executorService.shutdown();
+        try {
+            if (!executorService.awaitTermination(30, TimeUnit.SECONDS)) {
+                executorService.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            executorService.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
     }
-    if (best == null) {
-      return new OptimizerResult(new Routes(new HashMap<>(), new HashMap<>(), Double.POSITIVE_INFINITY),
-          Double.POSITIVE_INFINITY);
+    
+    Chromosome bestOverall = bestOverallRef.get();
+    List<Chromosome> finalPopulation = populationRef.get();
+    
+    if (bestOverall == null && !finalPopulation.isEmpty()) {
+        bestOverall = finalPopulation.get(0);
     }
-    return new OptimizerResult(best.getRoutes(), best.getFitness());
+    
+    if (bestOverall == null) {
+        return new OptimizerResult(null, Double.MAX_VALUE);
+    }
+    
+    return new OptimizerResult(bestOverall.getRoutes(), bestOverall.getFitness());
   }
 
-  private List<Chromosome> initializePopulation(PLGNetwork network, LocalDateTime startTime) {
-    List<Chromosome> population = new ArrayList<>();
-    AntColonyConfig antConfig = new AntColonyConfig(1, 1, 0.9, 0.3, 1.5, 0.05, 2.0);
-    for (int i = 0; i < config.POPULATION_SIZE(); i++) {
-      PLGNetwork clonedNetwork = network.clone();
-      Graph graph = new Graph(clonedNetwork, startTime, antConfig);
-      Ant ant = new Ant(clonedNetwork, graph, antConfig);
-      Routes initialRoutes = ant.findSolution();
-      if (initialRoutes != null && initialRoutes.getCost() != Double.POSITIVE_INFINITY) {
-        population.add(new Chromosome(initialRoutes));
-      }
+  private List<Chromosome> initializePopulation(
+      PLGNetwork network, 
+      LocalDateTime startTime, 
+      ThreadLocal<Graph> threadLocalGraph,
+      ThreadLocal<Ant> threadLocalAnt) {
+    
+    List<Chromosome> population = Collections.synchronizedList(new ArrayList<>());
+    int threadsToUse = Math.min(Runtime.getRuntime().availableProcessors(), 4);
+    ExecutorService executorService = Executors.newFixedThreadPool(threadsToUse);
+    
+    try {
+        List<Future<?>> futures = new ArrayList<>();
+        
+        for (int i = 0; i < config.POPULATION_SIZE(); i++) {
+            futures.add(executorService.submit(() -> {
+                Graph graph = threadLocalGraph.get().clone();
+                Ant ant = threadLocalAnt.get();
+                Random random = threadLocalRandom.get();
+                
+                Map<Node, Map<Node, Double>> seedMap = graph.getPheromoneMap();
+                for (Node origin : seedMap.keySet()) {
+                    for (Node destination : seedMap.get(origin).keySet()) {
+                        seedMap.get(origin).put(destination, 
+                            seedMap.get(origin).get(destination) * random.nextDouble());
+                    }
+                }
+                
+                ant.setGraph(graph);
+                Routes routes = ant.findSolution();
+                ant.resetState();
+                
+                Chromosome chromosome = new Chromosome(
+                    new HashMap<>(seedMap),
+                    routes, 
+                    routes.getCost()
+                );
+                
+                synchronized (population) {
+                    population.add(chromosome);
+                }
+            }));
+        }
+        
+        for (Future<?> future : futures) {
+            try {
+                future.get();
+            } catch (InterruptedException | ExecutionException e) {
+                e.printStackTrace();
+                Thread.currentThread().interrupt();
+            }
+        }
+    } finally {
+        executorService.shutdown();
+        try {
+            if (!executorService.awaitTermination(30, TimeUnit.SECONDS)) {
+                executorService.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            executorService.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
     }
-    if (population.isEmpty()) {
-      System.err.println("Warning: Initial population is empty. No valid routes found by ants.");
-    }
+    
     return population;
   }
 
-  private Chromosome tournamentSelection(List<Chromosome> population) {
-    if (population.isEmpty()) {
-      throw new IllegalStateException("Cannot perform selection on an empty population.");
-    }
+  private Chromosome tournamentSelection(List<Chromosome> population, Random random) {
     List<Chromosome> tournament = new ArrayList<>();
+    
     for (int i = 0; i < config.TOURNAMENT_SIZE(); i++) {
-      tournament.add(population.get(random.nextInt(population.size())));
+        tournament.add(population.get(random.nextInt(population.size())));
     }
+    
     return Collections.min(tournament, Comparator.comparingDouble(Chromosome::getFitness));
   }
 
-  private Chromosome crossover(Chromosome parent1, Chromosome parent2) {
-    Map<String, List<Stop>> childRoutesMap = new HashMap<>();
-    Map<String, List<Path>> childPathsMap = new HashMap<>();
-    Set<String> truckIds = new HashSet<>();
-    if (parent1.getRoutes() != null && parent1.getRoutes().getRoutes() != null)
-      truckIds.addAll(parent1.getRoutes().getRoutes().keySet());
-    if (parent2.getRoutes() != null && parent2.getRoutes().getRoutes() != null)
-      truckIds.addAll(parent2.getRoutes().getRoutes().keySet());
-    for (String truckId : truckIds) {
-      if (random.nextBoolean()) {
-        copyRouteFromParent(parent1, childRoutesMap, childPathsMap, truckId);
-      } else {
-        copyRouteFromParent(parent2, childRoutesMap, childPathsMap, truckId);
-      }
+  private Chromosome[] crossover(Chromosome parent1, Chromosome parent2) {
+    Chromosome best = parent1.getFitness() < parent2.getFitness() ? parent1 : parent2;
+    Chromosome worst = parent1.getFitness() < parent2.getFitness() ? parent2 : parent1;
+    
+    Chromosome child = best.clone();
+
+    Map<Node, Map<Node, Double>> bestSeed = best.getSeed();
+    Routes bestRoutes = best.getRoutes();
+
+    Map<Node, Map<Node, Double>> worstSeed = worst.getSeed();
+    Routes worstRoutes = worst.getRoutes();
+
+    for (String truck : bestRoutes.getRoutes().keySet()) {
+        List<Stop> route = bestRoutes.getRoutes().get(truck);
+        for (int i = 0; i < route.size() - 1; i++) {
+            Node origin = route.get(i).getNode();
+            Node destination = route.get(i + 1).getNode();
+            
+            if (bestSeed.containsKey(origin) && bestSeed.get(origin).containsKey(destination) &&
+                worstSeed.containsKey(origin) && worstSeed.get(origin).containsKey(destination)) {
+                
+                double difference = bestSeed.get(origin).get(destination) - worstSeed.get(origin).get(destination);
+                double currentValue = child.getSeed().get(origin).getOrDefault(destination, 0.0);
+                double updated = currentValue + difference * config.CROSSOVER_RATE();
+                
+                child.getSeed().computeIfAbsent(origin, k -> new HashMap<>()).put(destination, updated);
+            }
+        }
     }
-    double cost1 = (parent1.getRoutes() != null) ? parent1.getRoutes().getCost() : Double.POSITIVE_INFINITY;
-    double cost2 = (parent2.getRoutes() != null) ? parent2.getRoutes().getCost() : Double.POSITIVE_INFINITY;
-    double childCost = Math.min(cost1, cost2);
-    Routes childRoutes = new Routes(childRoutesMap, childPathsMap, childCost);
-    return new Chromosome(childRoutes);
+
+    for (String truck : worstRoutes.getRoutes().keySet()) {
+        List<Stop> route = worstRoutes.getRoutes().get(truck);
+        for (int i = 0; i < route.size() - 1; i++) {
+            Node origin = route.get(i).getNode();
+            Node destination = route.get(i + 1).getNode();
+            
+            if (bestSeed.containsKey(origin) && bestSeed.get(origin).containsKey(destination) &&
+                worstSeed.containsKey(origin) && worstSeed.get(origin).containsKey(destination)) {
+                
+                double pheromone = bestSeed.get(origin).get(destination) - worstSeed.get(origin).get(destination);
+                double currentValue = child.getSeed().get(origin).getOrDefault(destination, 0.0);
+                double updated = currentValue + pheromone * config.CROSSOVER_RATE();
+                
+                child.getSeed().computeIfAbsent(origin, k -> new HashMap<>()).put(destination, updated);
+            }
+        }
+    }
+
+    return new Chromosome[] { child };
   }
 
-  private void copyRouteFromParent(Chromosome parent, Map<String, List<Stop>> childRoutes,
-      Map<String, List<Path>> childPaths, String truckId) {
-    if (parent.getRoutes() == null)
-      return;
-    if (parent.getRoutes().getRoutes() != null && parent.getRoutes().getRoutes().containsKey(truckId)) {
-      childRoutes.put(truckId, new ArrayList<>(parent.getRoutes().getRoutes().get(truckId)));
-    }
-    if (parent.getRoutes().getPaths() != null && parent.getRoutes().getPaths().containsKey(truckId)) {
-      childPaths.put(truckId, new ArrayList<>(parent.getRoutes().getPaths().get(truckId)));
-    }
-  }
-
-  private void mutate(Chromosome chromosome, PLGNetwork network, LocalDateTime startTime) {
-    if (random.nextDouble() < config.MUTATION_RATE()) {
-      Routes routes = chromosome.getRoutes();
-      if (routes == null || routes.getRoutes() == null || routes.getRoutes().isEmpty()) {
-        return;
-      }
-      List<String> eligibleTrucks = routes.getRoutes().entrySet().stream()
-          .filter(entry -> entry.getValue() != null && entry.getValue().size() >= 2)
-          .map(Map.Entry::getKey)
-          .collect(Collectors.toList());
-      if (eligibleTrucks.isEmpty()) {
-        return;
-      }
-      String truckIdToMutate = eligibleTrucks.get(random.nextInt(eligibleTrucks.size()));
-      List<Stop> routeToMutate = routes.getRoutes().get(truckIdToMutate);
-      int index1 = random.nextInt(routeToMutate.size());
-      int index2 = random.nextInt(routeToMutate.size());
-      while (index1 == index2) {
-        index2 = random.nextInt(routeToMutate.size());
-      }
-      Collections.swap(routeToMutate, index1, index2);
-      chromosome.recalculateFitness(network, startTime);
+  private void mutate(Chromosome chromosome, Chromosome bestOverall, Random random) {
+    Routes routes = chromosome.getRoutes();
+    
+    for (String truck : routes.getRoutes().keySet()) {
+        List<Stop> route = routes.getRoutes().get(truck);
+        for (int i = 0; i < route.size() - 1; i++) {
+            Node origin = route.get(i).getNode();
+            Node destination = route.get(i + 1).getNode();
+            
+            if (chromosome.getSeed().containsKey(origin) && 
+                chromosome.getSeed().get(origin).containsKey(destination)) {
+                
+                double pheromone = chromosome.getSeed().get(origin).get(destination);
+                
+                if (bestOverall == null) {
+                    double updated = pheromone + (random.nextDouble() - 0.5) * config.MUTATION_RATE();
+                    chromosome.getSeed().get(origin).put(destination, updated);
+                } else if (bestOverall.getSeed().containsKey(origin) && 
+                           bestOverall.getSeed().get(origin).containsKey(destination)) {
+                    double differenceWithBest = bestOverall.getSeed().get(origin).get(destination) - pheromone;
+                    double updated = pheromone + differenceWithBest * config.MUTATION_RATE();
+                    chromosome.getSeed().get(origin).put(destination, updated);
+                }
+            }
+        }
     }
   }
 }

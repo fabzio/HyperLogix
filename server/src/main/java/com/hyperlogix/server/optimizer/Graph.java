@@ -1,9 +1,10 @@
-package com.hyperlogix.server.optimizer.AntColony;
+package com.hyperlogix.server.optimizer;
 
 import com.hyperlogix.server.domain.*;
+import com.hyperlogix.server.optimizer.AntColony.AntColonyConfig;
 import com.hyperlogix.server.util.AStar;
 import lombok.Data;
-import lombok.Getter;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -11,12 +12,12 @@ import java.util.List;
 import java.util.Map;
 
 @Data
-@Getter
-public class Graph {
+public class Graph implements Cloneable{
   private final PLGNetwork plgNetwork;
   private final AntColonyConfig antColonyConfig;
   private LocalDateTime algorithmStartDate;
-  private final Map<Node, Map<Node, Double>> pheromoneMap;
+  @Setter
+  private Map<Node, Map<Node, Double>> pheromoneMap;
 
   public Graph(PLGNetwork network, LocalDateTime algorithmStartDate, AntColonyConfig antColonyConfig) {
     this.plgNetwork = network;
@@ -54,7 +55,7 @@ public class Graph {
     return adjacencyMap;
   }
 
-  private Map<Node, Map<Node, Double>> createPheromoneMap() {
+  public Map<Node, Map<Node, Double>> createPheromoneMap() {
     Map<Node, Map<Node, Double>> pheromoneMap = new HashMap<>();
     List<Node> ordersNode = plgNetwork.getOrders().stream()
         .map(Node::new)
@@ -95,14 +96,19 @@ public class Graph {
       }
     }
   }
-  public void printPheromoneMapInMatrixFormat() {
-    System.out.println("Pheromone Map:");
-    for (Node origin : pheromoneMap.keySet()) {
-      for (Node destination : pheromoneMap.get(origin).keySet()) {
-        System.out.print(pheromoneMap.get(origin).get(destination) + "\t");
-      }
-      System.out.println();
+
+  @Override
+    public Graph clone() {
+        try {
+        Graph cloned = (Graph) super.clone();
+        cloned.pheromoneMap = new HashMap<>();
+        for (Map.Entry<Node, Map<Node, Double>> entry : this.pheromoneMap.entrySet()) {
+            cloned.pheromoneMap.put(entry.getKey(), new HashMap<>(entry.getValue()));
+        }
+        return cloned;
+        } catch (CloneNotSupportedException e) {
+        throw new AssertionError();
+        }
     }
-  }
 
 }

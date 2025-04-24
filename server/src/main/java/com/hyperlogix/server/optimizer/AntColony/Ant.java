@@ -1,6 +1,9 @@
 package com.hyperlogix.server.optimizer.AntColony;
 
 import com.hyperlogix.server.domain.*;
+import com.hyperlogix.server.optimizer.Graph;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -13,7 +16,9 @@ import java.util.stream.Collectors;
 public class Ant {
   private PLGNetwork network;
   private final PLGNetwork originalNetwork;
-  private final Graph graph;
+  @Getter
+  @Setter
+  private Graph graph;
   private final AntColonyConfig antColonyConfig;
   private List<Node> nodesLeft;
   private Map<Node, Map<Node, Path>> adjacencyMap;
@@ -188,4 +193,5 @@ public class Ant {
     this.tourCost = network.getTrucks().stream()
         .collect(Collectors.toMap(Truck::getId, truck -> 0.0));
   }
+
 }
