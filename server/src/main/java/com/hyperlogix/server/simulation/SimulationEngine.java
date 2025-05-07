@@ -53,7 +53,7 @@ public class SimulationEngine {
         log.info("Simulated time: {}", simulatedTime);
         LocalDateTime finalSimulatedTime = simulatedTime;
         CompletableFuture.supplyAsync(() -> optimizer.run(
-            new OptimizerContext(plgNetwork, finalSimulatedTime), config.algorithmTime(), false)).thenAccept(
+            new OptimizerContext(plgNetwork, finalSimulatedTime), config.algorithmTime())).thenAccept(
                 result -> {
                   synchronized (activeRoutes) {
                     activeRoutes = result.getRoutes();

@@ -147,7 +147,7 @@ public class Ant {
     Path path = adjacencyMap.get(currentNode.getNode()).get(nextNode.getNode());
     this.paths.get(truck.getId()).add(path);
     int distance = path.length();
-    this.adjacencyMap = graph.createAdjacencyMap(nextNode.getArrivalTime());
+    //this.adjacencyMap = graph.createAdjacencyMap(nextNode.getArrivalTime());
     Duration timeToDestination = truck.getTimeToDestination(distance);
     double fuelConsumption = truck.getFuelConsumption(distance);
 
