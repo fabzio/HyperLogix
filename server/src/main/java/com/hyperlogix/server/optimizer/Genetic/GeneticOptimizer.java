@@ -312,15 +312,15 @@ public class GeneticOptimizer implements Optimizer {
             if (chromosome.getSeed().containsKey(origin) && 
                 chromosome.getSeed().get(origin).containsKey(destination)) {
                 
-                double pheromone = chromosome.getSeed().get(origin).get(destination);
+                double probability = chromosome.getSeed().get(origin).get(destination);
                 
                 if (bestOverall == null) {
-                    double updated = pheromone + (random.nextDouble() - 0.5) * config.MUTATION_RATE();
+                    double updated = probability + (random.nextDouble() - 0.5) * config.MUTATION_RATE();
                     chromosome.getSeed().get(origin).put(destination, updated);
                 } else if (bestOverall.getSeed().containsKey(origin) && 
                            bestOverall.getSeed().get(origin).containsKey(destination)) {
-                    double differenceWithBest = bestOverall.getSeed().get(origin).get(destination) - pheromone;
-                    double updated = pheromone + differenceWithBest * config.MUTATION_RATE();
+                    double differenceWithBest = bestOverall.getSeed().get(origin).get(destination) - probability;
+                    double updated = probability + differenceWithBest * config.MUTATION_RATE();
                     chromosome.getSeed().get(origin).put(destination, updated);
                 }
             }

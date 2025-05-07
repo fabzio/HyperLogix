@@ -1,6 +1,7 @@
 package com.hyperlogix.server.benchmark;
 
 import com.hyperlogix.server.domain.PLGNetwork;
+import com.hyperlogix.server.domain.Order; // Added import
 import com.hyperlogix.server.mock.MockData;
 import com.hyperlogix.server.optimizer.Optimizer;
 import com.hyperlogix.server.optimizer.OptimizerContext;
@@ -12,8 +13,11 @@ import com.hyperlogix.server.optimizer.Genetic.GeneticOptimizer;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.Month;
 import java.util.ArrayList;
 import java.util.List;
+// Added for potential file path construction, if needed by MockData directly
+// import java.nio.file.Paths; 
 
 public class Benchmark {
 
@@ -23,28 +27,49 @@ public class Benchmark {
   public static void main(String[] args) {
     System.out.println("Starting Benchmark...");
 
-    PLGNetwork network = MockData.mockNetwork();
-    LocalDateTime startTime = LocalDateTime.now(); // Consistent start time for context
-    Duration maxDuration = Duration.ofSeconds(10); // Max time per optimizer run
+    String dataDir = "src/main/java/com/hyperlogix/server/benchmark/pedidos.20250419/";
+    List<String> orderFilePaths = List.of(
+        dataDir + "ventas202501.txt");
 
-    // Configure Optimizers
+    // Define offset and limit for loading orders
+    int ordersOffset = 0; // Start from the first order (after skipping 'offset' orders)
+    int ordersLimit = 20; // Load all orders after offset (-1 or 0 means no limit)
+    // Example: To skip first 10 orders and load next 50:
+    // int ordersOffset = 10;
+    // int ordersLimit = 50;
+
+    List<Order> loadedOrders = MockData.loadOrdersFromFiles(orderFilePaths, ordersOffset, ordersLimit);
+    System.out.println("Loaded " + loadedOrders.size() + " orders from files (offset=" + ordersOffset + ", limit="
+        + (ordersLimit <= 0 ? "none" : ordersLimit) + ").");
+    PLGNetwork baseNetwork = MockData.mockNetwork(); // Gets trucks, stations etc. from original mock
+    PLGNetwork network = new PLGNetwork(
+        baseNetwork.getTrucks(),
+        baseNetwork.getStations(),
+        loadedOrders,
+        baseNetwork.getIncidents(),
+        baseNetwork.getRoadblocks());
+
+    LocalDateTime startTime = LocalDateTime.of(2025, Month.JANUARY, 1, 0, 0, 0);
+    Duration maxDuration = Duration.ofSeconds(10);
     AntColonyConfig antConfig = new AntColonyConfig(4, 10, 1.0, 2, 0.5, 100, 0.1);
     Optimizer antOptimizer = new AntColonyOptmizer(antConfig);
 
-    GeneticConfig geneticConfig = new GeneticConfig(4, 10, 
+    GeneticConfig geneticConfig = new GeneticConfig(4, 10,
         1,
-         0,
+        0,
         1,
         0.1);
     Optimizer geneticOptimizer = new GeneticOptimizer(geneticConfig);
 
     System.out.println("\n--- Running Ant Colony Optimizer ---");
-    BenchmarkResult antResult = runBenchmark(antOptimizer, network, startTime, maxDuration);
+    BenchmarkResult antResult = runBenchmark(antOptimizer, network, startTime,
+        maxDuration);
     printResults("Ant Colony", antResult);
 
-    System.out.println("\n--- Running Genetic Algorithm Optimizer ---");
-    BenchmarkResult geneticResult = runBenchmark(geneticOptimizer, network, startTime, maxDuration);
-    printResults("Genetic Algorithm", geneticResult);
+    // System.out.println("\n--- Running Genetic Algorithm Optimizer ---");
+    // BenchmarkResult geneticResult = runBenchmark(geneticOptimizer, network,
+    // startTime, maxDuration);
+    // printResults("Genetic Algorithm", geneticResult);
 
     System.out.println("\nBenchmark Finished.");
   }

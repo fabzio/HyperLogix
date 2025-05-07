@@ -37,14 +37,14 @@ public class Order implements Cloneable { // Implement Cloneable
   /**
    * Tiempo de llegada en horas
    */
-  Duration duration;
+  Duration limit;
 
 
   /**
    * @return Fecha máxima de entrega
    */
   public LocalDateTime getMaxDeliveryDate() {
-    return date.plus(duration);
+    return date.plus(limit);
   }
 
   /**
