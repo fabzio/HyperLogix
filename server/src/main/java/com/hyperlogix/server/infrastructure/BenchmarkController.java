@@ -1,6 +1,8 @@
 package com.hyperlogix.server.infrastructure;
 
 import com.hyperlogix.server.benchmark.BenchmarkService;
+import com.hyperlogix.server.domain.PLGNetwork;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -14,8 +16,12 @@ class BenchmarkController {
   }
 
   @PostMapping("/benchmark/start")
-  public ResponseEntity<Void> startBenchmark() {
-    benchmarkService.startBenchmark();
-    return ResponseEntity.ok().build();
+  public ResponseEntity<PLGNetwork> startBenchmark() {
+    PLGNetwork network = benchmarkService.loadNetwork();
+    if (network == null) {
+      return ResponseEntity.badRequest().build();
+    }
+    new Thread(() -> benchmarkService.startBenchmark()).start();
+    return ResponseEntity.ok(network);
   }
 }

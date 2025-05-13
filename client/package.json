@@ -10,7 +10,8 @@
     "test": "vitest run",
     "format": "biome format",
     "lint": "biome lint",
-    "check": "biome check"
+    "check": "biome check",
+    "generate:api": "bunx @openapitools/openapi-generator-cli generate -i http://localhost:8080/api/v1/v3/api-docs -g typescript-axios -o ./src/api"
   },
   "dependencies": {
     "@faker-js/faker": "^9.6.0",

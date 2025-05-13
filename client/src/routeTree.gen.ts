@@ -11,12 +11,19 @@
 // Import Routes
 
 import { Route as rootRoute } from './routes/__root'
+import { Route as HeartImport } from './routes/heart'
 import { Route as BenchmarkImport } from './routes/benchmark'
 import { Route as IndexImport } from './routes/index'
 import { Route as DemoTanstackQueryImport } from './routes/demo.tanstack-query'
 import { Route as DemoTableImport } from './routes/demo.table'
 
 // Create/Update Routes
+
+const HeartRoute = HeartImport.update({
+  id: '/heart',
+  path: '/heart',
+  getParentRoute: () => rootRoute,
+} as any)
 
 const BenchmarkRoute = BenchmarkImport.update({
   id: '/benchmark',
@@ -60,6 +67,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BenchmarkImport
       parentRoute: typeof rootRoute
     }
+    '/heart': {
+      id: '/heart'
+      path: '/heart'
+      fullPath: '/heart'
+      preLoaderRoute: typeof HeartImport
+      parentRoute: typeof rootRoute
+    }
     '/demo/table': {
       id: '/demo/table'
       path: '/demo/table'
@@ -82,6 +96,7 @@ declare module '@tanstack/react-router' {
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/benchmark': typeof BenchmarkRoute
+  '/heart': typeof HeartRoute
   '/demo/table': typeof DemoTableRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
 }
@@ -89,6 +104,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/benchmark': typeof BenchmarkRoute
+  '/heart': typeof HeartRoute
   '/demo/table': typeof DemoTableRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
 }
@@ -97,22 +113,35 @@ export interface FileRoutesById {
   __root__: typeof rootRoute
   '/': typeof IndexRoute
   '/benchmark': typeof BenchmarkRoute
+  '/heart': typeof HeartRoute
   '/demo/table': typeof DemoTableRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
 }
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/benchmark' | '/demo/table' | '/demo/tanstack-query'
+  fullPaths:
+    | '/'
+    | '/benchmark'
+    | '/heart'
+    | '/demo/table'
+    | '/demo/tanstack-query'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/benchmark' | '/demo/table' | '/demo/tanstack-query'
-  id: '__root__' | '/' | '/benchmark' | '/demo/table' | '/demo/tanstack-query'
+  to: '/' | '/benchmark' | '/heart' | '/demo/table' | '/demo/tanstack-query'
+  id:
+    | '__root__'
+    | '/'
+    | '/benchmark'
+    | '/heart'
+    | '/demo/table'
+    | '/demo/tanstack-query'
   fileRoutesById: FileRoutesById
 }
 
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BenchmarkRoute: typeof BenchmarkRoute
+  HeartRoute: typeof HeartRoute
   DemoTableRoute: typeof DemoTableRoute
   DemoTanstackQueryRoute: typeof DemoTanstackQueryRoute
 }
@@ -120,6 +149,7 @@ export interface RootRouteChildren {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BenchmarkRoute: BenchmarkRoute,
+  HeartRoute: HeartRoute,
   DemoTableRoute: DemoTableRoute,
   DemoTanstackQueryRoute: DemoTanstackQueryRoute,
 }
@@ -136,6 +166,7 @@ export const routeTree = rootRoute
       "children": [
         "/",
         "/benchmark",
+        "/heart",
         "/demo/table",
         "/demo/tanstack-query"
       ]
@@ -145,6 +176,9 @@ export const routeTree = rootRoute
     },
     "/benchmark": {
       "filePath": "benchmark.tsx"
+    },
+    "/heart": {
+      "filePath": "heart.tsx"
     },
     "/demo/table": {
       "filePath": "demo.table.tsx"

@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Map;
 
 @Data
-public class Graph implements Cloneable{
+public class Graph implements Cloneable {
   private final PLGNetwork plgNetwork;
   private final AntColonyConfig antColonyConfig;
   private LocalDateTime algorithmStartDate;
@@ -26,7 +26,7 @@ public class Graph implements Cloneable{
     this.pheromoneMap = createPheromoneMap();
   }
 
-  public Map<Node, Map<Node, Path>>  createAdjacencyMap(LocalDateTime currentTime) {
+  public Map<Node, Map<Node, Path>> createAdjacencyMap(LocalDateTime currentTime) {
     List<Node> ordersNode = plgNetwork.getOrders().stream()
         .map(Node::new)
         .toList();
@@ -86,8 +86,8 @@ public class Graph implements Cloneable{
     // Add pheromones based on solutions
     for (Routes solution : solutions) {
       double addPheromone = antColonyConfig.Q() / solution.getCost();
-      for (String truck : solution.getRoutes().keySet()) {
-        List<Stop> route = solution.getRoutes().get(truck);
+      for (String truck : solution.getStops().keySet()) {
+        List<Stop> route = solution.getStops().get(truck);
         for (int i = 0; i < route.size() - 1; i++) {
           Node origin = route.get(i).getNode();
           Node destination = route.get(i + 1).getNode();
@@ -98,17 +98,17 @@ public class Graph implements Cloneable{
   }
 
   @Override
-    public Graph clone() {
-        try {
-        Graph cloned = (Graph) super.clone();
-        cloned.pheromoneMap = new HashMap<>();
-        for (Map.Entry<Node, Map<Node, Double>> entry : this.pheromoneMap.entrySet()) {
-            cloned.pheromoneMap.put(entry.getKey(), new HashMap<>(entry.getValue()));
-        }
-        return cloned;
-        } catch (CloneNotSupportedException e) {
-        throw new AssertionError();
-        }
+  public Graph clone() {
+    try {
+      Graph cloned = (Graph) super.clone();
+      cloned.pheromoneMap = new HashMap<>();
+      for (Map.Entry<Node, Map<Node, Double>> entry : this.pheromoneMap.entrySet()) {
+        cloned.pheromoneMap.put(entry.getKey(), new HashMap<>(entry.getValue()));
+      }
+      return cloned;
+    } catch (CloneNotSupportedException e) {
+      throw new AssertionError();
     }
+  }
 
 }

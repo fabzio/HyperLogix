@@ -41,7 +41,8 @@ public class GeneticOptimizer implements Optimizer {
 
     // Usar un contenedor para la población que es final pero su contenido puede
     // cambiar
-    final AtomicReference<List<Chromosome>> populationRef = new AtomicReference<>(initializePopulation(network, startTime, threadLocalGraph, threadLocalAnt));
+    final AtomicReference<List<Chromosome>> populationRef = new AtomicReference<>(
+        initializePopulation(network, startTime, threadLocalGraph, threadLocalAnt));
 
     int threadsToUse = Math.min(Runtime.getRuntime().availableProcessors(), 4);
     ExecutorService executorService = Executors.newFixedThreadPool(threadsToUse);
@@ -139,11 +140,10 @@ public class GeneticOptimizer implements Optimizer {
 
         population = populationRef.get();
         if (notifier != null) {
-          if (!population.isEmpty()) {
-            notifier.notify("Generation " + gen + " best cost: " + population.get(0).getFitness());
-          } else {
-            notifier.notify("Generation " + gen + " - No valid solutions found yet.");
-          }
+          notifier.notify(new OptimizerResult(
+              bestOverallRef.get().getRoutes(),
+              bestOverallRef.get() != null ? bestOverallRef.get().getFitness() : Double.MAX_VALUE));
+
         } else if (!population.isEmpty()) { // Keep console log if notifier is null (original behaviour)
           System.out.println("Generation " + gen + " - Best cost: " + population.get(0).getFitness());
         } else {
@@ -184,7 +184,8 @@ public class GeneticOptimizer implements Optimizer {
     return run(ctx, maxDuration, null);
   }
 
-  private List<Chromosome> initializePopulation(PLGNetwork network, LocalDateTime startTime, ThreadLocal<Graph> threadLocalGraph, ThreadLocal<Ant> threadLocalAnt) {
+  private List<Chromosome> initializePopulation(PLGNetwork network, LocalDateTime startTime,
+      ThreadLocal<Graph> threadLocalGraph, ThreadLocal<Ant> threadLocalAnt) {
 
     List<Chromosome> population = Collections.synchronizedList(new ArrayList<>());
     int threadsToUse = Math.min(Runtime.getRuntime().availableProcessors(), 4);
@@ -263,13 +264,14 @@ public class GeneticOptimizer implements Optimizer {
     Map<Node, Map<Node, Double>> worstSeed = worst.getSeed();
     Routes worstRoutes = worst.getRoutes();
 
-    for (String truck : bestRoutes.getRoutes().keySet()) {
-      List<Stop> route = bestRoutes.getRoutes().get(truck);
+    for (String truck : bestRoutes.getStops().keySet()) {
+      List<Stop> route = bestRoutes.getStops().get(truck);
       for (int i = 0; i < route.size() - 1; i++) {
         Node origin = route.get(i).getNode();
         Node destination = route.get(i + 1).getNode();
 
-        if (bestSeed.containsKey(origin) && bestSeed.get(origin).containsKey(destination) && worstSeed.containsKey(origin) && worstSeed.get(origin).containsKey(destination)) {
+        if (bestSeed.containsKey(origin) && bestSeed.get(origin).containsKey(destination)
+            && worstSeed.containsKey(origin) && worstSeed.get(origin).containsKey(destination)) {
 
           double difference = bestSeed.get(origin).get(destination) - worstSeed.get(origin).get(destination);
           double currentValue = child.getSeed().get(origin).getOrDefault(destination, 0.0);
@@ -280,13 +282,14 @@ public class GeneticOptimizer implements Optimizer {
       }
     }
 
-    for (String truck : worstRoutes.getRoutes().keySet()) {
-      List<Stop> route = worstRoutes.getRoutes().get(truck);
+    for (String truck : worstRoutes.getStops().keySet()) {
+      List<Stop> route = worstRoutes.getStops().get(truck);
       for (int i = 0; i < route.size() - 1; i++) {
         Node origin = route.get(i).getNode();
         Node destination = route.get(i + 1).getNode();
 
-        if (bestSeed.containsKey(origin) && bestSeed.get(origin).containsKey(destination) && worstSeed.containsKey(origin) && worstSeed.get(origin).containsKey(destination)) {
+        if (bestSeed.containsKey(origin) && bestSeed.get(origin).containsKey(destination)
+            && worstSeed.containsKey(origin) && worstSeed.get(origin).containsKey(destination)) {
 
           double pheromone = bestSeed.get(origin).get(destination) - worstSeed.get(origin).get(destination);
           double currentValue = child.getSeed().get(origin).getOrDefault(destination, 0.0);
@@ -297,14 +300,14 @@ public class GeneticOptimizer implements Optimizer {
       }
     }
 
-    return new Chromosome[]{child};
+    return new Chromosome[] { child };
   }
 
   private void mutate(Chromosome chromosome, Chromosome bestOverall, Random random) {
     Routes routes = chromosome.getRoutes();
 
-    for (String truck : routes.getRoutes().keySet()) {
-      List<Stop> route = routes.getRoutes().get(truck);
+    for (String truck : routes.getStops().keySet()) {
+      List<Stop> route = routes.getStops().get(truck);
       for (int i = 0; i < route.size() - 1; i++) {
         Node origin = route.get(i).getNode();
         Node destination = route.get(i + 1).getNode();
@@ -316,7 +319,8 @@ public class GeneticOptimizer implements Optimizer {
           if (bestOverall == null) {
             double updated = probability + (random.nextDouble() - 0.5) * config.MUTATION_RATE();
             chromosome.getSeed().get(origin).put(destination, updated);
-          } else if (bestOverall.getSeed().containsKey(origin) && bestOverall.getSeed().get(origin).containsKey(destination)) {
+          } else if (bestOverall.getSeed().containsKey(origin)
+              && bestOverall.getSeed().get(origin).containsKey(destination)) {
             double differenceWithBest = bestOverall.getSeed().get(origin).get(destination) - probability;
             double updated = probability + differenceWithBest * config.MUTATION_RATE();
             chromosome.getSeed().get(origin).put(destination, updated);

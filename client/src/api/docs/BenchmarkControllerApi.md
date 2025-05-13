@@ -1,0 +1,51 @@
+# BenchmarkControllerApi
+
+All URIs are relative to *http://localhost:8080/api/v1*
+
+|Method | HTTP request | Description|
+|------------- | ------------- | -------------|
+|[**startBenchmark**](#startbenchmark) | **POST** /benchmark/start | |
+
+# **startBenchmark**
+> PLGNetwork startBenchmark()
+
+
+### Example
+
+```typescript
+import {
+    BenchmarkControllerApi,
+    Configuration
+} from './api';
+
+const configuration = new Configuration();
+const apiInstance = new BenchmarkControllerApi(configuration);
+
+const { status, data } = await apiInstance.startBenchmark();
+```
+
+### Parameters
+This endpoint does not have any parameters.
+
+
+### Return type
+
+**PLGNetwork**
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: */*
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+|**200** | OK |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+

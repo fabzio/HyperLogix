@@ -43,9 +43,6 @@ public class AntColonyOptmizer implements Optimizer {
       for (Ant ant : ants) {
         Callable<Routes> task = () -> {
           Routes routes = ant.findSolution();
-          if (notifier != null) {
-            notifier.notify(routes);
-          }
           return routes;
         };
         futures.add(executor.submit(task));
@@ -71,8 +68,9 @@ public class AntColonyOptmizer implements Optimizer {
       }
 
       if (notifier != null) {
-        notifier.notify("Iteration " + i + " completed. Best cost so far: "
-            + (bestSolution != null ? bestSolution.getCost() : "N/A"));
+        notifier.notify(new OptimizerResult(
+            bestSolution,
+            bestSolution != null ? bestSolution.getCost() : Double.MAX_VALUE));
       }
     }
     executor.shutdown();

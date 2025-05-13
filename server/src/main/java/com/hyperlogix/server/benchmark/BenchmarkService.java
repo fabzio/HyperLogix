@@ -11,6 +11,9 @@ import com.hyperlogix.server.optimizer.AntColony.AntColonyConfig;
 import com.hyperlogix.server.optimizer.AntColony.AntColonyOptmizer;
 import com.hyperlogix.server.optimizer.Genetic.GeneticConfig;
 import com.hyperlogix.server.optimizer.Genetic.GeneticOptimizer;
+
+import lombok.Getter;
+
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
@@ -25,7 +28,8 @@ import java.util.List;
 @Service
 public class BenchmarkService {
   private final SimpMessagingTemplate messagingTemplate;
-
+  @Getter
+  private PLGNetwork network;
   private static final int NUM_RUNS = 30; // Number of runs for statistical significance
   private static final double T_VALUE_95_29DF = 2.045; // t-value for 95% confidence, 29 degrees of freedom (n-1)
 
@@ -33,9 +37,8 @@ public class BenchmarkService {
     this.messagingTemplate = messagingTemplate;
   }
 
-  public void startBenchmark() {
-    System.out.println("Starting Benchmark...");
-
+  public PLGNetwork loadNetwork() {
+    System.out.println("Loading Network...");
     String dataDir = "src/main/java/com/hyperlogix/server/benchmark/pedidos.20250419/";
     List<String> orderFilePaths = List.of(
         dataDir + "ventas202501.txt");
@@ -43,20 +46,22 @@ public class BenchmarkService {
     // Define offset and limit for loading orders
     int ordersOffset = 0; // Start from the first order (after skipping 'offset' orders)
     int ordersLimit = 10; // Load all orders after offset (-1 or 0 means no limit)
-    // Example: To skip first 10 orders and load next 50:
-    // int ordersOffset = 10;
-    // int ordersLimit = 50;
 
     List<Order> loadedOrders = MockData.loadOrdersFromFiles(orderFilePaths, ordersOffset, ordersLimit);
     System.out.println("Loaded " + loadedOrders.size() + " orders from files (offset=" + ordersOffset + ", limit="
         + ordersLimit + ").");
     PLGNetwork baseNetwork = MockData.mockNetwork(); // Gets trucks, stations etc. from original mock
-    PLGNetwork network = new PLGNetwork(
+    network = new PLGNetwork(
         baseNetwork.getTrucks(),
         baseNetwork.getStations(),
         loadedOrders,
         baseNetwork.getIncidents(),
         baseNetwork.getRoadblocks());
+    return network;
+  }
+
+  public void startBenchmark() {
+    System.out.println("Starting Benchmark...");
 
     LocalDateTime startTime = LocalDateTime.of(2025, Month.JANUARY, 1, 0, 0, 0);
     Duration maxDuration = Duration.ofSeconds(10);
@@ -86,10 +91,9 @@ public class BenchmarkService {
   private BenchmarkResult runBenchmark(Optimizer optimizer, PLGNetwork network, LocalDateTime startTime,
       Duration maxDuration) {
     List<Double> costs = new ArrayList<>();
-    List<Long> times = new ArrayList<>(); // in milliseconds
+    List<Long> times = new ArrayList<>();
 
-    OptimizerContext context = new OptimizerContext(network.clone(), startTime); // Use clone for each run if optimizer
-                                                                                 // modifies it
+    OptimizerContext context = new OptimizerContext(network.clone(), startTime);
 
     Notifier optimizerNotifier = message -> this.messagingTemplate.convertAndSend(
         "/topic/benchmark", // Sending optimizer specific logs to a sub-topic

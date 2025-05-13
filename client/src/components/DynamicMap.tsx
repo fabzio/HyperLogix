@@ -53,7 +53,7 @@ export default function DynamicMap({
   for (let y = 0; y <= GRID_WIDTH; y++) {
     verticalLines.push(
       <Line
-        key={`v-${y}`}
+        key={`v-${y}-${crypto.randomUUID()}`}
         coordinates={[
           [y * CELL_SIZE, 0],
           [y * CELL_SIZE, GRID_HEIGHT * CELL_SIZE],
@@ -67,7 +67,7 @@ export default function DynamicMap({
   for (let x = 0; x <= GRID_HEIGHT; x++) {
     horizontalLines.push(
       <Line
-        key={`h-${x}`}
+        key={`h-${x}-${crypto.randomUUID()}`}
         coordinates={[
           [0, x * CELL_SIZE],
           [GRID_WIDTH * CELL_SIZE, x * CELL_SIZE],
@@ -124,14 +124,12 @@ export default function DynamicMap({
               {verticalLines}
               {horizontalLines}
 
-              {/* Origin marker */}
-              <Marker coordinates={[0, GRID_HEIGHT * CELL_SIZE]}>
-                <circle r={2} fill="#FF5533" stroke="#FFF" strokeWidth={0.1} />
-              </Marker>
-
               {/* User-provided points */}
               {transformedPoints.map(([x, y]) => (
-                <Marker key={`point-${x}-${y}`} coordinates={[x, y]}>
+                <Marker
+                  key={`point-${x}-${y}-${crypto.randomUUID()}`}
+                  coordinates={[x, y]}
+                >
                   <circle
                     r={1.5}
                     fill="#3355FF"
@@ -230,7 +228,7 @@ export default function DynamicMap({
                       key={`${polyline.id}-end-marker`}
                       coordinates={
                         transformedPolylinePoints[
-                        transformedPolylinePoints.length - 1
+                          transformedPolylinePoints.length - 1
                         ]
                       }
                     >
@@ -295,7 +293,7 @@ const StationMarker = ({
   cx: number
   cy: number
 }) => (
-  <Marker coordinates={[cx - 2, cy + 2]}>
+  <Marker coordinates={[cx - 2.5, cy - 2]}>
     <StationIcon />
     <title>{formatTooltipText(station)}</title>
   </Marker>
@@ -310,7 +308,7 @@ const OrderMarker = ({
   cx: number
   cy: number
 }) => (
-  <Marker coordinates={[cx - 2, cy + 2]}>
+  <Marker coordinates={[cx - 2.5, cy - 2]}>
     <OrderIcon />
     <title>{formatTooltipText(order)}</title>
   </Marker>

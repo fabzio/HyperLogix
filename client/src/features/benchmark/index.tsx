@@ -1,114 +1,66 @@
-import DynamicMap from '@/components/DynamicMap'
-import type { MapPolyline } from '@/components/DynamicMap' // Import the new type
-import { env } from '@/env'
-import { Client } from '@stomp/stompjs'
-import { useEffect, useRef, useState } from 'react'
+import DynamicMap, { type MapPolyline } from '@/components/DynamicMap'
+import { Button } from '@/components/ui/button'
+import { useStartBenchmark, useWatchBenchmark } from './hooks/useBenchmark'
 
-type BenchmarkMessage =
-  | {
-      run: number
-      totalRuns: number
-      cost: number
-      timeMs: number
-    }
-  | string
+// Function to generate a color based on a string key
+const getColorFromKey = (key: string): string => {
+  const hash = Array.from(key).reduce(
+    (acc, char) => acc + char.charCodeAt(0),
+    0,
+  )
+  const hue = hash % 360 // Generate a hue value between 0 and 359
+  return `hsl(${hue}, 80%, 40%)` // Adjust saturation to 80% and lightness to 40% for better visibility
+}
 
 export default function Benchmark() {
-  const [_, setMessages] = useState<BenchmarkMessage[]>([])
-  const clientRef = useRef<Client | null>(null)
-  useEffect(() => {
-    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
-    const client = new Client({
-      brokerURL: `${protocol}://${env.VITE_WS_HOST}${env.VITE_API}/benchmark`,
-      reconnectDelay: 5000,
-      onConnect: () => {
-        console.log('✅ Connected to WebSocket')
-
-        client.subscribe('/topic/benchmark', (message) => {
-          console.log('📩 Received:', message.body)
-
-          try {
-            const parsed = JSON.parse(message.body)
-            setMessages((prev) => [...prev, parsed])
-          } catch {
-            setMessages((prev) => [...prev, message.body])
-          }
-        })
-      },
-    })
-
-    client.activate()
-    clientRef.current = client
-
-    return () => {
-      client.deactivate()
+  const { routes } = useWatchBenchmark()
+  const { data: network, refetch } = useStartBenchmark()
+  const poliLines: MapPolyline[] = []
+  const pointMarkers: [number, number][] = []
+  if (routes) {
+    const {
+      cost: _,
+      routes: { paths, stops },
+    } = routes
+    for (const [key, path] of Object.entries(paths)) {
+      const points = path.flatMap((p) => p.points)
+      poliLines.push({
+        type: 'path',
+        points: points
+          .map((p) => (p ? [p.x, p.y] : null))
+          .filter((p): p is [number, number] => p !== null),
+        stroke: getColorFromKey(key), // Assign a color based on the key
+        strokeWidth: 0.5,
+        id: key,
+      })
+      const stop = stops[key]
+      pointMarkers.push(
+        ...stop.map((s) => {
+          return [s.node.location.x, s.node.location.y] as [number, number]
+        }),
+      )
     }
-  }, [])
-
-  const examplePolylines: MapPolyline[] = [
-    {
-      id: 'route1',
-      points: [
-        [2, 2],
-        [10, 2],
-        [10, 8],
-        [15, 8],
-      ],
-      stroke: 'green',
-      strokeWidth: 0.6,
-      type: 'path',
-    },
-    {
-      id: 'blockageA',
-      points: [
-        [20, 5],
-        [20, 15],
-        [25, 15],
-      ],
-      strokeWidth: 0.8,
-      type: 'roadblock',
-    },
-  ]
+  }
+  console.log('Network', network)
 
   return (
-    <DynamicMap
-      points={[[5, 13]]}
-      stations={[
-        {
-          id: 'a',
-          location: {
-            x: 5,
-            y: 5,
-          },
-          currentGLP: 100,
-        },
-      ]}
-      trucks={[
-        {
-          id: 'a',
-          location: {
-            x: 5,
-            y: 10,
-          },
-          type: 'A',
-          currentGLP: 100,
-          currentFuel: 100,
-        },
-      ]}
-      orders={[
-        {
-          id: 'a',
-          location: {
-            x: 10,
-            y: 10,
-          },
-          GLPrequested: 100,
-          GLPDelivered: 0,
-          requestedDate: new Date().toISOString(),
-          limitTime: new Date().toISOString(),
-        },
-      ]}
-      polylines={examplePolylines}
-    />
+    <section className="flex flex-col gap-4">
+      <div className="flex justify-center items-center">
+        <Button
+          onClick={() => {
+            refetch()
+          }}
+        >
+          Empezar
+        </Button>
+      </div>
+      <DynamicMap
+        trucks={network?.trucks || []}
+        stations={network?.stations || []}
+        orders={network?.orders || []}
+        polylines={poliLines}
+        points={pointMarkers}
+      />
+    </section>
   )
 }
