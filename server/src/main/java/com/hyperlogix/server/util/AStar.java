@@ -99,8 +99,8 @@ public class AStar {
     Point punto;
     LocalDateTime tiempo;
     Nodo parent;
-    double costo;
-    double heuristic;
+    double costo; // g-cost
+    double heuristic; // f-cost (g-cost + h-cost)
 
     Nodo(Point punto, LocalDateTime tiempo, Nodo parent, double costo, double heuristic) {
       this.punto = punto;
@@ -116,7 +116,17 @@ public class AStar {
 
     @Override
     public int compareTo(Nodo o) {
-      return Double.compare(this.heuristic, o.heuristic);
+      // Compare f-costs (this.heuristic field stores f-cost)
+      int fCompare = Double.compare(this.heuristic, o.heuristic);
+      if (fCompare == 0) {
+        // f-costs are equal, tie-break by h-cost.
+        // h-cost = f-cost - g-cost
+        double hThis = this.heuristic - this.costo;
+        double hOther = o.heuristic - o.costo;
+        // Prefer node with smaller h-cost
+        return Double.compare(hThis, hOther);
+      }
+      return fCompare;
     }
   }
 }

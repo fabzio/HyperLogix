@@ -1,0 +1,10 @@
+.mapHasHover [data-polyline] {
+  opacity: 0.3;
+  transition: opacity 0.15s;
+}
+.mapHasHover [data-polyline][data-selected="true"] {
+  opacity: 1;
+}
+[data-polyline] {
+  transition: opacity 0.15s;
+}

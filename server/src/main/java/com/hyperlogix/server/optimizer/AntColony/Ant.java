@@ -1,5 +1,6 @@
 package com.hyperlogix.server.optimizer.AntColony;
 
+import com.hyperlogix.server.config.Constants;
 import com.hyperlogix.server.domain.*;
 import com.hyperlogix.server.optimizer.Graph;
 import lombok.Getter;
@@ -49,17 +50,25 @@ public class Ant {
       Stop nextNode = availableNodes.get(new Random().nextInt(availableNodes.size()));
       moveToNode(truck, firstNode, nextNode);
     }
+    int truckWithoutOrders;
     while (!nodesLeft.stream().filter(node -> node.getType() == NodeType.DELIVERY).toList().isEmpty()) {
+      truckWithoutOrders = 0;
       for (Truck truck : network.getTrucks()) {
         Stop currentNode = routes.get(truck.getId()).getLast();
         Stop nextNode = getNextNode(currentNode, truck);
         if (nextNode == null) {
+          truckWithoutOrders++;
+          if (truckWithoutOrders == network.getTrucks().size()) {
+            System.out.println("Logistic collapse, no more nodes available");
+            truck.setCurrentCapacity(25);
+            return new Routes(routes, paths,
+                truck.getFuelConsumption((Constants.MAP_HEIGHT + Constants.MAP_WIDTH) * network.getOrders().size()));
+          }
           continue;
         }
         moveToNode(truck, currentNode, nextNode);
       }
     }
-
     return new Routes(routes, paths, tourCost.values().stream().mapToDouble(Double::doubleValue).sum());
   }
 
@@ -119,18 +128,43 @@ public class Ant {
     for (Stop node : availableNodes) {
       int distance = adjacencyMap.get(currentNode.getNode()).get(node.getNode()).length();
       double pheromone = graph.getPheromoneMap().get(currentNode.getNode()).get(node.getNode());
-      double penalization = node.getNode().getType() == NodeType.STATION ?
-                (double) (1 + truck.getCurrentCapacity() / truck.getMaxCapacity())
-              : 1.0 /  (1 + (double) truck.getCurrentCapacity() / truck.getMaxCapacity());
-      double heuristic = 1.0 /( penalization * distance);
+
+      double penalization;
+      if (node.getNode().getType() == NodeType.STATION) {
+        double capacityFactor = 1 + (double) truck.getCurrentCapacity() / truck.getMaxCapacity();
+        penalization = capacityFactor;
+      } else {
+
+        // Suponemos que puedes acceder a la orden por ID
+        Order order = network.getOrders().stream()
+            .filter(o -> o.getId().equals(node.getNode().getId()))
+            .findFirst().orElse(null);
+        // Usar la urgencia basada en la ventana de entrega
+        Duration timeLeft = Duration.between(currentNode.getArrivalTime(), order.getMaxDeliveryDate());
+        long minutesLeft = timeLeft.toMinutes();
+
+        long maxTimeLeft = network.getOrders().stream()
+            .filter(o -> o.getMaxDeliveryDate().isAfter(currentNode.getArrivalTime()))
+            .mapToLong(o -> Duration.between(currentNode.getArrivalTime(), o.getMaxDeliveryDate()).toMinutes())
+            .max().orElse(1);
+
+        double urgencyFactor = 1 - Math.min((double) minutesLeft / maxTimeLeft, 1.0); // Más cerca del deadline = mayor
+                                                                                      // urgencia
+        double urgencyPenaltyScale = 0.5;
+        double urgencyPenalty = 1 + urgencyPenaltyScale * urgencyFactor;
+
+        penalization = urgencyPenalty / (1 + (double) truck.getCurrentCapacity() / truck.getMaxCapacity());
+
+      }
+
+      double heuristic = 1.0 / (penalization * distance);
       double score = Math.pow(pheromone, antColonyConfig.ALPHA()) * Math.pow(heuristic, antColonyConfig.BETA());
       scores.add(score);
     }
+
     double totalScore = scores.stream().mapToDouble(Double::doubleValue).sum();
-    List<Double> probabilities = new ArrayList<>();
-    for (double score : scores) {
-      probabilities.add(score / totalScore);
-    }
+    List<Double> probabilities = scores.stream().map(score -> score / totalScore).toList();
+
     double randomValue = new Random().nextDouble();
     double cumulativeProbability = 0.0;
     for (int i = 0; i < availableNodes.size(); i++) {
@@ -145,9 +179,10 @@ public class Ant {
   private void moveToNode(Truck truck, Stop currentNode, Stop nextNode) {
     this.routes.get(truck.getId()).add(nextNode);
     Path path = adjacencyMap.get(currentNode.getNode()).get(nextNode.getNode());
-    this.paths.get(truck.getId()).add(path);
+    this.paths.get(truck.getId())
+        .add(path.points().getFirst() == currentNode.getNode().getLocation() ? path : path.reverse());
     int distance = path.length();
-    //this.adjacencyMap = graph.createAdjacencyMap(nextNode.getArrivalTime());
+    this.adjacencyMap = graph.createAdjacencyMap(nextNode.getArrivalTime());
     Duration timeToDestination = truck.getTimeToDestination(distance);
     double fuelConsumption = truck.getFuelConsumption(distance);
 
@@ -168,12 +203,14 @@ public class Ant {
       assert order != null;
       int glpToDeliver = Math.min(truck.getCurrentCapacity(), order.getRequestedGLP() - order.getDeliveredGLP());
 
-      if (order.getDeliveredGLP() == order.getRequestedGLP())
+      if (order.getDeliveredGLP() + glpToDeliver == order.getRequestedGLP()) {
+        order.setDeliveredGLP(order.getRequestedGLP());
         nodesLeft.remove(nextNode.getNode());
-      else
+      } else
         order.setDeliveredGLP(order.getDeliveredGLP() + glpToDeliver);
       truck.setCurrentCapacity(truck.getCurrentCapacity() - glpToDeliver);
       truck.setCurrentFuel(truck.getCurrentFuel() - fuelConsumption);
+      truck.setLocation(nextNode.getNode().getLocation());
     }
     this.tourTime.put(truck.getId(), this.tourTime.get(truck.getId()).plus(timeToDestination));
     this.tourCost.put(truck.getId(), this.tourCost.get(truck.getId()) + fuelConsumption);

@@ -8,6 +8,7 @@ import * as TanstackQuery from './integrations/tanstack-query/root-provider'
 import { routeTree } from './routeTree.gen'
 
 import './styles.css'
+import { ThemeProvider } from './components/theme-provider.tsx'
 import reportWebVitals from './reportWebVitals.ts'
 
 // Create a new router instance
@@ -35,9 +36,11 @@ if (rootElement && !rootElement.innerHTML) {
   const root = ReactDOM.createRoot(rootElement)
   root.render(
     <StrictMode>
-      <TanstackQuery.Provider>
-        <RouterProvider router={router} />
-      </TanstackQuery.Provider>
+      <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
+        <TanstackQuery.Provider>
+          <RouterProvider router={router} />
+        </TanstackQuery.Provider>
+      </ThemeProvider>
     </StrictMode>,
   )
 }

@@ -1,6 +1,8 @@
-import DynamicMap, { type MapPolyline } from '@/components/DynamicMap'
+import type { MapPolyline } from '@/components/DynamicMap/index'
 import { Button } from '@/components/ui/button'
+import { useState } from 'react'
 import { useStartBenchmark, useWatchBenchmark } from './hooks/useBenchmark'
+import DynamicMap from '@/components/DynamicMap/index'
 
 // Function to generate a color based on a string key
 const getColorFromKey = (key: string): string => {
@@ -13,23 +15,41 @@ const getColorFromKey = (key: string): string => {
 }
 
 export default function Benchmark() {
-  const { routes } = useWatchBenchmark()
   const { data: network, refetch } = useStartBenchmark()
+  const { routes } = useWatchBenchmark()
+  const [hoveredTruckId, setHoveredTruckId] = useState<string | null>(null)
+
   const poliLines: MapPolyline[] = []
   const pointMarkers: [number, number][] = []
+
+  const handlePolylineHover = (truckId: string | null) => {
+    setHoveredTruckId(truckId)
+  }
+
+  const handlePolylineClick = (truckId: string, polyline: MapPolyline) => {
+    console.log('Clicked Truck ID:', truckId)
+    console.log('Clicked Polyline Path:', polyline.points)
+    if (routes?.routes?.stops?.[truckId]) {
+      console.log('Associated Stops:', routes.routes.stops[truckId])
+    }
+  }
+
   if (routes) {
     const {
       cost: _,
       routes: { paths, stops },
     } = routes
     for (const [key, path] of Object.entries(paths)) {
+      if (hoveredTruckId && hoveredTruckId !== key) {
+        continue
+      }
       const points = path.flatMap((p) => p.points)
       poliLines.push({
         type: 'path',
         points: points
           .map((p) => (p ? [p.x, p.y] : null))
           .filter((p): p is [number, number] => p !== null),
-        stroke: getColorFromKey(key), // Assign a color based on the key
+        stroke: getColorFromKey(key),
         strokeWidth: 0.5,
         id: key,
       })
@@ -41,25 +61,17 @@ export default function Benchmark() {
       )
     }
   }
-  console.log('Network', network)
 
   return (
-    <section className="flex flex-col gap-4">
-      <div className="flex justify-center items-center">
-        <Button
-          onClick={() => {
-            refetch()
-          }}
-        >
-          Empezar
-        </Button>
-      </div>
+    <section className="flex flex-col">
       <DynamicMap
         trucks={network?.trucks || []}
         stations={network?.stations || []}
         orders={network?.orders || []}
         polylines={poliLines}
-        points={pointMarkers}
+        onPolylineHover={handlePolylineHover}
+        onPolylineClick={handlePolylineClick}
+        hoveredPolylineId={hoveredTruckId}
       />
     </section>
   )

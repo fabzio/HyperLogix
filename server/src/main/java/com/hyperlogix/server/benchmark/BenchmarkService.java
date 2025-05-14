@@ -43,9 +43,8 @@ public class BenchmarkService {
     List<String> orderFilePaths = List.of(
         dataDir + "ventas202501.txt");
 
-    // Define offset and limit for loading orders
-    int ordersOffset = 0; // Start from the first order (after skipping 'offset' orders)
-    int ordersLimit = 10; // Load all orders after offset (-1 or 0 means no limit)
+    int ordersOffset = 0;
+    int ordersLimit = 50;
 
     List<Order> loadedOrders = MockData.loadOrdersFromFiles(orderFilePaths, ordersOffset, ordersLimit);
     System.out.println("Loaded " + loadedOrders.size() + " orders from files (offset=" + ordersOffset + ", limit="
@@ -71,7 +70,7 @@ public class BenchmarkService {
     GeneticConfig geneticConfig = new GeneticConfig(4, 10,
         1,
         0,
-        1,
+        0.8,
         0.1);
     Optimizer geneticOptimizer = new GeneticOptimizer(geneticConfig);
 
@@ -102,7 +101,8 @@ public class BenchmarkService {
     for (int i = 0; i < NUM_RUNS; i++) {
       System.out.print("Run " + (i + 1) + "/" + NUM_RUNS + "... \n");
       long runStartTime = System.nanoTime();
-      OptimizerResult result = optimizer.run(context, maxDuration, optimizerNotifier); // Pass the notifier
+      OptimizerResult result = optimizer.run(context, maxDuration);
+      optimizerNotifier.notify(result);
       long runEndTime = System.nanoTime();
 
       costs.add(result.getCost());
