@@ -50,21 +50,22 @@ public class Ant {
       Stop nextNode = availableNodes.get(new Random().nextInt(availableNodes.size()));
       moveToNode(truck, firstNode, nextNode);
     }
-    int truckWithoutOrders;
+    int truckWithoutOrdersOrOnlyRefilling = 0;
     while (!nodesLeft.stream().filter(node -> node.getType() == NodeType.DELIVERY).toList().isEmpty()) {
-      truckWithoutOrders = 0;
+      truckWithoutOrdersOrOnlyRefilling = 0;
       for (Truck truck : network.getTrucks()) {
         Stop currentNode = routes.get(truck.getId()).getLast();
         Stop nextNode = getNextNode(currentNode, truck);
-        if (nextNode == null) {
-          truckWithoutOrders++;
-          if (truckWithoutOrders == network.getTrucks().size()) {
+        if (nextNode == null || nextNode.getNode().getType() == NodeType.STATION) {
+          truckWithoutOrdersOrOnlyRefilling++;
+          if (truckWithoutOrdersOrOnlyRefilling == network.getTrucks().size()) {
             System.out.println("Logistic collapse, no more nodes available");
             truck.setCurrentCapacity(25);
             return new Routes(routes, paths,
                 truck.getFuelConsumption((Constants.MAP_HEIGHT + Constants.MAP_WIDTH) * network.getOrders().size()));
           }
-          continue;
+          if (nextNode == null)
+            continue;
         }
         moveToNode(truck, currentNode, nextNode);
       }

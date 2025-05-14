@@ -1,9 +1,0 @@
-{
-  "name": "server",
-  "scripts": {
-    "dev": "./mvnw spring-boot:run",
-    "install": "./mvnw clean install -DskipTests",
-    "build": "./mvnw clean package -DskipTests",
-    "test": "./mvnw test"
-  }
-}

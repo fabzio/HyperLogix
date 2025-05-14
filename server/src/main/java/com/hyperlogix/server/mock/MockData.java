@@ -23,21 +23,13 @@ public class MockData {
   private static final Pattern ORDER_LINE_PATTERN = Pattern.compile(
       "(\\d+)d(\\d+)h(\\d+)m:(\\d+),(\\d+),c-(\\d+),(\\d+)m3,(\\d+)h");
 
-  public static List<Order> loadOrdersFromFiles(List<String> filePaths, int offset, int limit) {
+  public static List<Order> loadOrdersFromFiles(List<String> filePaths, int limit) {
     List<Order> orders = new ArrayList<>();
     if (filePaths == null) {
       return orders;
     }
 
-    int successfullyParsedOrdersCount = 0; // Counts all valid orders encountered to apply offset
-    int ordersAddedCount = 0; // Counts orders actually added to the list to apply limit
-
     for (String filePath : filePaths) {
-      // If a positive limit is set and reached, stop processing more files.
-      if (limit > 0 && ordersAddedCount >= limit) {
-        break;
-      }
-
       try {
         String fileName = Paths.get(filePath).getFileName().toString();
         Matcher fileNameMatcher = FILENAME_PATTERN.matcher(fileName);
@@ -51,49 +43,29 @@ public class MockData {
 
         try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
           String line;
-          while ((line = reader.readLine()) != null) {
-            // If a positive limit is set and reached, stop processing more lines in the
-            // current file.
-            if (limit > 0 && ordersAddedCount >= limit) {
-              break;
-            }
-
+          while ((line = reader.readLine()) != null && orders.size() < limit) {
             Matcher orderLineMatcher = ORDER_LINE_PATTERN.matcher(line);
             if (orderLineMatcher.matches()) {
-              successfullyParsedOrdersCount++;
-
-              // Skip orders if current count is less than or equal to offset
-              if (successfullyParsedOrdersCount <= offset) {
-                continue;
-              }
-
               int day = Integer.parseInt(orderLineMatcher.group(1));
               int hour = Integer.parseInt(orderLineMatcher.group(2));
               int minute = Integer.parseInt(orderLineMatcher.group(3));
-              int posX = Integer.parseInt(orderLineMatcher.group(4));
-              int posY = Integer.parseInt(orderLineMatcher.group(5));
-              String clientId = "c-" + orderLineMatcher.group(6);
-              int quantity = Integer.parseInt(orderLineMatcher.group(7));
-              long limitHours = Long.parseLong(orderLineMatcher.group(8));
-
               LocalDateTime arrivalTime = LocalDateTime.of(year, Month.of(month), day, hour, minute);
-              Point location = new Point(posX, posY);
-              String orderId = UUID.randomUUID().toString();
 
-              orders.add(new Order(orderId, clientId, arrivalTime, location, quantity, 0,
-                  Duration.ofHours(limitHours)));
-              ordersAddedCount++;
+              orders.add(new Order(
+                  UUID.randomUUID().toString(),
+                  "c-" + orderLineMatcher.group(6),
+                  arrivalTime,
+                  new Point(Integer.parseInt(orderLineMatcher.group(4)), Integer.parseInt(orderLineMatcher.group(5))),
+                  Integer.parseInt(orderLineMatcher.group(7)),
+                  0,
+                  Duration.ofHours(Long.parseLong(orderLineMatcher.group(8)))));
             } else {
               System.err.println("Skipping malformed line in " + filePath + ": " + line);
             }
           }
         }
-      } catch (IOException e) {
-        System.err.println("Error reading file " + filePath + ": " + e.getMessage());
-      } catch (NumberFormatException e) {
-        System.err.println("Error parsing number in file " + filePath + ": " + e.getMessage());
-      } catch (Exception e) {
-        System.err.println("An unexpected error occurred while processing file " + filePath + ": " + e.getMessage());
+      } catch (IOException | NumberFormatException e) {
+        System.err.println("Error processing file " + filePath + ": " + e.getMessage());
       }
     }
     return orders;
@@ -259,7 +231,8 @@ public class MockData {
     // Consider if this method also needs offset/limit, or if it should always load
     // all.
     // For now, it will load all by passing default offset 0 and limit -1.
-    List<Order> orders = loadOrdersFromFiles(orderFilePaths, 0, -1);
+    int limit = 50; // Example limit
+    List<Order> orders = loadOrdersFromFiles(orderFilePaths, limit);
 
     // Populate other network components (trucks, stations, etc.) as needed
     List<Truck> trucks = new ArrayList<>(); // Add mock trucks

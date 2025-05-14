@@ -93,7 +93,6 @@ public class GeneticOptimizer implements Optimizer {
             ant.setGraph(childGraph);
             children[0].recalculateFitness(ant);
             ant.resetState();
-
             synchronized (newPopulation) {
               newPopulation.add(children[0]);
             }
@@ -144,8 +143,7 @@ public class GeneticOptimizer implements Optimizer {
               bestOverallRef.get().getRoutes(),
               bestOverallRef.get() != null ? bestOverallRef.get().getFitness() : Double.MAX_VALUE));
 
-        } else if (!population.isEmpty()) { // Keep console log if notifier is null (original behaviour)
-          System.out.println("Generation " + gen + " - Best cost: " + population.get(0).getFitness());
+        } else if (!population.isEmpty()) {
         } else {
           System.out.println("Generation " + gen + " - No valid solutions found yet.");
         }

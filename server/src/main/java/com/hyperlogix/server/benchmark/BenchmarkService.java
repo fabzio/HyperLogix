@@ -24,6 +24,8 @@ import java.util.ArrayList;
 import java.util.List;
 // Added for potential file path construction, if needed by MockData directly
 // import java.nio.file.Paths; 
+import java.io.FileWriter;
+import java.io.IOException;
 
 @Service
 public class BenchmarkService {
@@ -37,54 +39,100 @@ public class BenchmarkService {
     this.messagingTemplate = messagingTemplate;
   }
 
-  public PLGNetwork loadNetwork() {
-    System.out.println("Loading Network...");
-    String dataDir = "src/main/java/com/hyperlogix/server/benchmark/pedidos.20250419/";
-    List<String> orderFilePaths = List.of(
-        dataDir + "ventas202501.txt");
+  public PLGNetwork loadNetwork(String filePath, LocalDateTime startTime, LocalDateTime endTime) {
+    System.out.println("Loading Network for file: " + filePath);
+    List<String> orderFilePaths = List.of(filePath);
 
-    int ordersOffset = 0;
-    int ordersLimit = 50;
+    List<Order> loadedOrders = MockData.loadOrdersFromFiles(orderFilePaths, 50); // Adjusted to match the method
+                                                                                 // signature
+    System.out
+        .println("Loaded " + loadedOrders.size() + " orders from file (start=" + startTime + ", end=" + endTime + ").");
 
-    List<Order> loadedOrders = MockData.loadOrdersFromFiles(orderFilePaths, ordersOffset, ordersLimit);
-    System.out.println("Loaded " + loadedOrders.size() + " orders from files (offset=" + ordersOffset + ", limit="
-        + ordersLimit + ").");
-    PLGNetwork baseNetwork = MockData.mockNetwork(); // Gets trucks, stations etc. from original mock
-    network = new PLGNetwork(
+    PLGNetwork baseNetwork = MockData.mockNetwork();
+    return new PLGNetwork(
         baseNetwork.getTrucks(),
         baseNetwork.getStations(),
         loadedOrders,
         baseNetwork.getIncidents(),
         baseNetwork.getRoadblocks());
-    return network;
   }
 
   public void startBenchmark() {
     System.out.println("Starting Benchmark...");
 
-    LocalDateTime startTime = LocalDateTime.of(2025, Month.JANUARY, 1, 0, 0, 0);
-    Duration maxDuration = Duration.ofSeconds(10);
-    AntColonyConfig antConfig = new AntColonyConfig(4, 10, 1.0, 2, 0.5, 100, 0.1);
-    Optimizer antOptimizer = new AntColonyOptmizer(antConfig);
+    String dataDir = "src/main/java/com/hyperlogix/server/benchmark/pedidos.20250419/";
+    List<String> orderFilePaths = List.of(
+        dataDir + "ventas202501.txt",
+        dataDir + "ventas202502.txt",
+        dataDir + "ventas202503.txt",
+        dataDir + "ventas202505.txt",
+        dataDir + "ventas202506.txt",
+        dataDir + "ventas202507.txt",
+        dataDir + "ventas202508.txt",
+        dataDir + "ventas202509.txt",
+        dataDir + "ventas202510.txt",
+        dataDir + "ventas202511.txt",
+        dataDir + "ventas202512.txt",
+        dataDir + "ventas202601.txt",
+        dataDir + "ventas202603.txt",
+        dataDir + "ventas202604.txt",
+        dataDir + "ventas202605.txt",
+        dataDir + "ventas202606.txt",
+        dataDir + "ventas202607.txt",
+        dataDir + "ventas202608.txt",
+        dataDir + "ventas202610.txt",
+        dataDir + "ventas202611.txt",
+        dataDir + "ventas202612.txt"
+        );
 
-    GeneticConfig geneticConfig = new GeneticConfig(4, 10,
-        1,
-        0,
-        0.8,
-        0.1);
-    Optimizer geneticOptimizer = new GeneticOptimizer(geneticConfig);
+    String csvFilePath = "benchmark_results.csv";
+    try (FileWriter csvWriter = new FileWriter(csvFilePath)) {
+      csvWriter.append("mes,algoritmo,corrida,valor_objetivo\n");
 
-    System.out.println("\n--- Running Ant Colony Optimizer ---");
-    BenchmarkResult antResult = runBenchmark(antOptimizer, network, startTime,
-        maxDuration);
-    printResults("Ant Colony", antResult);
+      for (int month = 1; month <= orderFilePaths.size(); month++) {
+        String filePath = orderFilePaths.get(month - 1);
+        List<Order> loadedOrders = MockData.loadOrdersFromFiles(List.of(filePath), 50);
+        if (loadedOrders.isEmpty()) {
+          System.out.println("No orders found in file: " + filePath);
+          continue;
+        }
 
-    // System.out.println("\n--- Running Genetic Algorithm Optimizer ---");
-    // BenchmarkResult geneticResult = runBenchmark(geneticOptimizer, network,
-    // startTime, maxDuration);
-    // printResults("Genetic Algorithm", geneticResult);
+        LocalDateTime firstOrderTime = loadedOrders.get(0).getDate(); // Use the first order's arrival date
 
-    System.out.println("\nBenchmark Finished.");
+        PLGNetwork network = new PLGNetwork(
+            MockData.mockNetwork().getTrucks(),
+            MockData.mockNetwork().getStations(),
+            loadedOrders,
+            MockData.mockNetwork().getIncidents(),
+            MockData.mockNetwork().getRoadblocks());
+
+        System.out.println("\n--- Running Benchmark for file: " + filePath + " ---");
+
+        // Ant Colony Optimizer
+        AntColonyConfig antConfig = new AntColonyConfig(4, 10, 1.0, 2, 0.5, 100, 0.1);
+        Optimizer antOptimizer = new AntColonyOptmizer(antConfig);
+        BenchmarkResult antResult = runBenchmark(antOptimizer, network, firstOrderTime, Duration.ofSeconds(10));
+        writeResultsToCsv(csvWriter, month, "ACO", antResult);
+
+        // Genetic Algorithm Optimizer
+        GeneticConfig geneticConfig = new GeneticConfig(4, 10, 1, 0, 0.8, 0.1);
+        Optimizer geneticOptimizer = new GeneticOptimizer(geneticConfig);
+        BenchmarkResult geneticResult = runBenchmark(geneticOptimizer, network, firstOrderTime,
+            Duration.ofSeconds(10));
+        writeResultsToCsv(csvWriter, month, "GA", geneticResult);
+      }
+
+      System.out.println("\nBenchmark Finished. Results saved to " + csvFilePath);
+    } catch (IOException e) {
+      System.err.println("Error writing to CSV file: " + e.getMessage());
+    }
+  }
+
+  private void writeResultsToCsv(FileWriter csvWriter, int month, String algorithm, BenchmarkResult result)
+      throws IOException {
+    for (int i = 0; i < result.costs.size(); i++) {
+      csvWriter.append(String.format("%d,%s,%d,%.2f\n", month, algorithm, i + 1, result.costs.get(i)));
+    }
   }
 
   private BenchmarkResult runBenchmark(Optimizer optimizer, PLGNetwork network, LocalDateTime startTime,

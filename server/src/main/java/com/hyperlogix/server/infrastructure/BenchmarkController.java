@@ -16,12 +16,9 @@ class BenchmarkController {
   }
 
   @PostMapping("/benchmark/start")
-  public ResponseEntity<PLGNetwork> startBenchmark() {
-    PLGNetwork network = benchmarkService.loadNetwork();
-    if (network == null) {
-      return ResponseEntity.badRequest().build();
-    }
+  public ResponseEntity<Void> startBenchmark() {
+
     new Thread(() -> benchmarkService.startBenchmark()).start();
-    return ResponseEntity.ok(network);
+    return ResponseEntity.ok().build();
   }
 }
