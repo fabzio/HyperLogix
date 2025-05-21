@@ -82,8 +82,7 @@ public class BenchmarkService {
         dataDir + "ventas202608.txt",
         dataDir + "ventas202610.txt",
         dataDir + "ventas202611.txt",
-        dataDir + "ventas202612.txt"
-        );
+        dataDir + "ventas202612.txt");
 
     String csvFilePath = "benchmark_results.csv";
     try (FileWriter csvWriter = new FileWriter(csvFilePath)) {
@@ -140,29 +139,24 @@ public class BenchmarkService {
     List<Double> costs = new ArrayList<>();
     List<Long> times = new ArrayList<>();
 
-    OptimizerContext context = new OptimizerContext(network.clone(), startTime);
-
-    Notifier optimizerNotifier = message -> this.messagingTemplate.convertAndSend(
-        "/topic/benchmark", // Sending optimizer specific logs to a sub-topic
-        message);
-
     for (int i = 0; i < NUM_RUNS; i++) {
       System.out.print("Run " + (i + 1) + "/" + NUM_RUNS + "... \n");
+
+      // Clone the network and reinitialize the context for each iteration
+      PLGNetwork clonedNetwork = network.clone();
+      OptimizerContext context = new OptimizerContext(clonedNetwork, startTime);
+
       long runStartTime = System.nanoTime();
       OptimizerResult result = optimizer.run(context, maxDuration);
-      optimizerNotifier.notify(result);
       long runEndTime = System.nanoTime();
 
       costs.add(result.getCost());
       times.add(Duration.ofNanos(runEndTime - runStartTime).toMillis());
+
       this.messagingTemplate.convertAndSend(
           "/topic/benchmark",
           String.format("Run %d/%d: Cost = %.2f, Time = %d ms", i + 1, NUM_RUNS, result.getCost(),
               Duration.ofNanos(runEndTime - runStartTime).toMillis()));
-
-      // Reset context if necessary, e.g., if the network state was modified by the
-      // optimizer run
-      context = new OptimizerContext(network.clone(), startTime);
     }
     return new BenchmarkResult(costs, times);
   }
