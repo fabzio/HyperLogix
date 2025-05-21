@@ -5,6 +5,7 @@ import com.hyperlogix.server.optimizer.Graph;
 import com.hyperlogix.server.optimizer.Optimizer;
 import com.hyperlogix.server.optimizer.OptimizerContext;
 import com.hyperlogix.server.optimizer.OptimizerResult;
+import com.hyperlogix.server.optimizer.Notifier;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -22,7 +23,7 @@ public class AntColonyOptmizer implements Optimizer {
   }
 
   @Override
-  public OptimizerResult run(OptimizerContext ctx, Duration maxDuration, boolean verbose) {
+  public OptimizerResult run(OptimizerContext ctx, Duration maxDuration, Notifier notifier) {
     graph = new Graph(ctx.plgNetwork, ctx.algorithmStartDate, antColonyConfig);
     ants = new ArrayList<>();
 
@@ -42,9 +43,6 @@ public class AntColonyOptmizer implements Optimizer {
       for (Ant ant : ants) {
         Callable<Routes> task = () -> {
           Routes routes = ant.findSolution();
-          if (verbose) {
-            System.out.println(Thread.currentThread().getName() + " found solution with cost: " + routes.getCost());
-          }
           return routes;
         };
         futures.add(executor.submit(task));
@@ -69,9 +67,10 @@ public class AntColonyOptmizer implements Optimizer {
         graph.updatePheromoneMap(sortedSolutions, antColonyConfig);
       }
 
-      if (verbose) {
-        System.out.println("Iteration " + i + " completed. Best cost so far: "
-            + (bestSolution != null ? bestSolution.getCost() : "N/A"));
+      if (notifier != null) {
+        notifier.notify(new OptimizerResult(
+            bestSolution,
+            bestSolution != null ? bestSolution.getCost() : Double.MAX_VALUE));
       }
     }
     executor.shutdown();
@@ -92,7 +91,7 @@ public class AntColonyOptmizer implements Optimizer {
 
   @Override
   public OptimizerResult run(OptimizerContext ctx, Duration maxDuration) {
-    return run(ctx, maxDuration, false);
+    return run(ctx, maxDuration, null);
   }
 
 }

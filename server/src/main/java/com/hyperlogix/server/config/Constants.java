@@ -29,4 +29,7 @@ public class Constants {
    *
    */
   public static LocalTime WAREHOUSE_RESTOCK_TIME = LocalTime.of(0, 0);
+
+  public static int MAP_WIDTH = 70;
+  public static int MAP_HEIGHT = 50;
 }

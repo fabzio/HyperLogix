@@ -53,7 +53,7 @@ public class SimulationEngine {
         log.info("Simulated time: {}", simulatedTime);
         LocalDateTime finalSimulatedTime = simulatedTime;
         CompletableFuture.supplyAsync(() -> optimizer.run(
-            new OptimizerContext(plgNetwork, finalSimulatedTime), config.algorithmTime(), false)).thenAccept(
+            new OptimizerContext(plgNetwork, finalSimulatedTime), config.algorithmTime())).thenAccept(
                 result -> {
                   synchronized (activeRoutes) {
                     activeRoutes = result.getRoutes();
@@ -85,7 +85,7 @@ public class SimulationEngine {
     log.trace("Updating system state: {}", timeStep);
 
     for (Truck truck : plgNetwork.getTrucks()) {
-      List<Stop> stops = activeRoutes.getRoutes().getOrDefault(truck.getId(), List.of());
+      List<Stop> stops = activeRoutes.getStops().getOrDefault(truck.getId(), List.of());
       if (stops.isEmpty())
         continue;
       List<Path> paths = activeRoutes.getPaths().getOrDefault(truck.getId(), List.of());

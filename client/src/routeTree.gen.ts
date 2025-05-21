@@ -11,16 +11,38 @@
 // Import Routes
 
 import { Route as rootRoute } from './routes/__root'
-import { Route as IndexImport } from './routes/index'
+import { Route as StartImport } from './routes/start'
+import { Route as HeartImport } from './routes/heart'
+import { Route as AuthImport } from './routes/_auth'
+import { Route as AuthIndexImport } from './routes/_auth/index'
 import { Route as DemoTanstackQueryImport } from './routes/demo.tanstack-query'
 import { Route as DemoTableImport } from './routes/demo.table'
+import { Route as AuthSimulacionImport } from './routes/_auth/simulacion'
+import { Route as AuthBenchmarkImport } from './routes/_auth/benchmark'
 
 // Create/Update Routes
 
-const IndexRoute = IndexImport.update({
+const StartRoute = StartImport.update({
+  id: '/start',
+  path: '/start',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const HeartRoute = HeartImport.update({
+  id: '/heart',
+  path: '/heart',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const AuthRoute = AuthImport.update({
+  id: '/_auth',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const AuthIndexRoute = AuthIndexImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => AuthRoute,
 } as any)
 
 const DemoTanstackQueryRoute = DemoTanstackQueryImport.update({
@@ -35,16 +57,56 @@ const DemoTableRoute = DemoTableImport.update({
   getParentRoute: () => rootRoute,
 } as any)
 
+const AuthSimulacionRoute = AuthSimulacionImport.update({
+  id: '/simulacion',
+  path: '/simulacion',
+  getParentRoute: () => AuthRoute,
+} as any)
+
+const AuthBenchmarkRoute = AuthBenchmarkImport.update({
+  id: '/benchmark',
+  path: '/benchmark',
+  getParentRoute: () => AuthRoute,
+} as any)
+
 // Populate the FileRoutesByPath interface
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexImport
+    '/_auth': {
+      id: '/_auth'
+      path: ''
+      fullPath: ''
+      preLoaderRoute: typeof AuthImport
       parentRoute: typeof rootRoute
+    }
+    '/heart': {
+      id: '/heart'
+      path: '/heart'
+      fullPath: '/heart'
+      preLoaderRoute: typeof HeartImport
+      parentRoute: typeof rootRoute
+    }
+    '/start': {
+      id: '/start'
+      path: '/start'
+      fullPath: '/start'
+      preLoaderRoute: typeof StartImport
+      parentRoute: typeof rootRoute
+    }
+    '/_auth/benchmark': {
+      id: '/_auth/benchmark'
+      path: '/benchmark'
+      fullPath: '/benchmark'
+      preLoaderRoute: typeof AuthBenchmarkImport
+      parentRoute: typeof AuthImport
+    }
+    '/_auth/simulacion': {
+      id: '/_auth/simulacion'
+      path: '/simulacion'
+      fullPath: '/simulacion'
+      preLoaderRoute: typeof AuthSimulacionImport
+      parentRoute: typeof AuthImport
     }
     '/demo/table': {
       id: '/demo/table'
@@ -60,47 +122,110 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DemoTanstackQueryImport
       parentRoute: typeof rootRoute
     }
+    '/_auth/': {
+      id: '/_auth/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof AuthIndexImport
+      parentRoute: typeof AuthImport
+    }
   }
 }
 
 // Create and export the route tree
 
+interface AuthRouteChildren {
+  AuthBenchmarkRoute: typeof AuthBenchmarkRoute
+  AuthSimulacionRoute: typeof AuthSimulacionRoute
+  AuthIndexRoute: typeof AuthIndexRoute
+}
+
+const AuthRouteChildren: AuthRouteChildren = {
+  AuthBenchmarkRoute: AuthBenchmarkRoute,
+  AuthSimulacionRoute: AuthSimulacionRoute,
+  AuthIndexRoute: AuthIndexRoute,
+}
+
+const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
+
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
+  '': typeof AuthRouteWithChildren
+  '/heart': typeof HeartRoute
+  '/start': typeof StartRoute
+  '/benchmark': typeof AuthBenchmarkRoute
+  '/simulacion': typeof AuthSimulacionRoute
   '/demo/table': typeof DemoTableRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
+  '/': typeof AuthIndexRoute
 }
 
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
+  '/heart': typeof HeartRoute
+  '/start': typeof StartRoute
+  '/benchmark': typeof AuthBenchmarkRoute
+  '/simulacion': typeof AuthSimulacionRoute
   '/demo/table': typeof DemoTableRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
+  '/': typeof AuthIndexRoute
 }
 
 export interface FileRoutesById {
   __root__: typeof rootRoute
-  '/': typeof IndexRoute
+  '/_auth': typeof AuthRouteWithChildren
+  '/heart': typeof HeartRoute
+  '/start': typeof StartRoute
+  '/_auth/benchmark': typeof AuthBenchmarkRoute
+  '/_auth/simulacion': typeof AuthSimulacionRoute
   '/demo/table': typeof DemoTableRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
+  '/_auth/': typeof AuthIndexRoute
 }
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/demo/table' | '/demo/tanstack-query'
+  fullPaths:
+    | ''
+    | '/heart'
+    | '/start'
+    | '/benchmark'
+    | '/simulacion'
+    | '/demo/table'
+    | '/demo/tanstack-query'
+    | '/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/demo/table' | '/demo/tanstack-query'
-  id: '__root__' | '/' | '/demo/table' | '/demo/tanstack-query'
+  to:
+    | '/heart'
+    | '/start'
+    | '/benchmark'
+    | '/simulacion'
+    | '/demo/table'
+    | '/demo/tanstack-query'
+    | '/'
+  id:
+    | '__root__'
+    | '/_auth'
+    | '/heart'
+    | '/start'
+    | '/_auth/benchmark'
+    | '/_auth/simulacion'
+    | '/demo/table'
+    | '/demo/tanstack-query'
+    | '/_auth/'
   fileRoutesById: FileRoutesById
 }
 
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
+  AuthRoute: typeof AuthRouteWithChildren
+  HeartRoute: typeof HeartRoute
+  StartRoute: typeof StartRoute
   DemoTableRoute: typeof DemoTableRoute
   DemoTanstackQueryRoute: typeof DemoTanstackQueryRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+  AuthRoute: AuthRouteWithChildren,
+  HeartRoute: HeartRoute,
+  StartRoute: StartRoute,
   DemoTableRoute: DemoTableRoute,
   DemoTanstackQueryRoute: DemoTanstackQueryRoute,
 }
@@ -115,19 +240,44 @@ export const routeTree = rootRoute
     "__root__": {
       "filePath": "__root.tsx",
       "children": [
-        "/",
+        "/_auth",
+        "/heart",
+        "/start",
         "/demo/table",
         "/demo/tanstack-query"
       ]
     },
-    "/": {
-      "filePath": "index.tsx"
+    "/_auth": {
+      "filePath": "_auth.tsx",
+      "children": [
+        "/_auth/benchmark",
+        "/_auth/simulacion",
+        "/_auth/"
+      ]
+    },
+    "/heart": {
+      "filePath": "heart.tsx"
+    },
+    "/start": {
+      "filePath": "start.tsx"
+    },
+    "/_auth/benchmark": {
+      "filePath": "_auth/benchmark.tsx",
+      "parent": "/_auth"
+    },
+    "/_auth/simulacion": {
+      "filePath": "_auth/simulacion.tsx",
+      "parent": "/_auth"
     },
     "/demo/table": {
       "filePath": "demo.table.tsx"
     },
     "/demo/tanstack-query": {
       "filePath": "demo.tanstack-query.tsx"
+    },
+    "/_auth/": {
+      "filePath": "_auth/index.tsx",
+      "parent": "/_auth"
     }
   }
 }

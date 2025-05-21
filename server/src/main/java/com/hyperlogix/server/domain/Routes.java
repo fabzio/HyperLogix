@@ -9,7 +9,7 @@ import java.util.Map;
 @Data
 @AllArgsConstructor
 public class Routes {
-  Map<String, List<Stop>> routes;
+  Map<String, List<Stop>> stops;
   Map<String, List<Path>> paths;
   double cost;
 }
