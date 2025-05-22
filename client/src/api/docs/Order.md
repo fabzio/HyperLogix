@@ -11,9 +11,9 @@ Name | Type | Description | Notes
 **location** | [**Point**](Point.md) |  | [optional] [default to undefined]
 **requestedGLP** | **number** |  | [optional] [default to undefined]
 **deliveredGLP** | **number** |  | [optional] [default to undefined]
-**limit** | **string** |  | [optional] [default to undefined]
-**maxDeliveryDate** | **string** |  | [optional] [default to undefined]
+**deliveryLimit** | **string** |  | [optional] [default to undefined]
 **minDeliveryDate** | **string** |  | [optional] [default to undefined]
+**maxDeliveryDate** | **string** |  | [optional] [default to undefined]
 
 ## Example
 
@@ -27,9 +27,9 @@ const instance: Order = {
     location,
     requestedGLP,
     deliveredGLP,
-    limit,
-    maxDeliveryDate,
+    deliveryLimit,
     minDeliveryDate,
+    maxDeliveryDate,
 };
 ```
 

@@ -17,6 +17,8 @@ import { Route as AuthImport } from './routes/_auth'
 import { Route as AuthIndexImport } from './routes/_auth/index'
 import { Route as DemoTanstackQueryImport } from './routes/demo.tanstack-query'
 import { Route as DemoTableImport } from './routes/demo.table'
+import { Route as AuthTrucksImport } from './routes/_auth/trucks'
+import { Route as AuthStationsImport } from './routes/_auth/stations'
 import { Route as AuthSimulacionImport } from './routes/_auth/simulacion'
 import { Route as AuthBenchmarkImport } from './routes/_auth/benchmark'
 
@@ -55,6 +57,18 @@ const DemoTableRoute = DemoTableImport.update({
   id: '/demo/table',
   path: '/demo/table',
   getParentRoute: () => rootRoute,
+} as any)
+
+const AuthTrucksRoute = AuthTrucksImport.update({
+  id: '/trucks',
+  path: '/trucks',
+  getParentRoute: () => AuthRoute,
+} as any)
+
+const AuthStationsRoute = AuthStationsImport.update({
+  id: '/stations',
+  path: '/stations',
+  getParentRoute: () => AuthRoute,
 } as any)
 
 const AuthSimulacionRoute = AuthSimulacionImport.update({
@@ -108,6 +122,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthSimulacionImport
       parentRoute: typeof AuthImport
     }
+    '/_auth/stations': {
+      id: '/_auth/stations'
+      path: '/stations'
+      fullPath: '/stations'
+      preLoaderRoute: typeof AuthStationsImport
+      parentRoute: typeof AuthImport
+    }
+    '/_auth/trucks': {
+      id: '/_auth/trucks'
+      path: '/trucks'
+      fullPath: '/trucks'
+      preLoaderRoute: typeof AuthTrucksImport
+      parentRoute: typeof AuthImport
+    }
     '/demo/table': {
       id: '/demo/table'
       path: '/demo/table'
@@ -137,12 +165,16 @@ declare module '@tanstack/react-router' {
 interface AuthRouteChildren {
   AuthBenchmarkRoute: typeof AuthBenchmarkRoute
   AuthSimulacionRoute: typeof AuthSimulacionRoute
+  AuthStationsRoute: typeof AuthStationsRoute
+  AuthTrucksRoute: typeof AuthTrucksRoute
   AuthIndexRoute: typeof AuthIndexRoute
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
   AuthBenchmarkRoute: AuthBenchmarkRoute,
   AuthSimulacionRoute: AuthSimulacionRoute,
+  AuthStationsRoute: AuthStationsRoute,
+  AuthTrucksRoute: AuthTrucksRoute,
   AuthIndexRoute: AuthIndexRoute,
 }
 
@@ -154,6 +186,8 @@ export interface FileRoutesByFullPath {
   '/start': typeof StartRoute
   '/benchmark': typeof AuthBenchmarkRoute
   '/simulacion': typeof AuthSimulacionRoute
+  '/stations': typeof AuthStationsRoute
+  '/trucks': typeof AuthTrucksRoute
   '/demo/table': typeof DemoTableRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/': typeof AuthIndexRoute
@@ -164,6 +198,8 @@ export interface FileRoutesByTo {
   '/start': typeof StartRoute
   '/benchmark': typeof AuthBenchmarkRoute
   '/simulacion': typeof AuthSimulacionRoute
+  '/stations': typeof AuthStationsRoute
+  '/trucks': typeof AuthTrucksRoute
   '/demo/table': typeof DemoTableRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/': typeof AuthIndexRoute
@@ -176,6 +212,8 @@ export interface FileRoutesById {
   '/start': typeof StartRoute
   '/_auth/benchmark': typeof AuthBenchmarkRoute
   '/_auth/simulacion': typeof AuthSimulacionRoute
+  '/_auth/stations': typeof AuthStationsRoute
+  '/_auth/trucks': typeof AuthTrucksRoute
   '/demo/table': typeof DemoTableRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/_auth/': typeof AuthIndexRoute
@@ -189,6 +227,8 @@ export interface FileRouteTypes {
     | '/start'
     | '/benchmark'
     | '/simulacion'
+    | '/stations'
+    | '/trucks'
     | '/demo/table'
     | '/demo/tanstack-query'
     | '/'
@@ -198,6 +238,8 @@ export interface FileRouteTypes {
     | '/start'
     | '/benchmark'
     | '/simulacion'
+    | '/stations'
+    | '/trucks'
     | '/demo/table'
     | '/demo/tanstack-query'
     | '/'
@@ -208,6 +250,8 @@ export interface FileRouteTypes {
     | '/start'
     | '/_auth/benchmark'
     | '/_auth/simulacion'
+    | '/_auth/stations'
+    | '/_auth/trucks'
     | '/demo/table'
     | '/demo/tanstack-query'
     | '/_auth/'
@@ -252,6 +296,8 @@ export const routeTree = rootRoute
       "children": [
         "/_auth/benchmark",
         "/_auth/simulacion",
+        "/_auth/stations",
+        "/_auth/trucks",
         "/_auth/"
       ]
     },
@@ -267,6 +313,14 @@ export const routeTree = rootRoute
     },
     "/_auth/simulacion": {
       "filePath": "_auth/simulacion.tsx",
+      "parent": "/_auth"
+    },
+    "/_auth/stations": {
+      "filePath": "_auth/stations.tsx",
+      "parent": "/_auth"
+    },
+    "/_auth/trucks": {
+      "filePath": "_auth/trucks.tsx",
       "parent": "/_auth"
     },
     "/demo/table": {
