@@ -38,10 +38,7 @@ export default function AppSidebar() {
                   <Link
                     key={item.title}
                     to={item.url}
-                    activeProps={{
-                      className: 'text-blue-500 font-semibold',
-                    }}
-                    className="text-muted-foreground font-semibold"
+                    className="text-muted-foreground font-medium"
                   >
                     {item.icon}
                     {item.title}

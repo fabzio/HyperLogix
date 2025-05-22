@@ -3,52 +3,28 @@ package com.hyperlogix.server.domain;
 import com.hyperlogix.server.config.Constants;
 import lombok.AllArgsConstructor;
 import lombok.Data;
-
 import java.time.Duration;
 import java.time.LocalDateTime;
 
 @Data
 @AllArgsConstructor
-public class Order implements Cloneable { // Implement Cloneable
-  /**
-   * Código del pedido
-   */
-  String id;
-  /**
-   * Código del cliente
-   */
-  String clientId;
-  /**
-   * Fecha de llegada del pedido
-   */
+public class Order implements Cloneable {
+  private String id;
+  private String clientId;
   private LocalDateTime date;
-  /**
-   * Ubicación de la entrega
-   */
-  Point location;
-  /**
-   * Cantidad GLP solicitada en m³
-   */
-  int requestedGLP;
-  /**
-   * Cantidad de GLP entregada en m³
-   */
-  int deliveredGLP;
-  /**
-   * Tiempo de llegada en horas
-   */
-  Duration limit;
-
+  private Point location;
+  private int requestedGLP;
+  private int deliveredGLP;
+  private Duration deliveryLimit;
 
   /**
    * @return Fecha máxima de entrega
    */
   public LocalDateTime getMaxDeliveryDate() {
-    return date.plus(limit);
+    return date.plus(deliveryLimit);
   }
 
   /**
-   *
    * @return Fecha mínima de entrega
    */
   public LocalDateTime getMinDeliveryDate() {

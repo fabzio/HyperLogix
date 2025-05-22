@@ -2,17 +2,16 @@ package com.hyperlogix.server.domain;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.NoArgsConstructor; // Add NoArgsConstructor for copy constructor if needed
-
+import lombok.NoArgsConstructor;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.HashMap; // Import HashMap
+import java.util.HashMap;
 import java.util.Map;
 
 @Data
 @AllArgsConstructor
-@NoArgsConstructor // May be needed if using a manual copy constructor
-public class Station implements Cloneable { // Implement Cloneable
+@NoArgsConstructor
+public class Station implements Cloneable {
   private String id;
   private String name;
   private Point location;

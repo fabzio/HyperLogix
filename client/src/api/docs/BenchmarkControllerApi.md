@@ -7,7 +7,7 @@ All URIs are relative to *http://localhost:8080/api/v1*
 |[**startBenchmark**](#startbenchmark) | **POST** /benchmark/start | |
 
 # **startBenchmark**
-> PLGNetwork startBenchmark()
+> startBenchmark()
 
 
 ### Example
@@ -30,7 +30,7 @@ This endpoint does not have any parameters.
 
 ### Return type
 
-**PLGNetwork**
+void (empty response body)
 
 ### Authorization
 
@@ -39,7 +39,7 @@ No authorization required
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: */*
+ - **Accept**: Not defined
 
 
 ### HTTP response details

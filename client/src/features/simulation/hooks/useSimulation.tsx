@@ -1,6 +1,6 @@
 import type { Routes } from '@/domain/Routes'
 import { env } from '@/env'
-import { StartBenchmark } from '@/services/BenchmarkService'
+import { StartBenchmark } from '@/services/SimulatorService'
 import { Client } from '@stomp/stompjs'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'

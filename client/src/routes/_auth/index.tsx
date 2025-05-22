@@ -1,9 +1,10 @@
+import DashboardFeature from '@/features/dashboard'
 import { createFileRoute } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/_auth/')({
-  component: RouteComponent,
+  component: Dashboard,
 })
 
-function RouteComponent() {
-  return <div>Hello "/_auth/"!</div>
+function Dashboard() {
+  return <DashboardFeature />
 }

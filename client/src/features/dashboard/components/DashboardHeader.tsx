@@ -1,0 +1,105 @@
+import Typography from '@/components/typography'
+import { useEffect, useState } from 'react'
+
+export function DashboardHeader() {
+  const [currentTime, setCurrentTime] = useState(new Date())
+  const [emojiIndex, setEmojiIndex] = useState(0)
+  const [fadeState, setFadeState] = useState('fade-in')
+
+  const techEmojis = ['⛽', '🛢️', '🚒', '🧪', '🔥', '💨', '🚛', '📍', '⏱️', '🔄']
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date())
+    }, 1000)
+
+    const emojiTimer = setInterval(() => {
+      // Start the fade out
+      setFadeState('fade-out')
+
+      // After fade out completes, change emoji and fade in
+      setTimeout(() => {
+        setEmojiIndex((prevIndex) => (prevIndex + 1) % techEmojis.length)
+        setFadeState('fade-in')
+      }, 300) // This should match the transition duration in CSS
+    }, 3000) // Change emoji every 3 seconds
+
+    return () => {
+      clearInterval(timer)
+      clearInterval(emojiTimer)
+    }
+  }, [])
+
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString('es-ES', {
+      hour12: false,
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    })
+  }
+
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    })
+  }
+
+  return (
+    <>
+      <div className="flex flex-col md:flex-row justify-between items-center mb-8">
+        <Typography variant="h1" className="flex">
+          <span className="bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 bg-clip-text text-transparent animate-gradient">
+            HyperLogix
+          </span>
+          <span className={`emoji-transition ${fadeState}`}>
+            {techEmojis[emojiIndex]}
+          </span>
+        </Typography>
+
+        <div className="text-right mt-4 md:mt-0">
+          <div className="text-3xl font-bold tracking-wider text-cyan-500 dark:text-cyan-400">
+            {formatTime(currentTime)}
+          </div>
+          <div className="text-muted-foreground">{formatDate(currentTime)}</div>
+        </div>
+      </div>
+
+      <style>
+        {`
+          @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+          }
+          .animate-gradient {
+            background-size: 200% 200%;
+            animation: gradient 3s ease infinite;
+          }
+          .emoji-transition {
+            display: inline-block;
+            transition: opacity 0.3s ease;
+          }
+          .fade-in {
+            opacity: 1;
+          }
+          .fade-out {
+            opacity: 0;
+          }
+          .metric-card {
+            transition: all 0.3s ease;
+          }
+          .metric-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+          }
+          .dark .metric-card:hover {
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+          }
+        `}
+      </style>
+    </>
+  )
+}

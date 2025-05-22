@@ -3,15 +3,16 @@ package com.hyperlogix.server.domain;
 import com.hyperlogix.server.config.Constants;
 import lombok.AllArgsConstructor;
 import lombok.Data;
-
+import lombok.NoArgsConstructor;
 import java.time.Duration;
 import java.time.LocalDateTime;
 
 /**
  * Representa un camión en el sistema.
  */
-@AllArgsConstructor
 @Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class Truck implements Cloneable { // Implement Cloneable
   /**
    * Identificador único del camión.
