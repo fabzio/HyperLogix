@@ -55,6 +55,7 @@ export default function AppSidebar() {
                     key={item.title}
                     to={item.url}
                     className="text-muted-foreground font-medium"
+                    viewTransition
                   >
                     {item.icon}
                     {item.title}
@@ -111,7 +112,7 @@ export default function AppSidebar() {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={() => {
-                    navigate({ to: '/login' })
+                    navigate({ to: '/login', viewTransition: true })
                   }}
                 >
                   <LogOutIcon />

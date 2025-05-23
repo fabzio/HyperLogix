@@ -1,4 +1,4 @@
-package com.hyperlogix.server.simulation;
+package com.hyperlogix.server.services.simulation;
 
 import com.hyperlogix.server.domain.PLGNetwork;
 

@@ -41,7 +41,7 @@ export default function DriverLogin() {
       <CardFooter className="flex justify-center">
         <Button
           onClick={() => {
-            navigate({ to: '/' })
+            navigate({ to: '/', viewTransition: true })
           }}
         >
           Ingresar

@@ -1,13 +1,13 @@
 package com.hyperlogix.server.optimizer.Genetic;
 
 import com.hyperlogix.server.domain.*;
-import com.hyperlogix.server.optimizer.AntColony.Ant;
-import com.hyperlogix.server.optimizer.AntColony.AntColonyConfig;
 import com.hyperlogix.server.optimizer.Graph;
+import com.hyperlogix.server.optimizer.Notifier;
 import com.hyperlogix.server.optimizer.Optimizer;
 import com.hyperlogix.server.optimizer.OptimizerContext;
 import com.hyperlogix.server.optimizer.OptimizerResult;
-import com.hyperlogix.server.optimizer.Notifier;
+import com.hyperlogix.server.optimizer.AntColony.Ant;
+import com.hyperlogix.server.optimizer.AntColony.AntColonyConfig;
 
 import java.util.*;
 import java.util.concurrent.*;

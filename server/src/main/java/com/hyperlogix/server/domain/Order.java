@@ -16,6 +16,7 @@ public class Order implements Cloneable {
   private int requestedGLP;
   private int deliveredGLP;
   private Duration deliveryLimit;
+  private OrderStatus status;
 
   /**
    * @return Fecha máxima de entrega
