@@ -20,13 +20,16 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar'
+import { useSessionStore } from '@/store/session'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { LogOutIcon, MoreVerticalIcon } from 'lucide-react'
 import { data } from './nav-data'
 
 export default function AppSidebar() {
+  const { username, setUsername } = useSessionStore()
   const { isMobile } = useSidebar()
   const navigate = useNavigate()
+
   return (
     <Sidebar>
       <SidebarHeader>
@@ -76,12 +79,14 @@ export default function AppSidebar() {
                   className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                 >
                   <Avatar className="h-8 w-8 rounded-lg grayscale">
-                    <AvatarFallback>HL</AvatarFallback>
+                    <AvatarFallback>
+                      {username?.charAt(0).toUpperCase()}
+                    </AvatarFallback>
                   </Avatar>
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <span className="truncate font-medium">Administrador</span>
                     <span className="truncate text-xs text-muted-foreground">
-                      fabzio
+                      {username}
                     </span>
                   </div>
                   <MoreVerticalIcon className="ml-auto size-4" />
@@ -96,15 +101,16 @@ export default function AppSidebar() {
                 <DropdownMenuLabel>
                   <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                     <Avatar className="h-8 w-8 rounded-lg">
-                      <AvatarFallback className="rounded-lg">HL</AvatarFallback>
+                      <AvatarFallback className="rounded-lg">
+                        {username?.charAt(0).toUpperCase()}
+                      </AvatarFallback>
                     </Avatar>
                     <div className="grid flex-1 text-left text-sm leading-tight">
                       <span className="truncate font-medium">
-                        {' '}
                         Administrador
                       </span>
                       <span className="truncate text-xs text-muted-foreground">
-                        fabzio
+                        {username}
                       </span>
                     </div>
                   </div>
@@ -112,6 +118,7 @@ export default function AppSidebar() {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={() => {
+                    setUsername(null)
                     navigate({ to: '/login', viewTransition: true })
                   }}
                 >
