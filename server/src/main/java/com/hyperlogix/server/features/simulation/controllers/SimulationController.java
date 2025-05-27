@@ -10,8 +10,11 @@ import org.springframework.stereotype.Controller;
 
 import com.hyperlogix.server.features.simulation.dtos.SimulationCommandRequest;
 import com.hyperlogix.server.features.simulation.dtos.SimulationRequest;
+import com.hyperlogix.server.features.simulation.dtos.StartSimulationRequest;
 import com.hyperlogix.server.features.simulation.usecases.StartSimulationUseCase;
 import com.hyperlogix.server.features.simulation.usecases.StopSimulationUseCase;
+import com.hyperlogix.server.features.simulation.usecases.in.StartSimulationUseCaseIn;
+
 import com.hyperlogix.server.features.simulation.usecases.SendCommandUseCase;
 
 @Controller
@@ -26,20 +29,21 @@ public class SimulationController {
   private SendCommandUseCase sendCommandUseCase;
 
   @MessageMapping("/simulation/start")
-  public void startSimulation(@Payload SimulationRequest request, Principal principal) {
-    String simulationId = request.getSimulationId();
-    startSimulationUseCase.startSimulation(simulationId);
+  public void startSimulation(@Payload StartSimulationRequest request, Principal principal) {
+    StartSimulationUseCaseIn useCaseIn = new StartSimulationUseCaseIn(principal.getName(), request.getStartTimeOrders(),
+        request.getEndTimeOrders());
+    startSimulationUseCase.startSimulation(useCaseIn);
   }
 
   @MessageMapping("/simulation/stop")
-  public void stopSimulation(@Payload SimulationRequest request, Principal principal) {
-    String simulationId = request.getSimulationId();
+  public void stopSimulation(Principal principal) {
+    String simulationId = principal.getName();
     stopSimulationUseCase.stopSimulation(simulationId);
   }
 
   @MessageMapping("/simulation/command")
   public void sendCommand(@Payload SimulationCommandRequest request, Principal principal) {
-    String simulationId = request.getSimulationId();
+    String simulationId = principal.getName();
     String command = request.getCommand();
     sendCommandUseCase.sendCommand(simulationId, command);
   }

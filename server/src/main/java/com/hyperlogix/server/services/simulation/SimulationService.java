@@ -25,19 +25,19 @@ public class SimulationService {
     this.messaging = messaging;
   }
 
-  public void startSimulation(String simulationId) {
+  public void startSimulation(String simulationId,List<Order> orders) {
     SimulationConfig config = new SimulationConfig(
         Duration.ofSeconds(3),
         Duration.ofSeconds(10),
         5,
-        Duration.ofSeconds(5)
+        Duration.ofMillis(500)
     );
     SimulationNotifier notifier = snapshot -> {
       messaging.convertAndSend("/topic/simulation/" + simulationId, snapshot);
     };
-    List<Order> orders = new ArrayList<>();
+    List<Order> orderslist = new ArrayList<>(orders);
     stopSimulation(simulationId);
-    SimulationEngine engine = new SimulationEngine(simulationId, config, notifier, orders);
+    SimulationEngine engine = new SimulationEngine(simulationId, config, notifier, orderslist);
     simulation.put(simulationId, engine);
     executor.execute(engine);
   }

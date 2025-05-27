@@ -29,6 +29,9 @@ public class MockData {
       return orders;
     }
 
+    int orderCount = 0;
+    boolean loadAll = limit < 0;
+
     for (String filePath : filePaths) {
       try {
         String fileName = Paths.get(filePath).getFileName().toString();
@@ -43,7 +46,7 @@ public class MockData {
 
         try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
           String line;
-          while ((line = reader.readLine()) != null && orders.size() < limit) {
+          while ((line = reader.readLine()) != null && (loadAll || orderCount < limit)) {
             Matcher orderLineMatcher = ORDER_LINE_PATTERN.matcher(line);
             if (orderLineMatcher.matches()) {
               int day = Integer.parseInt(orderLineMatcher.group(1));
@@ -60,6 +63,8 @@ public class MockData {
                   0,
                   Duration.ofHours(Long.parseLong(orderLineMatcher.group(8))),
                   OrderStatus.PENDING));
+
+              orderCount++;
             } else {
               System.err.println("Skipping malformed line in " + filePath + ": " + line);
             }

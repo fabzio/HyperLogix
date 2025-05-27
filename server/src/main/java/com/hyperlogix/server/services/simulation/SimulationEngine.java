@@ -69,7 +69,7 @@ public class SimulationEngine implements Runnable {
         log.info("Next planning time: {}", nextPlanningTime);
       }
       updateSystemState(timeStep);
-      simulationNotifier.notifySnapshot(new SimulationSnapshot(simulatedTime, plgNetwork.clone()));
+      simulationNotifier.notifySnapshot(new SimulationSnapshot(simulatedTime, plgNetwork));
       sleep(simulationConfig.simulationResolution());
     }
   }
