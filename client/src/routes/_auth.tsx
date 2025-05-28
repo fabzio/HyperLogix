@@ -12,7 +12,7 @@ export const Route = createFileRoute('/_auth')({
 function RouteComponent() {
   const navigate = useNavigate()
   const { username } = useSessionStore()
-  const { connect } = useWebSocketStore()
+  const { connect, disconnect } = useWebSocketStore()
   useEffect(() => {
     if (!username) {
       navigate({ to: '/login' })
@@ -22,7 +22,10 @@ function RouteComponent() {
     connect(
       `${protocol}://${env.VITE_WS_HOST}${env.VITE_API}/ws?user=${username}`,
     )
-  }, [connect, username, navigate])
+    return () => {
+      disconnect()
+    }
+  }, [connect, disconnect, username, navigate])
 
   return (
     <MainLayout>

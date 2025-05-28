@@ -1,6 +1,9 @@
 package com.hyperlogix.server.services.simulation;
 
 import com.hyperlogix.server.domain.*;
+
+import lombok.Setter;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,7 +23,7 @@ public class SimulationEngine implements Runnable {
   private final SimulationConfig simulationConfig;
   private final SimulationNotifier simulationNotifier;
   private final List<Order> orderRepository;
-
+  @Setter
   private PLGNetwork plgNetwork;
   private Routes activeRoutes;
   private LocalDateTime nextPlanningTime;
@@ -43,6 +46,7 @@ public class SimulationEngine implements Runnable {
 
   @Override
   public void run() {
+    running.set(true);
     log.info("=====Simulation started=====");
     log.info("Config K={}, Sa={}, Sc={}, Ta={}",
         simulationConfig.timeAcceleration(),
@@ -57,6 +61,9 @@ public class SimulationEngine implements Runnable {
 
     while (running.get()) {
       waitIfPaused();
+
+      if (!running.get())
+        break;
 
       simulatedTime = simulatedTime.plus(timeStep);
       if (simulatedTime.isAfter(nextPlanningTime)) {
@@ -76,6 +83,7 @@ public class SimulationEngine implements Runnable {
 
   public void stop() {
     log.info("Stopping simulation...");
+    running.set(false);
     lock.lock();
     try {
       condition.signalAll();
@@ -110,7 +118,10 @@ public class SimulationEngine implements Runnable {
 
   private void updateSystemState(Duration timeStep) {
     log.trace("Updating system state: {}", timeStep);
-
+    if (activeRoutes == null) {
+      log.warn("Active routes are not set, skipping update");
+      return;
+    }
     for (Truck truck : plgNetwork.getTrucks()) {
       List<Stop> stops = activeRoutes.getStops().getOrDefault(truck.getId(), List.of());
       if (stops.isEmpty())
@@ -152,9 +163,12 @@ public class SimulationEngine implements Runnable {
   private void sleep(Duration duration) {
     lock.lock();
     try {
+      if (!running.get())
+        return;
       condition.await(duration.toMillis(), TimeUnit.MILLISECONDS);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
+      running.set(false);
       log.error("Simulation interrupted", e);
     } finally {
       lock.unlock();
@@ -164,11 +178,12 @@ public class SimulationEngine implements Runnable {
   private void waitIfPaused() {
     lock.lock();
     try {
-      while (paused.get()) {
+      while (paused.get() && running.get()) {
         condition.await();
       }
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
+      running.set(false);
       log.warn("Simulation paused wait interrupted");
     } finally {
       lock.unlock();
@@ -182,4 +197,10 @@ public class SimulationEngine implements Runnable {
     log.info("Received updated routes from Planificator");
   }
 
+  public SimulationStatus getStatus() {
+    return new SimulationStatus(
+        running.get(),
+        paused.get(),
+        simulationConfig.timeAcceleration());
+  }
 }

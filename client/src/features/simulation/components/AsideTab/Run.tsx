@@ -15,11 +15,19 @@ import {
 import { cn } from '@/lib/utils'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { format } from 'date-fns'
-import { CalendarIcon } from 'lucide-react'
+import { CalendarIcon, PauseIcon, Square } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
+import {
+  useStartSimulation,
+  useStatusSimulation,
+  useStopSimulation,
+} from '../../hooks/useSimulation'
 
 export default function Run() {
+  const { mutate: startSimulation } = useStartSimulation()
+  const { mutate: stopSimulation } = useStopSimulation()
+  const { data } = useStatusSimulation()
   const form = useForm<FormSchema>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -31,8 +39,13 @@ export default function Run() {
   })
 
   const onSubmit = form.handleSubmit((data) => {
-    alert(JSON.stringify(data, null, 2))
+    startSimulation({
+      startTimeOrders: data.date.from.toISOString(),
+      endTimeOrders: data.date.to.toISOString(),
+    })
   })
+
+  const isRunning = data?.running || false
 
   return (
     <div>
@@ -49,6 +62,7 @@ export default function Run() {
                     <FormControl>
                       <Button
                         variant="outline"
+                        disabled={isRunning}
                         className={cn(
                           'w-[300px] justify-start text-left font-normal',
                           !field.value && 'text-muted-foreground',
@@ -78,13 +92,34 @@ export default function Run() {
                       selected={field.value}
                       onSelect={field.onChange}
                       numberOfMonths={2}
+                      disabled={isRunning}
                     />
                   </PopoverContent>
                 </Popover>
               </FormItem>
             )}
           />
-          <Button>Ejecutar</Button>
+          <div className="mt-4">
+            {isRunning ? (
+              <div className="flex items-center justify-center gap-2">
+                <Button size="icon" variant="secondary">
+                  <PauseIcon className="h-4 w-4" />
+                </Button>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="destructive"
+                  onClick={() => stopSimulation()}
+                >
+                  <Square className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <Button type="submit" className="w-full">
+                Ejecutar
+              </Button>
+            )}
+          </div>
         </form>
       </Form>
     </div>

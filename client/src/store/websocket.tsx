@@ -78,7 +78,6 @@ export const useWebSocketStore = create<WebSocketStore>((set, get) => ({
       console.error('Cannot subscribe: WebSocket not connected')
       return
     }
-
     if (subscriptions.has(destination)) {
       console.warn(`Already subscribed to ${destination}, unsubscribing first`)
       get().unsubscribe(destination)

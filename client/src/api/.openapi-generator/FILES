@@ -12,7 +12,10 @@ docs/PageTruck.md
 docs/Pageable.md
 docs/PageableObject.md
 docs/Point.md
+docs/SimulationControllerApi.md
+docs/SimulationStatus.md
 docs/SortObject.md
+docs/StartSimulationRequest.md
 docs/Station.md
 docs/StationControllerApi.md
 docs/Truck.md

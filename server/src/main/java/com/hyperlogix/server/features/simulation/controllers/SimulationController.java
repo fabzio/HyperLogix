@@ -1,56 +1,60 @@
 package com.hyperlogix.server.features.simulation.controllers;
 
-import java.security.Principal;
-
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.http.ResponseEntity;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.messaging.handler.annotation.MessageMapping;
-import org.springframework.messaging.handler.annotation.Payload;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.stereotype.Controller;
 
-import com.hyperlogix.server.features.simulation.dtos.SimulationCommandRequest;
-import com.hyperlogix.server.features.simulation.dtos.SimulationRequest;
+import java.security.Principal;
+import java.time.LocalDateTime;
+
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+
 import com.hyperlogix.server.features.simulation.dtos.StartSimulationRequest;
 import com.hyperlogix.server.features.simulation.usecases.StartSimulationUseCase;
-import com.hyperlogix.server.features.simulation.usecases.StopSimulationUseCase;
 import com.hyperlogix.server.features.simulation.usecases.in.StartSimulationUseCaseIn;
+import com.hyperlogix.server.services.simulation.SimulationService;
+import com.hyperlogix.server.services.simulation.SimulationStatus;
 
-import com.hyperlogix.server.features.simulation.usecases.SendCommandUseCase;
-
-@Controller
+@RestController
+@RequestMapping("/simulation")
 public class SimulationController {
-  @Autowired
-  private SimpMessagingTemplate messagingTemplate;
+
   @Autowired
   private StartSimulationUseCase startSimulationUseCase;
-  @Autowired
-  private StopSimulationUseCase stopSimulationUseCase;
-  @Autowired
-  private SendCommandUseCase sendCommandUseCase;
 
-  @MessageMapping("/simulation/start")
-  public void startSimulation(@Payload StartSimulationRequest request, Principal principal) {
-    StartSimulationUseCaseIn useCaseIn = new StartSimulationUseCaseIn(principal.getName(), request.getStartTimeOrders(),
+  @Autowired
+  private SimulationService simulationService;
+
+  @PostMapping("/start/{simulationId}")
+  public ResponseEntity<Void> startSimulation(
+      @PathVariable String simulationId,
+      @RequestBody StartSimulationRequest request) {
+
+    StartSimulationUseCaseIn useCaseIn = new StartSimulationUseCaseIn(
+        simulationId,
+        request.getStartTimeOrders(),
         request.getEndTimeOrders());
     startSimulationUseCase.startSimulation(useCaseIn);
+    return ResponseEntity.ok().build();
   }
 
-  @MessageMapping("/simulation/stop")
-  public void stopSimulation(Principal principal) {
-    String simulationId = principal.getName();
-    stopSimulationUseCase.stopSimulation(simulationId);
+  @GetMapping("/status/{simulationId}")
+  public ResponseEntity<SimulationStatus> getSimulationStatus(@PathVariable String simulationId) {
+    SimulationStatus status = simulationService.getSimulationStatus(simulationId);
+    if (status != null) {
+      return ResponseEntity.ok(status);
+    }
+    return ResponseEntity.notFound().build();
   }
 
-  @MessageMapping("/simulation/command")
-  public void sendCommand(@Payload SimulationCommandRequest request, Principal principal) {
-    String simulationId = principal.getName();
-    String command = request.getCommand();
-    sendCommandUseCase.sendCommand(simulationId, command);
-  }
-
-  @MessageMapping("/simulation/subscribe")
-  public void subscribe(@Payload SimulationRequest request, Principal principal) {
-    String simulationId = request.getSimulationId();
-    messagingTemplate.convertAndSend("/topic/simulation/" + simulationId, "Subscribed to simulation " + simulationId);
+  @PostMapping("/stop/{simulationId}")
+  public ResponseEntity<Void> stopSimulation(@PathVariable String simulationId) {
+    simulationService.stopSimulation(simulationId);
+    return ResponseEntity.ok().build();
   }
 }
