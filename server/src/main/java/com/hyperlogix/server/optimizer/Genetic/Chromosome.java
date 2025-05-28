@@ -2,6 +2,7 @@ package com.hyperlogix.server.optimizer.Genetic;
 
 import com.hyperlogix.server.domain.*;
 import com.hyperlogix.server.optimizer.AntColony.Ant;
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 

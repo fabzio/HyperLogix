@@ -48,7 +48,7 @@ public class TruckDataLoader implements CommandLineRunner {
         t.setCurrentCapacity(15);
         t.setFuelCapacity(25);
         t.setCurrentFuel(25);
-        t.setLocation(new Point(0, 0));
+        t.setLocation(new Point(12, 8));
         trucks.add(t);
       }
       // TC: 4 camiones de 10m3
@@ -62,7 +62,7 @@ public class TruckDataLoader implements CommandLineRunner {
         t.setCurrentCapacity(10);
         t.setFuelCapacity(25);
         t.setCurrentFuel(25);
-        t.setLocation(new Point(0, 0));
+        t.setLocation(new Point(12, 8));
         trucks.add(t);
       }
       // TD: 10 camiones de 5m3
@@ -76,7 +76,7 @@ public class TruckDataLoader implements CommandLineRunner {
         t.setCurrentCapacity(5);
         t.setFuelCapacity(25);
         t.setCurrentFuel(25);
-        t.setLocation(new Point(0, 0));
+        t.setLocation(new Point(12, 8));
         trucks.add(t);
       }
 

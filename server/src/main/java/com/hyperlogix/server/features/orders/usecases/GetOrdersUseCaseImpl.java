@@ -1,6 +1,7 @@
 package com.hyperlogix.server.features.orders.usecases;
 
 import com.hyperlogix.server.domain.Order;
+import com.hyperlogix.server.domain.OrderStatus;
 import com.hyperlogix.server.features.orders.repository.OrderRepository;
 
 import org.springframework.stereotype.Service;
@@ -24,7 +25,8 @@ public class GetOrdersUseCaseImpl implements GetOrdersUseCase {
             orderEntity.getLocation(),
             orderEntity.getRequestedGLP(),
             orderEntity.getDeliveredGLP(),
-            orderEntity.getDeliveryLimit()))
+            orderEntity.getDeliveryLimit(),
+            OrderStatus.PENDING))
         .toList();
   }
 }

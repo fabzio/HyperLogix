@@ -5,8 +5,8 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**totalElements** | **number** |  | [optional] [default to undefined]
 **totalPages** | **number** |  | [optional] [default to undefined]
+**totalElements** | **number** |  | [optional] [default to undefined]
 **first** | **boolean** |  | [optional] [default to undefined]
 **last** | **boolean** |  | [optional] [default to undefined]
 **size** | **number** |  | [optional] [default to undefined]
@@ -23,8 +23,8 @@ Name | Type | Description | Notes
 import { PageTruck } from './api';
 
 const instance: PageTruck = {
-    totalElements,
     totalPages,
+    totalElements,
     first,
     last,
     size,

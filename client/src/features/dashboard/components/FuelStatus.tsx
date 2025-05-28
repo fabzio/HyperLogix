@@ -5,7 +5,7 @@ import { fuelData } from '../data/mock-data'
 
 export function FuelStatus() {
   return (
-    <Card>
+    <Card className="glassmorphism">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center gap-2">
           <Fuel className="h-4 w-4 text-blue-500" />

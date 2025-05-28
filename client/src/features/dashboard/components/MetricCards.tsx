@@ -6,7 +6,7 @@ import { metricsData } from '../data/mock-data'
 export function MetricCards() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <Card className="metric-card border-l-4 border-blue-500 dark:border-blue-600">
+      <Card className="metric-card border-l-4 border-blue-500 dark:border-blue-600 glassmorphism">
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle className="text-sm font-medium">Flota Activa</CardTitle>
           <Truck className="h-4 w-4 text-blue-500 dark:text-blue-400" />
@@ -20,7 +20,7 @@ export function MetricCards() {
         </CardContent>
       </Card>
 
-      <Card className="metric-card border-l-4 border-purple-500 dark:border-purple-600">
+      <Card className="metric-card border-l-4 border-purple-500 dark:border-purple-600 glassmorphism">
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle className="text-sm font-medium">Entregas</CardTitle>
           <MapIcon className="h-4 w-4 text-purple-500 dark:text-purple-400" />
@@ -36,7 +36,7 @@ export function MetricCards() {
         </CardContent>
       </Card>
 
-      <Card className="metric-card border-l-4 border-cyan-500 dark:border-cyan-600">
+      <Card className="metric-card border-l-4 border-cyan-500 dark:border-cyan-600 glassmorphism">
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle className="text-sm font-medium">
             Eficiencia de Rutas

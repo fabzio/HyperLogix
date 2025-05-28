@@ -3,10 +3,10 @@ package com.hyperlogix.server.benchmark;
 import com.hyperlogix.server.domain.PLGNetwork;
 import com.hyperlogix.server.domain.Order; // Added import
 import com.hyperlogix.server.mock.MockData;
+import com.hyperlogix.server.optimizer.Notifier;
 import com.hyperlogix.server.optimizer.Optimizer;
 import com.hyperlogix.server.optimizer.OptimizerContext;
 import com.hyperlogix.server.optimizer.OptimizerResult;
-import com.hyperlogix.server.optimizer.Notifier; // Added import
 import com.hyperlogix.server.optimizer.AntColony.AntColonyConfig;
 import com.hyperlogix.server.optimizer.AntColony.AntColonyOptmizer;
 import com.hyperlogix.server.optimizer.Genetic.GeneticConfig;

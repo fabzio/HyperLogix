@@ -11,12 +11,9 @@
 // Import Routes
 
 import { Route as rootRoute } from './routes/__root'
-import { Route as StartImport } from './routes/start'
-import { Route as HeartImport } from './routes/heart'
+import { Route as LoginImport } from './routes/login'
 import { Route as AuthImport } from './routes/_auth'
 import { Route as AuthIndexImport } from './routes/_auth/index'
-import { Route as DemoTanstackQueryImport } from './routes/demo.tanstack-query'
-import { Route as DemoTableImport } from './routes/demo.table'
 import { Route as AuthTrucksImport } from './routes/_auth/trucks'
 import { Route as AuthStationsImport } from './routes/_auth/stations'
 import { Route as AuthSimulacionImport } from './routes/_auth/simulacion'
@@ -24,15 +21,9 @@ import { Route as AuthBenchmarkImport } from './routes/_auth/benchmark'
 
 // Create/Update Routes
 
-const StartRoute = StartImport.update({
-  id: '/start',
-  path: '/start',
-  getParentRoute: () => rootRoute,
-} as any)
-
-const HeartRoute = HeartImport.update({
-  id: '/heart',
-  path: '/heart',
+const LoginRoute = LoginImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -45,18 +36,6 @@ const AuthIndexRoute = AuthIndexImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AuthRoute,
-} as any)
-
-const DemoTanstackQueryRoute = DemoTanstackQueryImport.update({
-  id: '/demo/tanstack-query',
-  path: '/demo/tanstack-query',
-  getParentRoute: () => rootRoute,
-} as any)
-
-const DemoTableRoute = DemoTableImport.update({
-  id: '/demo/table',
-  path: '/demo/table',
-  getParentRoute: () => rootRoute,
 } as any)
 
 const AuthTrucksRoute = AuthTrucksImport.update({
@@ -94,18 +73,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthImport
       parentRoute: typeof rootRoute
     }
-    '/heart': {
-      id: '/heart'
-      path: '/heart'
-      fullPath: '/heart'
-      preLoaderRoute: typeof HeartImport
-      parentRoute: typeof rootRoute
-    }
-    '/start': {
-      id: '/start'
-      path: '/start'
-      fullPath: '/start'
-      preLoaderRoute: typeof StartImport
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginImport
       parentRoute: typeof rootRoute
     }
     '/_auth/benchmark': {
@@ -135,20 +107,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/trucks'
       preLoaderRoute: typeof AuthTrucksImport
       parentRoute: typeof AuthImport
-    }
-    '/demo/table': {
-      id: '/demo/table'
-      path: '/demo/table'
-      fullPath: '/demo/table'
-      preLoaderRoute: typeof DemoTableImport
-      parentRoute: typeof rootRoute
-    }
-    '/demo/tanstack-query': {
-      id: '/demo/tanstack-query'
-      path: '/demo/tanstack-query'
-      fullPath: '/demo/tanstack-query'
-      preLoaderRoute: typeof DemoTanstackQueryImport
-      parentRoute: typeof rootRoute
     }
     '/_auth/': {
       id: '/_auth/'
@@ -182,40 +140,31 @@ const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 
 export interface FileRoutesByFullPath {
   '': typeof AuthRouteWithChildren
-  '/heart': typeof HeartRoute
-  '/start': typeof StartRoute
+  '/login': typeof LoginRoute
   '/benchmark': typeof AuthBenchmarkRoute
   '/simulacion': typeof AuthSimulacionRoute
   '/stations': typeof AuthStationsRoute
   '/trucks': typeof AuthTrucksRoute
-  '/demo/table': typeof DemoTableRoute
-  '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/': typeof AuthIndexRoute
 }
 
 export interface FileRoutesByTo {
-  '/heart': typeof HeartRoute
-  '/start': typeof StartRoute
+  '/login': typeof LoginRoute
   '/benchmark': typeof AuthBenchmarkRoute
   '/simulacion': typeof AuthSimulacionRoute
   '/stations': typeof AuthStationsRoute
   '/trucks': typeof AuthTrucksRoute
-  '/demo/table': typeof DemoTableRoute
-  '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/': typeof AuthIndexRoute
 }
 
 export interface FileRoutesById {
   __root__: typeof rootRoute
   '/_auth': typeof AuthRouteWithChildren
-  '/heart': typeof HeartRoute
-  '/start': typeof StartRoute
+  '/login': typeof LoginRoute
   '/_auth/benchmark': typeof AuthBenchmarkRoute
   '/_auth/simulacion': typeof AuthSimulacionRoute
   '/_auth/stations': typeof AuthStationsRoute
   '/_auth/trucks': typeof AuthTrucksRoute
-  '/demo/table': typeof DemoTableRoute
-  '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/_auth/': typeof AuthIndexRoute
 }
 
@@ -223,55 +172,34 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | ''
-    | '/heart'
-    | '/start'
+    | '/login'
     | '/benchmark'
     | '/simulacion'
     | '/stations'
     | '/trucks'
-    | '/demo/table'
-    | '/demo/tanstack-query'
     | '/'
   fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/heart'
-    | '/start'
-    | '/benchmark'
-    | '/simulacion'
-    | '/stations'
-    | '/trucks'
-    | '/demo/table'
-    | '/demo/tanstack-query'
-    | '/'
+  to: '/login' | '/benchmark' | '/simulacion' | '/stations' | '/trucks' | '/'
   id:
     | '__root__'
     | '/_auth'
-    | '/heart'
-    | '/start'
+    | '/login'
     | '/_auth/benchmark'
     | '/_auth/simulacion'
     | '/_auth/stations'
     | '/_auth/trucks'
-    | '/demo/table'
-    | '/demo/tanstack-query'
     | '/_auth/'
   fileRoutesById: FileRoutesById
 }
 
 export interface RootRouteChildren {
   AuthRoute: typeof AuthRouteWithChildren
-  HeartRoute: typeof HeartRoute
-  StartRoute: typeof StartRoute
-  DemoTableRoute: typeof DemoTableRoute
-  DemoTanstackQueryRoute: typeof DemoTanstackQueryRoute
+  LoginRoute: typeof LoginRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRouteWithChildren,
-  HeartRoute: HeartRoute,
-  StartRoute: StartRoute,
-  DemoTableRoute: DemoTableRoute,
-  DemoTanstackQueryRoute: DemoTanstackQueryRoute,
+  LoginRoute: LoginRoute,
 }
 
 export const routeTree = rootRoute
@@ -285,10 +213,7 @@ export const routeTree = rootRoute
       "filePath": "__root.tsx",
       "children": [
         "/_auth",
-        "/heart",
-        "/start",
-        "/demo/table",
-        "/demo/tanstack-query"
+        "/login"
       ]
     },
     "/_auth": {
@@ -301,11 +226,8 @@ export const routeTree = rootRoute
         "/_auth/"
       ]
     },
-    "/heart": {
-      "filePath": "heart.tsx"
-    },
-    "/start": {
-      "filePath": "start.tsx"
+    "/login": {
+      "filePath": "login.tsx"
     },
     "/_auth/benchmark": {
       "filePath": "_auth/benchmark.tsx",
@@ -322,12 +244,6 @@ export const routeTree = rootRoute
     "/_auth/trucks": {
       "filePath": "_auth/trucks.tsx",
       "parent": "/_auth"
-    },
-    "/demo/table": {
-      "filePath": "demo.table.tsx"
-    },
-    "/demo/tanstack-query": {
-      "filePath": "demo.tanstack-query.tsx"
     },
     "/_auth/": {
       "filePath": "_auth/index.tsx",

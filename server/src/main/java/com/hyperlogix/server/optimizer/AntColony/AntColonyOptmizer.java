@@ -2,10 +2,10 @@ package com.hyperlogix.server.optimizer.AntColony;
 
 import com.hyperlogix.server.domain.Routes;
 import com.hyperlogix.server.optimizer.Graph;
+import com.hyperlogix.server.optimizer.Notifier;
 import com.hyperlogix.server.optimizer.Optimizer;
 import com.hyperlogix.server.optimizer.OptimizerContext;
 import com.hyperlogix.server.optimizer.OptimizerResult;
-import com.hyperlogix.server.optimizer.Notifier;
 
 import java.time.Duration;
 import java.util.ArrayList;
