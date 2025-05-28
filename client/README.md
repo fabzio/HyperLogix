@@ -319,10 +319,472 @@ Once we've created the derived store we can use it in the `App` component just l
 
 You can find out everything you need to know on how to use TanStack Store in the [TanStack Store documentation](https://tanstack.com/store/latest).
 
-# Demo files
+# HyperLogix Frontend
 
-Files prefixed with `demo` can be safely deleted. They are there to provide a starting point for you to play around with the features you've installed.
+Frontend de React con TypeScript para el sistema de planificación logística HyperLogix.
 
-# Learn More
+## Stack Tecnológico
 
-You can learn more about all of the offerings from TanStack in the [TanStack documentation](https://tanstack.com).
+- **React 18** - Biblioteca de UI
+- **TypeScript** - Tipado estático
+- **Vite** - Build tool y dev server
+- **TanStack Router** - Routing declarativo
+- **TanStack Query** - Gestión de estado servidor
+- **Tailwind CSS** - Framework de estilos
+- **Shadcn/ui** - Componentes de UI
+- **Biome** - Linting y formateo
+- **Vitest** - Framework de testing
+
+## Inicio Rápido
+
+```bash
+# Instalar dependencias
+bun install
+
+# Servidor de desarrollo
+bun start
+
+# Construir para producción
+bun build
+
+# Ejecutar pruebas
+bun test
+```
+
+## Scripts Disponibles
+
+```bash
+bun start           # Servidor de desarrollo (puerto 5173)
+bun build          # Construir para producción
+bun preview        # Preview de la build de producción
+bun test           # Ejecutar pruebas con Vitest
+bun test:watch     # Pruebas en modo watch
+bun test:coverage  # Pruebas con reporte de cobertura
+bun lint           # Linting con Biome
+bun format         # Formatear código
+bun check          # Verificar tipos TypeScript
+bun generate-api   # Generar cliente API desde OpenAPI
+```
+
+## Estructura del Proyecto
+
+```
+src/
+├── api/                 # Cliente API auto-generado
+│   ├── api.ts          # Interfaces y clases API
+│   ├── base.ts         # Configuración base
+│   └── docs/           # Documentación API
+├── components/         # Componentes reutilizables
+│   ├── ui/            # Componentes base (Shadcn)
+│   └── EntityManagement.tsx
+├── features/          # Módulos por funcionalidad
+│   ├── dashboard/     # Dashboard principal
+│   ├── trucks/        # Gestión de camiones
+│   ├── stations/      # Gestión de estaciones
+│   └── simulation/    # Sistema de simulación
+├── hooks/             # Hooks personalizados
+│   ├── useFilters.ts  # Hook para filtros
+│   └── useTrucks.ts   # Hook para camiones
+├── layouts/           # Layouts de la aplicación
+│   ├── PageLayout.tsx # Layout base de páginas
+│   └── Sidebar/       # Componentes de navegación
+├── routes/            # Definición de rutas (TanStack Router)
+│   ├── __root.tsx     # Ruta raíz
+│   ├── index.tsx      # Página principal
+│   └── _auth/         # Rutas autenticadas
+└── lib/               # Utilidades y configuraciones
+    └── utils.ts       # Funciones helper
+```
+
+## Arquitectura de Componentes
+
+### Componentes de UI Base (Shadcn)
+Los componentes básicos están en `src/components/ui/` y siguen el patrón de Shadcn:
+
+```tsx
+// Ejemplo de uso
+import { Button } from '@/components/ui/button'
+import { Card, CardHeader, CardTitle } from '@/components/ui/card'
+
+function MyComponent() {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Título</CardTitle>
+      </CardHeader>
+      <Button variant="outline">Acción</Button>
+    </Card>
+  )
+}
+```
+
+### Features (Módulos)
+Cada feature es autocontenida con su propia estructura:
+
+```
+features/trucks/
+├── index.tsx          # Componente principal
+├── components/        # Componentes específicos
+├── hooks/            # Hooks del módulo
+├── columns.tsx       # Definición de columnas tabla
+└── types.ts          # Tipos TypeScript
+```
+
+### Gestión de Estado
+
+#### TanStack Query para datos del servidor:
+```tsx
+import { useQuery } from '@tanstack/react-query'
+import { TruckControllerApi } from '@/api'
+
+function useTrucks(filters: any) {
+  return useQuery({
+    queryKey: ['trucks', filters],
+    queryFn: () => new TruckControllerApi().list(filters),
+    select: (data) => data.data.content
+  })
+}
+```
+
+#### Estado local con hooks:
+```tsx
+import { useState, useCallback } from 'react'
+
+function useFilters(initialState: any) {
+  const [filters, setFilters] = useState(initialState)
+  
+  const updateFilter = useCallback((key: string, value: any) => {
+    setFilters(prev => ({ ...prev, [key]: value }))
+  }, [])
+  
+  return { filters, updateFilter, setFilters }
+}
+```
+
+## Routing con TanStack Router
+
+### Definición de Rutas
+Las rutas se definen como archivos en `src/routes/`:
+
+```tsx
+// src/routes/trucks.tsx
+import { createFileRoute } from '@tanstack/react-router'
+import TrucksFeature from '@/features/trucks'
+
+export const Route = createFileRoute('/trucks')({
+  component: TrucksFeature
+})
+```
+
+### Navegación
+```tsx
+import { Link, useNavigate } from '@tanstack/react-router'
+
+function Navigation() {
+  const navigate = useNavigate()
+  
+  return (
+    <nav>
+      <Link to="/trucks">Camiones</Link>
+      <Link to="/stations">Estaciones</Link>
+      <button onClick={() => navigate({ to: '/dashboard' })}>
+        Dashboard
+      </button>
+    </nav>
+  )
+}
+```
+
+## API Client
+
+### Generación Automática
+El cliente API se genera automáticamente desde el backend:
+
+```bash
+bun run generate-api
+```
+
+Esto crea las interfaces TypeScript en `src/api/` basadas en la especificación OpenAPI.
+
+### Uso del Cliente API
+```tsx
+import { TruckControllerApi, StationControllerApi } from '@/api'
+
+// Instanciar APIs
+const truckApi = new TruckControllerApi()
+const stationApi = new StationControllerApi()
+
+// Usar con TanStack Query
+const { data: trucks } = useQuery({
+  queryKey: ['trucks'],
+  queryFn: () => truckApi.list({ page: 0, size: 20 })
+})
+```
+
+### Configuración de Base URL
+```tsx
+// src/api/configuration.ts
+export const apiConfig = new Configuration({
+  basePath: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1'
+})
+```
+
+## Estilos con Tailwind CSS
+
+### Configuración
+El proyecto usa Tailwind CSS con configuración personalizada en `tailwind.config.js`.
+
+### Patrones Comunes
+```tsx
+// Layout containers
+<div className="container mx-auto px-4 py-8">
+
+// Cards
+<div className="bg-white rounded-lg shadow-md p-6">
+
+// Buttons
+<button className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
+
+// Forms
+<input className="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+```
+
+### Variables CSS Personalizadas
+```css
+/* src/index.css */
+:root {
+  --primary: 222.2 84% 4.9%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 210 40% 96%;
+  --accent: 210 40% 96%;
+}
+```
+
+## Testing con Vitest
+
+### Configuración
+El testing está configurado con Vitest en `vitest.config.ts`.
+
+### Ejemplos de Pruebas
+```tsx
+// tests/components/Button.test.tsx
+import { render, screen } from '@testing-library/react'
+import { describe, it, expect } from 'vitest'
+import { Button } from '@/components/ui/button'
+
+describe('Button', () => {
+  it('renders with text', () => {
+    render(<Button>Click me</Button>)
+    expect(screen.getByRole('button')).toHaveTextContent('Click me')
+  })
+})
+```
+
+### Testing de Hooks
+```tsx
+// tests/hooks/useFilters.test.ts
+import { renderHook, act } from '@testing-library/react'
+import { describe, it, expect } from 'vitest'
+import { useFilters } from '@/hooks/useFilters'
+
+describe('useFilters', () => {
+  it('updates filters correctly', () => {
+    const { result } = renderHook(() => useFilters({}))
+    
+    act(() => {
+      result.current.updateFilter('name', 'test')
+    })
+    
+    expect(result.current.filters.name).toBe('test')
+  })
+})
+```
+
+## Performance y Optimización
+
+### Code Splitting por Rutas
+```tsx
+// Lazy loading automático con TanStack Router
+const LazyComponent = lazy(() => import('./ExpensiveComponent'))
+
+export const Route = createFileRoute('/expensive')({
+  component: () => (
+    <Suspense fallback={<div>Loading...</div>}>
+      <LazyComponent />
+    </Suspense>
+  )
+})
+```
+
+### Memoización de Componentes
+```tsx
+import { memo, useMemo } from 'react'
+
+const ExpensiveComponent = memo(({ data }: { data: any[] }) => {
+  const processedData = useMemo(() => {
+    return data.map(item => ({ ...item, processed: true }))
+  }, [data])
+  
+  return <div>{/* Render processedData */}</div>
+})
+```
+
+### Optimización de Queries
+```tsx
+const { data } = useQuery({
+  queryKey: ['trucks', filters],
+  queryFn: () => truckApi.list(filters),
+  staleTime: 5 * 60 * 1000, // 5 minutos
+  cacheTime: 10 * 60 * 1000, // 10 minutos
+  refetchOnWindowFocus: false
+})
+```
+
+## Variables de Entorno
+
+### Desarrollo (.env.development)
+```env
+VITE_API_BASE_URL=http://localhost:8080/api/v1
+VITE_APP_TITLE=HyperLogix Dev
+VITE_ENABLE_DEVTOOLS=true
+```
+
+### Producción (.env.production)
+```env
+VITE_API_BASE_URL=https://api.hyperlogix.com/api/v1
+VITE_APP_TITLE=HyperLogix
+VITE_ENABLE_DEVTOOLS=false
+```
+
+### Uso en Código
+```tsx
+import { env } from '@/env'
+
+const apiUrl = env.VITE_API_BASE_URL
+const appTitle = env.VITE_APP_TITLE
+```
+
+## Deployment
+
+### Build para Producción
+```bash
+bun build
+```
+
+### Preview de Producción
+```bash
+bun preview
+```
+
+### Archivos Generados
+```
+dist/
+├── index.html
+├── assets/
+│   ├── index-[hash].js
+│   ├── index-[hash].css
+│   └── vendor-[hash].js
+└── vite.svg
+```
+
+## Herramientas de Desarrollo
+
+### Extensiones VS Code Recomendadas
+- TypeScript Hero
+- Tailwind CSS IntelliSense
+- ES7+ React/Redux/React-Native snippets
+- Auto Rename Tag
+- Bracket Pair Colorizer
+
+### DevTools
+- React Developer Tools
+- TanStack Query DevTools (incluidas en desarrollo)
+- TanStack Router DevTools (incluidas en desarrollo)
+
+## Resolución de Problemas
+
+### Errores Comunes
+
+#### 1. Error de importación de tipos API
+```bash
+# Regenerar cliente API
+bun run generate-api
+```
+
+#### 2. Error de Tailwind CSS no aplicándose
+```bash
+# Verificar configuración en tailwind.config.js
+# Asegurar que los paths incluyan todos los archivos
+```
+
+#### 3. Problemas con hot reload
+```bash
+# Limpiar cache de Vite
+rm -rf node_modules/.vite
+bun start
+```
+
+## Mejores Prácticas
+
+### Estructura de Componentes
+```tsx
+// ✅ Bueno - Componente bien estructurado
+interface Props {
+  title: string
+  onSave: (data: any) => void
+}
+
+export function MyComponent({ title, onSave }: Props) {
+  const [data, setData] = useState(null)
+  
+  const handleSubmit = useCallback(() => {
+    onSave(data)
+  }, [data, onSave])
+  
+  return (
+    <div className="space-y-4">
+      <h1 className="text-2xl font-bold">{title}</h1>
+      {/* Resto del componente */}
+    </div>
+  )
+}
+```
+
+### Gestión de Estados
+```tsx
+// ✅ Bueno - Estado bien tipado
+interface UserState {
+  user: User | null
+  loading: boolean
+  error: string | null
+}
+
+const [state, setState] = useState<UserState>({
+  user: null,
+  loading: false,
+  error: null
+})
+```
+
+### Manejo de Errores
+```tsx
+// ✅ Bueno - Error boundary
+function ErrorBoundary({ children }: { children: React.ReactNode }) {
+  return (
+    <ErrorBoundary
+      fallback={<div>Something went wrong</div>}
+      onError={(error) => console.error(error)}
+    >
+      {children}
+    </ErrorBoundary>
+  )
+}
+```
+
+## Recursos Adicionales
+
+- [TanStack Router Docs](https://tanstack.com/router)
+- [TanStack Query Docs](https://tanstack.com/query)
+- [Tailwind CSS Docs](https://tailwindcss.com)
+- [Shadcn/ui Docs](https://ui.shadcn.com)
+- [Vitest Docs](https://vitest.dev)
