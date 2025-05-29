@@ -1,7 +1,7 @@
 package com.hyperlogix.server.services.simulation;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
+//import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -38,7 +38,7 @@ public class SimulationService {
     };
     List<Order> orderslist = new ArrayList<>(network.getOrders());
     stopSimulation(simulationId);
-    SimulationEngine engine = new SimulationEngine(simulationId, config, notifier, orderslist);
+    SimulationEngine engine = new SimulationEngine(simulationId, config, notifier, orderslist, messaging);
     engine.setPlgNetwork(network);
     simulation.put(simulationId, engine);
     executor.execute(engine);

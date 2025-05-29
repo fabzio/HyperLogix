@@ -5,15 +5,25 @@ import org.springframework.messaging.handler.annotation.MessageMapping;
 
 import com.hyperlogix.server.domain.Routes;
 import com.hyperlogix.server.features.planification.usecases.SendPlanificationUseCase;
+import com.hyperlogix.server.features.planification.usecases.GeneratePlanificationUseCase;
+import com.hyperlogix.server.features.planification.dtos.PlanificationRequest;
 
 public class PlanificationController {
 
   @Autowired
+  private GeneratePlanificationUseCase generatePlanificationUseCase;
+  @Autowired
   private SendPlanificationUseCase sendPlanificationUseCase;
 
+  @MessageMapping("/planification/request")
+  public void handlePlanificationRequest(PlanificationRequest request) {
+    Routes routes = generatePlanificationUseCase.generateRoutes(request.getPlgNetwork());
+    sendPlanificationUseCase.sendPlanification(request.getSessionId(), routes);
+  }
+  /*
   @MessageMapping("/planification/response")
   public void handlePlanificationResponse(Routes response) {
     sendPlanificationUseCase.sendPlanification("A", response);
 
-  }
+  }*/
 }
