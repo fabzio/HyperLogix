@@ -12,7 +12,6 @@ import java.util.concurrent.Executors;
 import com.hyperlogix.server.domain.Order;
 import com.hyperlogix.server.domain.PLGNetwork;
 import com.hyperlogix.server.domain.Routes;
-import com.hyperlogix.server.features.orders.controllers.OrderController;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
@@ -23,7 +22,7 @@ public class SimulationService {
   private final Map<String, SimulationEngine> simulation = new ConcurrentHashMap<>();
   private final ExecutorService executor = Executors.newCachedThreadPool();
 
-  public SimulationService(SimpMessagingTemplate messaging, OrderController orderController) {
+  public SimulationService(SimpMessagingTemplate messaging) {
     this.messaging = messaging;
   }
 

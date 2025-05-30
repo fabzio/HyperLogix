@@ -17,13 +17,13 @@ public class PlanificationController {
 
   @MessageMapping("/planification/request")
   public void handlePlanificationRequest(PlanificationRequest request) {
-    Routes routes = generatePlanificationUseCase.generateRoutes(request.getPlgNetwork());
-    sendPlanificationUseCase.sendPlanification(request.getSessionId(), routes);
+    generatePlanificationUseCase.generateRoutes(request.getSessionId(), request.getPlgNetwork());
   }
-  /*
+
   @MessageMapping("/planification/response")
   public void handlePlanificationResponse(Routes response) {
+    // TODO: use a simulation ID instead of hardcoded "A"
     sendPlanificationUseCase.sendPlanification("A", response);
+  }
 
-  }*/
 }
