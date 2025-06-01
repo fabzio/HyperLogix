@@ -10,6 +10,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import com.hyperlogix.server.domain.PLGNetwork;
+import com.hyperlogix.server.features.planification.dtos.PlanificationResponse;
 
 @Service
 public class PlanificationService {
@@ -20,7 +21,7 @@ public class PlanificationService {
 
   public void startPlanification(String planificationId, PLGNetwork network) {
     PlanificationNotifier notifier = routes -> {
-      messaging.convertAndSend("/topic/planification/" + planificationId, routes);
+      messaging.convertAndSend("/app/planification/response", new PlanificationResponse(planificationId, routes));
     };
     PlanificationEngine engine = new PlanificationEngine(network, notifier);
     stopPlanification(planificationId);

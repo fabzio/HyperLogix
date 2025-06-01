@@ -12,7 +12,7 @@ import com.hyperlogix.server.optimizer.Optimizer;
 import com.hyperlogix.server.optimizer.OptimizerContext;
 import com.hyperlogix.server.optimizer.OptimizerResult;
 import com.hyperlogix.server.optimizer.AntColony.AntColonyConfig;
-import com.hyperlogix.server.optimizer.AntColony.AntColonyOptmizer;
+import com.hyperlogix.server.optimizer.AntColony.AntColonyOptimizer;
 
 public class PlanificationEngine implements Runnable {
 
@@ -40,7 +40,7 @@ public class PlanificationEngine implements Runnable {
           100.0,
           1.0
       );
-      Optimizer optimizer = new AntColonyOptmizer(config);
+      Optimizer optimizer = new AntColonyOptimizer(config);
 
       OptimizerContext ctx = new OptimizerContext(
           network,

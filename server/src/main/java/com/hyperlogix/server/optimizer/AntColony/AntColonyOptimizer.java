@@ -13,12 +13,12 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.*;
 
-public class AntColonyOptmizer implements Optimizer {
+public class AntColonyOptimizer implements Optimizer {
   private AntColonyConfig antColonyConfig;
   private Graph graph;
   private List<Ant> ants;
 
-  public AntColonyOptmizer(AntColonyConfig antColonyConfig) {
+  public AntColonyOptimizer(AntColonyConfig antColonyConfig) {
     this.antColonyConfig = antColonyConfig;
   }
 

@@ -7,7 +7,7 @@ import com.hyperlogix.server.optimizer.Optimizer;
 import com.hyperlogix.server.optimizer.OptimizerContext;
 import com.hyperlogix.server.optimizer.OptimizerResult;
 import com.hyperlogix.server.optimizer.AntColony.AntColonyConfig;
-import com.hyperlogix.server.optimizer.AntColony.AntColonyOptmizer;
+import com.hyperlogix.server.optimizer.AntColony.AntColonyOptimizer;
 import com.hyperlogix.server.optimizer.Genetic.GeneticConfig;
 import com.hyperlogix.server.optimizer.Genetic.GeneticOptimizer;
 
@@ -107,7 +107,7 @@ public class BenchmarkService {
 
         // Ant Colony Optimizer
         AntColonyConfig antConfig = new AntColonyConfig(4, 10, 1.0, 2, 0.5, 100, 0.1);
-        Optimizer antOptimizer = new AntColonyOptmizer(antConfig);
+        Optimizer antOptimizer = new AntColonyOptimizer(antConfig);
         BenchmarkResult antResult = runBenchmark(antOptimizer, network, firstOrderTime, Duration.ofSeconds(10));
         writeResultsToCsv(csvWriter, month, "ACO", antResult);
 

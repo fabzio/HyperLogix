@@ -8,11 +8,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.beans.factory.annotation.Autowired;
 
-//import java.security.Principal;
-//import java.time.LocalDateTime;
 
 import org.springframework.web.bind.annotation.GetMapping;
-//import org.springframework.web.bind.annotation.RequestParam;
 
 import com.hyperlogix.server.features.simulation.dtos.StartSimulationRequest;
 import com.hyperlogix.server.features.simulation.usecases.StartSimulationUseCase;
