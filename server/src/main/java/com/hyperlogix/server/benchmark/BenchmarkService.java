@@ -3,12 +3,11 @@ package com.hyperlogix.server.benchmark;
 import com.hyperlogix.server.domain.PLGNetwork;
 import com.hyperlogix.server.domain.Order; // Added import
 import com.hyperlogix.server.mock.MockData;
-import com.hyperlogix.server.optimizer.Notifier;
 import com.hyperlogix.server.optimizer.Optimizer;
 import com.hyperlogix.server.optimizer.OptimizerContext;
 import com.hyperlogix.server.optimizer.OptimizerResult;
 import com.hyperlogix.server.optimizer.AntColony.AntColonyConfig;
-import com.hyperlogix.server.optimizer.AntColony.AntColonyOptmizer;
+import com.hyperlogix.server.optimizer.AntColony.AntColonyOptimizer;
 import com.hyperlogix.server.optimizer.Genetic.GeneticConfig;
 import com.hyperlogix.server.optimizer.Genetic.GeneticOptimizer;
 
@@ -19,7 +18,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.time.Month;
 import java.util.ArrayList;
 import java.util.List;
 // Added for potential file path construction, if needed by MockData directly
@@ -109,7 +107,7 @@ public class BenchmarkService {
 
         // Ant Colony Optimizer
         AntColonyConfig antConfig = new AntColonyConfig(4, 10, 1.0, 2, 0.5, 100, 0.1);
-        Optimizer antOptimizer = new AntColonyOptmizer(antConfig);
+        Optimizer antOptimizer = new AntColonyOptimizer(antConfig);
         BenchmarkResult antResult = runBenchmark(antOptimizer, network, firstOrderTime, Duration.ofSeconds(10));
         writeResultsToCsv(csvWriter, month, "ACO", antResult);
 
@@ -160,7 +158,6 @@ public class BenchmarkService {
     }
     return new BenchmarkResult(costs, times);
   }
-
   private static void printResults(String algorithmName, BenchmarkResult result) {
     double meanCost = calculateMean(result.costs);
     double stdDevCost = calculateStdDev(result.costs, meanCost);

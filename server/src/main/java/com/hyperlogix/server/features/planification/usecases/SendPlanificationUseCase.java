@@ -12,7 +12,7 @@ public class SendPlanificationUseCase {
   @Autowired
   private SimulationService simulationService;
 
-  public void sendPlanification(String orderId, Routes routes) {
-    simulationService.sendPlanification(orderId, routes);
+  public void sendPlanification(String simulationId, Routes routes) {
+    simulationService.sendPlanification(simulationId, routes);
   }
 }

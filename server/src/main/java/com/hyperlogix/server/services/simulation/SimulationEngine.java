@@ -6,6 +6,7 @@ import lombok.Setter;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -15,6 +16,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import com.hyperlogix.server.features.planification.dtos.PlanificationRequest;
 
 public class SimulationEngine implements Runnable {
   private static final Logger log = LoggerFactory.getLogger(SimulationEngine.class);
@@ -23,6 +25,8 @@ public class SimulationEngine implements Runnable {
   private final SimulationConfig simulationConfig;
   private final SimulationNotifier simulationNotifier;
   private final List<Order> orderRepository;
+  private final SimpMessagingTemplate messaging;
+
   @Setter
   private PLGNetwork plgNetwork;
   private Routes activeRoutes;
@@ -37,11 +41,13 @@ public class SimulationEngine implements Runnable {
   public SimulationEngine(String sessionId,
       SimulationConfig simulationConfig,
       SimulationNotifier simulationNotifier,
-      List<Order> orderRepository) {
+      List<Order> orderRepository,
+      SimpMessagingTemplate messaging) {
     this.sessionId = sessionId;
     this.simulationConfig = simulationConfig;
     this.simulationNotifier = simulationNotifier;
     this.orderRepository = orderRepository;
+    this.messaging = messaging;
   }
 
   @Override
@@ -157,7 +163,7 @@ public class SimulationEngine implements Runnable {
 
   private void requestPlanification() {
     log.info("Requesting planification from {}", sessionId);
-
+    messaging.convertAndSend("/app/planification/request", new PlanificationRequest(sessionId, plgNetwork));
   }
 
   private void sleep(Duration duration) {
