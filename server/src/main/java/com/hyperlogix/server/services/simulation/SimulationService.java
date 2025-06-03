@@ -39,7 +39,6 @@ public class SimulationService {
       messaging.convertAndSend("/topic/simulation/" + simulationId, snapshot);
     };
     List<Order> orderslist = new ArrayList<>(network.getOrders());
-    List<Roadblock> roadblocks = new ArrayList<>(network.getRoadblocks());
     stopSimulation(simulationId);
     SimulationEngine engine = new SimulationEngine(simulationId, config, notifier, orderslist,
         eventPublisher);
