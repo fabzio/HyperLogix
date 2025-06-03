@@ -34,7 +34,7 @@ public class TruckDataLoader implements CommandLineRunner {
         t.setCurrentCapacity(25);
         t.setFuelCapacity(25);
         t.setCurrentFuel(25);
-        t.setLocation(new Point(0, 0));
+        t.setLocation(new Point(12, 8));
         trucks.add(t);
       }
       // TB: 4 camiones de 15m3

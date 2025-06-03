@@ -179,7 +179,6 @@ public class Ant {
   }
 
   private void moveToNode(Truck truck, Stop currentNode, Stop nextNode) {
-    this.routes.get(truck.getId()).add(nextNode);
     Path path = adjacencyMap.get(currentNode.getNode()).get(nextNode.getNode());
     this.paths.get(truck.getId())
         .add(path.points().getFirst() == currentNode.getNode().getLocation() ? path : path.reverse());
@@ -187,6 +186,8 @@ public class Ant {
     this.adjacencyMap = graph.createAdjacencyMap(nextNode.getArrivalTime());
     Duration timeToDestination = truck.getTimeToDestination(distance);
     double fuelConsumption = truck.getFuelConsumption(distance);
+    nextNode.setArrivalTime(currentNode.getArrivalTime().plus(timeToDestination));
+    this.routes.get(truck.getId()).add(nextNode);
 
     if (nextNode.getNode().getType() == NodeType.STATION) {
       truck.setCurrentFuel(truck.getCurrentCapacity());
