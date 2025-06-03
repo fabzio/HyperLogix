@@ -7,7 +7,7 @@ import lombok.Data;
 
 @Data
 @AllArgsConstructor
-public class PlanificationResponse {
+public class PlanificationResponseEvent {
   private String sessionId;
   private Routes routes;
 }

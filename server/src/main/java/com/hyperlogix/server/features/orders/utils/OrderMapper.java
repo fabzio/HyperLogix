@@ -7,7 +7,7 @@ public class OrderMapper {
   public static Order mapToDomain(OrderEntity entity) {
     if (entity == null)
       return null;
-    Order order = new Order(entity.getId().toString(), entity.getClientId(), entity.getDate(), entity.getLocation(),
+    Order order = new Order(entity.getId(), entity.getClientId(), entity.getDate(), entity.getLocation(),
         entity.getRequestedGLP(), entity.getDeliveredGLP(), entity.getDeliveryLimit(), entity.getStatus());
     return order;
   }
@@ -16,14 +16,7 @@ public class OrderMapper {
     if (station == null)
       return null;
     OrderEntity entity = new OrderEntity();
-    if (station.getId() != null) {
-      try {
-        entity.setId(Long.parseLong(station.getId()));
-      } catch (NumberFormatException e) {
-        entity.setId(null);
-      }
-    }
-
+    entity.setId(station.getId());
     entity.setClientId(station.getClientId());
     entity.setDate(station.getDate());
     entity.setLocation(station.getLocation());

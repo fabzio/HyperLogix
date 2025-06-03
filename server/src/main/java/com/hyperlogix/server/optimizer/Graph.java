@@ -54,7 +54,7 @@ public class Graph implements Cloneable {
       return this.adjacencyMapCache;
     }
 
-    List<Node> ordersNode = plgNetwork.getOrders().stream()
+    List<Node> ordersNode = plgNetwork.getCalculatedOrders().stream()
         .map(Node::new)
         .toList();
     List<Node> stationsNodes = plgNetwork.getStations().stream()

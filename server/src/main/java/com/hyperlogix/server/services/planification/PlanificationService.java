@@ -1,29 +1,36 @@
 package com.hyperlogix.server.services.planification;
 
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import com.hyperlogix.server.domain.PLGNetwork;
-import com.hyperlogix.server.features.planification.dtos.PlanificationResponse;
+import com.hyperlogix.server.features.planification.dtos.PlanificationResponseEvent;
 
 @Service
 public class PlanificationService {
+  @Autowired
+  private ApplicationEventPublisher eventPublisher;
   @Autowired
   private SimpMessagingTemplate messaging;
   private final Map<String, PlanificationEngine> planification = new ConcurrentHashMap<>();
   private final ExecutorService executor = Executors.newCachedThreadPool();
 
-  public void startPlanification(String planificationId, PLGNetwork network) {
+  public void startPlanification(String planificationId, PLGNetwork network, LocalDateTime algorithmTime) {
     PlanificationNotifier notifier = routes -> {
-      messaging.convertAndSend("/app/planification/response", new PlanificationResponse(planificationId, routes));
+      PlanificationResponseEvent responseEvent = new PlanificationResponseEvent(planificationId, routes);
+      messaging.convertAndSend("/topic/planification/response",
+          responseEvent);
+      eventPublisher.publishEvent(responseEvent);
     };
-    PlanificationEngine engine = new PlanificationEngine(network, notifier);
+    PlanificationEngine engine = new PlanificationEngine(network, notifier, algorithmTime);
     stopPlanification(planificationId);
     planification.put(planificationId, engine);
     executor.execute(engine);

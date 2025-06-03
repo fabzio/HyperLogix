@@ -4,5 +4,5 @@ import com.hyperlogix.server.features.stations.entity.StationEntity;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface StationRepository extends JpaRepository<StationEntity, Long> {
+public interface StationRepository extends JpaRepository<StationEntity, String> {
 }

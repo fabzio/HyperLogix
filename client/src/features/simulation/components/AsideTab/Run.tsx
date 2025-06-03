@@ -47,6 +47,10 @@ export default function Run() {
 
   const isRunning = data?.running || false
 
+  const handleStop = () => {
+    stopSimulation()
+  }
+
   return (
     <div>
       <Form {...form}>
@@ -109,7 +113,7 @@ export default function Run() {
                   type="button"
                   size="icon"
                   variant="destructive"
-                  onClick={() => stopSimulation()}
+                  onClick={handleStop}
                 >
                   <Square className="h-4 w-4" />
                 </Button>

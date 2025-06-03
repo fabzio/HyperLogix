@@ -19,6 +19,12 @@ public class PLGNetwork implements Cloneable {
     return trucks.stream().mapToInt(Truck::getMaxCapacity).sum();
   }
 
+  public List<Order> getCalculatedOrders() {
+    return orders.stream()
+        .filter(order -> order.getStatus() == OrderStatus.CALCULATING)
+        .collect(Collectors.toList());
+  }
+
   @Override
   public PLGNetwork clone() {
     try {

@@ -19,15 +19,18 @@ public class PlanificationEngine implements Runnable {
   private static final Logger log = LoggerFactory.getLogger(PlanificationEngine.class);
   private final PlanificationNotifier notifier;
   private final PLGNetwork network;
+  private final LocalDateTime algorithmTime;
   private volatile Thread currentThread;
 
-  public PlanificationEngine(PLGNetwork network, PlanificationNotifier notifier) {
+  public PlanificationEngine(PLGNetwork network, PlanificationNotifier notifier, LocalDateTime algorithmTime) {
     this.notifier = notifier;
     this.network = network;
+    this.algorithmTime = algorithmTime;
   }
 
   @Override
   public void run() {
+    log.info("Starting planification for network task");
     currentThread = Thread.currentThread();
 
     try {
@@ -36,15 +39,14 @@ public class PlanificationEngine implements Runnable {
           10,
           1.0,
           2.0,
-          0.5, 
+          0.5,
           100.0,
-          1.0
-      );
+          1.0);
       Optimizer optimizer = new AntColonyOptimizer(config);
 
       OptimizerContext ctx = new OptimizerContext(
           network,
-          LocalDateTime.now());
+          algorithmTime);
 
       OptimizerResult result = optimizer.run(ctx, Duration.ofSeconds(5));
       Routes routes = result.getRoutes();

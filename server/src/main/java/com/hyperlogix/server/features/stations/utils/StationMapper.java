@@ -8,7 +8,7 @@ public class StationMapper {
     if (entity == null)
       return null;
     Station station = new Station();
-    station.setId(entity.getId() != null ? entity.getId().toString() : null);
+    station.setId(entity.getId());
     station.setName(entity.getName());
     station.setLocation(entity.getLocation());
     station.setMaxCapacity(entity.getMaxCapacity());
@@ -20,13 +20,7 @@ public class StationMapper {
     if (station == null)
       return null;
     StationEntity entity = new StationEntity();
-    if (station.getId() != null) {
-      try {
-        entity.setId(Long.parseLong(station.getId()));
-      } catch (NumberFormatException e) {
-        entity.setId(null);
-      }
-    }
+    entity.setId(station.getId());
     entity.setName(station.getName());
     entity.setLocation(station.getLocation());
     entity.setMaxCapacity(station.getMaxCapacity());
