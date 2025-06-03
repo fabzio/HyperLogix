@@ -17,7 +17,6 @@ import { Route as AuthIndexImport } from './routes/_auth/index'
 import { Route as AuthTrucksImport } from './routes/_auth/trucks'
 import { Route as AuthStationsImport } from './routes/_auth/stations'
 import { Route as AuthSimulacionImport } from './routes/_auth/simulacion'
-import { Route as AuthBenchmarkImport } from './routes/_auth/benchmark'
 
 // Create/Update Routes
 
@@ -56,12 +55,6 @@ const AuthSimulacionRoute = AuthSimulacionImport.update({
   getParentRoute: () => AuthRoute,
 } as any)
 
-const AuthBenchmarkRoute = AuthBenchmarkImport.update({
-  id: '/benchmark',
-  path: '/benchmark',
-  getParentRoute: () => AuthRoute,
-} as any)
-
 // Populate the FileRoutesByPath interface
 
 declare module '@tanstack/react-router' {
@@ -79,13 +72,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/login'
       preLoaderRoute: typeof LoginImport
       parentRoute: typeof rootRoute
-    }
-    '/_auth/benchmark': {
-      id: '/_auth/benchmark'
-      path: '/benchmark'
-      fullPath: '/benchmark'
-      preLoaderRoute: typeof AuthBenchmarkImport
-      parentRoute: typeof AuthImport
     }
     '/_auth/simulacion': {
       id: '/_auth/simulacion'
@@ -121,7 +107,6 @@ declare module '@tanstack/react-router' {
 // Create and export the route tree
 
 interface AuthRouteChildren {
-  AuthBenchmarkRoute: typeof AuthBenchmarkRoute
   AuthSimulacionRoute: typeof AuthSimulacionRoute
   AuthStationsRoute: typeof AuthStationsRoute
   AuthTrucksRoute: typeof AuthTrucksRoute
@@ -129,7 +114,6 @@ interface AuthRouteChildren {
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
-  AuthBenchmarkRoute: AuthBenchmarkRoute,
   AuthSimulacionRoute: AuthSimulacionRoute,
   AuthStationsRoute: AuthStationsRoute,
   AuthTrucksRoute: AuthTrucksRoute,
@@ -141,7 +125,6 @@ const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 export interface FileRoutesByFullPath {
   '': typeof AuthRouteWithChildren
   '/login': typeof LoginRoute
-  '/benchmark': typeof AuthBenchmarkRoute
   '/simulacion': typeof AuthSimulacionRoute
   '/stations': typeof AuthStationsRoute
   '/trucks': typeof AuthTrucksRoute
@@ -150,7 +133,6 @@ export interface FileRoutesByFullPath {
 
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
-  '/benchmark': typeof AuthBenchmarkRoute
   '/simulacion': typeof AuthSimulacionRoute
   '/stations': typeof AuthStationsRoute
   '/trucks': typeof AuthTrucksRoute
@@ -161,7 +143,6 @@ export interface FileRoutesById {
   __root__: typeof rootRoute
   '/_auth': typeof AuthRouteWithChildren
   '/login': typeof LoginRoute
-  '/_auth/benchmark': typeof AuthBenchmarkRoute
   '/_auth/simulacion': typeof AuthSimulacionRoute
   '/_auth/stations': typeof AuthStationsRoute
   '/_auth/trucks': typeof AuthTrucksRoute
@@ -170,21 +151,13 @@ export interface FileRoutesById {
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | ''
-    | '/login'
-    | '/benchmark'
-    | '/simulacion'
-    | '/stations'
-    | '/trucks'
-    | '/'
+  fullPaths: '' | '/login' | '/simulacion' | '/stations' | '/trucks' | '/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/login' | '/benchmark' | '/simulacion' | '/stations' | '/trucks' | '/'
+  to: '/login' | '/simulacion' | '/stations' | '/trucks' | '/'
   id:
     | '__root__'
     | '/_auth'
     | '/login'
-    | '/_auth/benchmark'
     | '/_auth/simulacion'
     | '/_auth/stations'
     | '/_auth/trucks'
@@ -219,7 +192,6 @@ export const routeTree = rootRoute
     "/_auth": {
       "filePath": "_auth.tsx",
       "children": [
-        "/_auth/benchmark",
         "/_auth/simulacion",
         "/_auth/stations",
         "/_auth/trucks",
@@ -228,10 +200,6 @@ export const routeTree = rootRoute
     },
     "/login": {
       "filePath": "login.tsx"
-    },
-    "/_auth/benchmark": {
-      "filePath": "_auth/benchmark.tsx",
-      "parent": "/_auth"
     },
     "/_auth/simulacion": {
       "filePath": "_auth/simulacion.tsx",

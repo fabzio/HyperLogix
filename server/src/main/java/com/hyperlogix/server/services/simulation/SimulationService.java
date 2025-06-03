@@ -31,8 +31,8 @@ public class SimulationService {
   public void startSimulation(String simulationId, PLGNetwork network) {
     SimulationConfig config = new SimulationConfig(
         Duration.ofSeconds(3),
-        Duration.ofSeconds(10),
-        5,
+        Duration.ofSeconds(5),
+        60,
         Duration.ofMillis(500));
     SimulationNotifier notifier = snapshot -> {
       messaging.convertAndSend("/topic/simulation/" + simulationId, snapshot);
