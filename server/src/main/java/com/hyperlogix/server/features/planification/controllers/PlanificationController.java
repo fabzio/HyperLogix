@@ -1,13 +1,16 @@
 package com.hyperlogix.server.features.planification.controllers;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.event.EventListener;
 import org.springframework.messaging.handler.annotation.MessageMapping;
+import org.springframework.stereotype.Controller;
 
 import com.hyperlogix.server.features.planification.usecases.SendPlanificationUseCase;
 import com.hyperlogix.server.features.planification.usecases.GeneratePlanificationUseCase;
-import com.hyperlogix.server.features.planification.dtos.PlanificationRequest;
-import com.hyperlogix.server.features.planification.dtos.PlanificationResponse;
+import com.hyperlogix.server.features.planification.dtos.PlanificationRequestEvent;
+import com.hyperlogix.server.features.planification.dtos.PlanificationResponseEvent;
 
+@Controller
 public class PlanificationController {
 
   @Autowired
@@ -15,13 +18,14 @@ public class PlanificationController {
   @Autowired
   private SendPlanificationUseCase sendPlanificationUseCase;
 
-  @MessageMapping("/planification/request")
-  public void handlePlanificationRequest(PlanificationRequest request) {
-    generatePlanificationUseCase.generateRoutes(request.getSessionId(), request.getPlgNetwork());
+  @EventListener
+  public void handlePlanificationRequest(PlanificationRequestEvent request) {
+    generatePlanificationUseCase.generateRoutes(request.getSessionId(), request.getPlgNetwork(),
+        request.getSimulatedTime());
   }
 
-  @MessageMapping("/planification/response")
-  public void handlePlanificationResponse(PlanificationResponse response) {
+  @EventListener
+  public void handlePlanificationResponse(PlanificationResponseEvent response) {
     sendPlanificationUseCase.sendPlanification(response.getSessionId(), response.getRoutes());
   }
 

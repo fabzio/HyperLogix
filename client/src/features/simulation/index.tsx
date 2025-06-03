@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 import { BarChart2, Play, Truck } from 'lucide-react'
 import { useState } from 'react'
 import AsideTab from './components/AsideTab'
+import SimulationHeader from './components/SimulationHeader'
 import { useWatchSimulation } from './hooks/useSimulation'
 
 const TABS = [
@@ -14,21 +15,26 @@ const TABS = [
 ]
 
 export default function Simulation() {
-  const { network } = useWatchSimulation()
+  const { plgNetwork: network, simulationTime } = useWatchSimulation()
   const [openTab, setOpenTab] = useState<string | null>(null)
 
   const poliLines: MapPolyline[] = []
-  const pointMarkers: [number, number][] = []
 
   return (
-    <div className="flex h-screen w-full">
-      <div className="flex-1 relative">
-        <DynamicMap
-          trucks={network?.trucks || []}
-          stations={network?.stations || []}
-          orders={network?.orders || []}
-          polylines={poliLines}
+    <div className="flex h-full w-full">
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <SimulationHeader
+          simulationTime={simulationTime ?? null}
+          isSimulationActive={!!network}
         />
+        <div className="flex-1 overflow-auto">
+          <DynamicMap
+            trucks={network?.trucks || []}
+            stations={network?.stations || []}
+            orders={network?.orders || []}
+            polylines={poliLines}
+          />
+        </div>
       </div>
 
       {openTab && (
@@ -37,7 +43,7 @@ export default function Simulation() {
         </aside>
       )}
 
-      <div className="flex flex-col gap-2 bg-background/95 border-l shadow-lg p-1.5 items-center h-full">
+      <div className="flex flex-col gap-2 bg-background border-l shadow-lg p-1.5 items-center h-full">
         {TABS.map((tab) => {
           const isActive = openTab === tab.key
           return (
@@ -62,13 +68,4 @@ export default function Simulation() {
       </div>
     </div>
   )
-}
-
-const getColorFromKey = (key: string): string => {
-  const hash = Array.from(key).reduce(
-    (acc, char) => acc + char.charCodeAt(0),
-    0,
-  )
-  const hue = hash % 360 // Generate a hue value between 0 and 359
-  return `hsl(${hue}, 80%, 40%)` // Adjust saturation to 80% and lightness to 40% for better visibility
 }

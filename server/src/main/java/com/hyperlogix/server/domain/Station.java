@@ -17,7 +17,7 @@ public class Station implements Cloneable {
   private Point location;
   private int maxCapacity = 160;
   private boolean mainStation = false;
-  private Map<LocalDate, Integer> availableCapacityPerDate;
+  private Map<LocalDate, Integer> availableCapacityPerDate = new HashMap<>();
 
   // Copy Constructor
   public Station(Station other) {
