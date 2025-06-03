@@ -8,8 +8,11 @@ import org.springframework.stereotype.Service;
 
 import com.hyperlogix.server.domain.Order;
 import com.hyperlogix.server.domain.PLGNetwork;
+import com.hyperlogix.server.domain.Roadblock;
 import com.hyperlogix.server.domain.Station;
 import com.hyperlogix.server.domain.Truck;
+import com.hyperlogix.server.features.blocks.repository.RoadblockRepository;
+import com.hyperlogix.server.features.blocks.utils.BlockMapper;
 import com.hyperlogix.server.features.orders.repository.OrderRepository;
 import com.hyperlogix.server.features.orders.utils.OrderMapper;
 import com.hyperlogix.server.features.simulation.usecases.in.StartSimulationUseCaseIn;
@@ -29,6 +32,8 @@ public class StartSimulationUseCase {
   private TruckRepository truckRepository;
   @Autowired
   private StationRepository stationRepository;
+  @Autowired
+  private RoadblockRepository roadblockRepository;
 
   public void startSimulation(StartSimulationUseCaseIn req) {
     LocalDateTime startTimeOrders = req.getStartTimeOrders();
@@ -41,8 +46,10 @@ public class StartSimulationUseCase {
         .map(TruckMapper::mapToDomain).toList();
     List<Station> stations = stationRepository.findAll().stream()
         .map(StationMapper::mapToDomain).toList();
+    List<Roadblock> roadblocks = roadblockRepository.findAll().stream()
+        .map(BlockMapper::mapToDomain).toList();
 
-    PLGNetwork plgNetwork = new PLGNetwork(trucks, stations, orders, List.of(), List.of());
+    PLGNetwork plgNetwork = new PLGNetwork(trucks, stations, orders, List.of(), roadblocks);
 
     simulationService.startSimulation(req.getSimulationId(), plgNetwork);
   }
