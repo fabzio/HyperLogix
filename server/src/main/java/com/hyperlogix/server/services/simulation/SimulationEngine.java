@@ -84,7 +84,8 @@ public class SimulationEngine implements Runnable {
         log.info("Next planning time: {}", nextPlanningTime);
       }
       updateSystemState(timeStep);
-      simulationNotifier.notifySnapshot(new SimulationSnapshot(LocalDateTime.now(), simulatedTime, plgNetwork));
+      simulationNotifier
+          .notifySnapshot(new SimulationSnapshot(LocalDateTime.now(), simulatedTime, plgNetwork, activeRoutes));
       sleep(simulationConfig.simulationResolution());
     }
   }
@@ -259,41 +260,88 @@ public class SimulationEngine implements Runnable {
 
   private void updateTruckLocationDuringTravel(Truck truck, Stop currentStop, Stop nextStop,
       List<Path> paths, int currentStopIndex, Duration timeStep) {
+
     if (currentStopIndex >= paths.size()) {
-      return;
+      return; // No path available for this segment
     }
 
-    Path path = paths.get(currentStopIndex);
+    Path currentPath = paths.get(currentStopIndex);
+    if (currentPath.points().isEmpty()) {
+      return; // No points in path
+    }
 
-    // Calculate travel progress
-    LocalDateTime departureTime = currentStop.getArrivalTime();
+    // Calculate travel progress based on time
+    LocalDateTime departureTime = currentStop != null ? currentStop.getArrivalTime() : simulatedTime;
     LocalDateTime arrivalTime = nextStop.getArrivalTime();
 
-    if (simulatedTime.isBefore(departureTime)) {
-      // Haven't departed yet
-      return;
-    }
-
+    // Calculate how much time has passed since departure
     Duration totalTravelTime = Duration.between(departureTime, arrivalTime);
     Duration elapsedTime = Duration.between(departureTime, simulatedTime);
 
-    double progress = Math.max(0.0, Math.min(1.0,
-        elapsedTime.toMillis() / (double) totalTravelTime.toMillis()));
-
-    // Update truck location along path
-    int pathPointIndex = Math.min((int) (progress * (path.points().size() - 1)),
-        path.points().size() - 1);
-    truck.setLocation(path.points().get(pathPointIndex));
-
-    // Consume fuel during travel (proportional to progress since last update)
-    double fuelConsumptionRate = truck.getFuelConsumption(path.length()) / totalTravelTime.toMillis();
-    double fuelConsumed = fuelConsumptionRate * timeStep.toMillis();
-    truck.setCurrentFuel(Math.max(0, truck.getCurrentFuel() - fuelConsumed));
-
-    if (truck.getCurrentFuel() <= 0) {
-      log.warn("Truck {} ran out of fuel!", truck.getId());
-      truck.setStatus(TruckState.BROKEN_DOWN);
+    // Avoid division by zero and handle edge cases
+    if (totalTravelTime.isZero() || elapsedTime.isNegative()) {
+      truck.setLocation(currentStop != null ? currentStop.getNode().getLocation() : truck.getLocation());
+      return;
     }
+
+    if (elapsedTime.compareTo(totalTravelTime) >= 0) {
+      truck.setLocation(nextStop.getNode().getLocation());
+      return;
+    }
+
+    // Calculate progress as a ratio (0.0 to 1.0)
+    double progress = (double) elapsedTime.toMillis() / totalTravelTime.toMillis();
+    progress = Math.max(0.0, Math.min(1.0, progress)); // Clamp between 0 and 1
+
+    // Calculate total path distance
+    List<Point> pathPoints = currentPath.points();
+    double totalDistance = 0.0;
+    for (int i = 0; i < pathPoints.size() - 1; i++) {
+      Point p1 = pathPoints.get(i);
+      Point p2 = pathPoints.get(i + 1);
+      totalDistance += calculateDistance(p1, p2);
+    }
+
+    if (totalDistance == 0.0) {
+      truck.setLocation(pathPoints.get(0));
+      return;
+    }
+
+    // Find the target distance along the path
+    double targetDistance = progress * totalDistance;
+
+    // Find the segment and interpolate position
+    double accumulatedDistance = 0.0;
+    for (int i = 0; i < pathPoints.size() - 1; i++) {
+      Point p1 = pathPoints.get(i);
+      Point p2 = pathPoints.get(i + 1);
+      double segmentDistance = calculateDistance(p1, p2);
+
+      if (accumulatedDistance + segmentDistance >= targetDistance) {
+        // Interpolate within this segment
+        double segmentProgress = (targetDistance - accumulatedDistance) / segmentDistance;
+        Point interpolatedLocation = interpolatePoint(p1, p2, segmentProgress);
+        truck.setLocation(interpolatedLocation);
+        return;
+      }
+
+      accumulatedDistance += segmentDistance;
+    }
+
+    // If we reach here, set to the last point
+    truck.setLocation(pathPoints.get(pathPoints.size() - 1));
+  }
+
+  private double calculateDistance(Point p1, Point p2) {
+    double dx = p2.x() - p1.x();
+    double dy = p2.y() - p1.y();
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  private Point interpolatePoint(Point p1, Point p2, double progress) {
+    int x = (int) Math.round(p1.x() + (p2.x() - p1.x()) * progress);
+    int y = (int) Math.round(p1.y() + (p2.y() - p1.y()) * progress);
+    return new Point(x, y);
   }
 
   private void getOrderBatch(LocalDateTime currenDateTime) {

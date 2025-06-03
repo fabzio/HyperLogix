@@ -2,7 +2,7 @@ import type { MapPolyline } from '@/components/DynamicMap'
 import DynamicMap from '@/components/DynamicMap'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { BarChart2, Play, Truck } from 'lucide-react'
+import { BarChart2, Play, Receipt, Route, Truck } from 'lucide-react'
 import { useState } from 'react'
 import AsideTab from './components/AsideTab'
 import SimulationHeader from './components/SimulationHeader'
@@ -12,6 +12,8 @@ const TABS = [
   { key: 'run', icon: <Play />, label: 'Ejecutar' },
   { key: 'metrics', icon: <BarChart2 />, label: 'Metricas' },
   { key: 'truck', icon: <Truck />, label: 'Camiones' },
+  { key: 'orders', icon: <Receipt />, label: 'Pedidos' },
+  { key: 'routes', icon: <Route />, label: 'Rutas' },
 ]
 
 export default function Simulation() {

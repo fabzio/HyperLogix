@@ -39,26 +39,5 @@ export const data: NavData = {
       url: '/stations',
       icon: <Fuel size={16} />,
     },
-
-    {
-      title: 'Benchmark',
-      url: '/benchmark',
-      icon: <ChartCandlestick size={16} />,
-    },
-    {
-      title: 'Inicio',
-      url: '/start',
-      icon: <Database size={16} />,
-    },
-    {
-      title: 'Tablas',
-      url: '/demo/table',
-      icon: <BookOpenText size={16} />,
-    },
-    {
-      title: 'Tanstack Query',
-      url: '/demo/tanstack-query',
-      icon: <BookOpenText size={16} />,
-    },
   ],
 }
