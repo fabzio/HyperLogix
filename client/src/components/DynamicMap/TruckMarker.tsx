@@ -14,7 +14,7 @@ const TruckMarker = memo(
     cx: number
     cy: number
   }) => (
-    <Marker coordinates={[cx - 2, cy + 2]} onClick={() => console.log(truck)}>
+    <Marker coordinates={[cx - 2, cy - 2]} onClick={() => console.log(truck)}>
       <TruckIcon />
       <title>{formatTooltipText(truck)}</title>
     </Marker>

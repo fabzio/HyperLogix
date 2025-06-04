@@ -10,20 +10,8 @@ import com.hyperlogix.server.optimizer.OptimizerResult;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.*;
-
-import com.hyperlogix.server.config.Constants;
-import com.hyperlogix.server.domain.OrderStatus;
-import com.hyperlogix.server.domain.PLGNetwork;
-import com.hyperlogix.server.domain.Path;
-import com.hyperlogix.server.domain.Point;
-import com.hyperlogix.server.domain.Truck;
-import com.hyperlogix.server.util.AStar;
-
-import ch.qos.logback.core.joran.action.NOPAction;
 
 public class AntColonyOptimizer implements Optimizer {
   private AntColonyConfig antColonyConfig;
@@ -89,7 +77,7 @@ public class AntColonyOptimizer implements Optimizer {
     }
     executor.shutdown();
     try {
-      if (!executor.awaitTermination(3000, TimeUnit.MILLISECONDS)) {
+      if (!executor.awaitTermination(800, TimeUnit.MILLISECONDS)) {
         executor.shutdownNow();
       }
     } catch (InterruptedException e) {

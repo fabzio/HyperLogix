@@ -2,7 +2,7 @@ import type { MapPolyline } from '@/components/DynamicMap'
 import DynamicMap from '@/components/DynamicMap'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { BarChart2, Play, Receipt, Route, Truck } from 'lucide-react'
+import { BarChart2, Fuel, Play, Receipt, Route, Truck } from 'lucide-react'
 import { useState } from 'react'
 import AsideTab from './components/AsideTab'
 import SimulationHeader from './components/SimulationHeader'
@@ -14,13 +14,23 @@ const TABS = [
   { key: 'truck', icon: <Truck />, label: 'Camiones' },
   { key: 'orders', icon: <Receipt />, label: 'Pedidos' },
   { key: 'routes', icon: <Route />, label: 'Rutas' },
+  { key: 'stations', icon: <Fuel />, label: 'Estaciones' },
 ]
 
 export default function Simulation() {
-  const { plgNetwork: network, simulationTime } = useWatchSimulation()
+  const { plgNetwork: network, simulationTime ,routes} = useWatchSimulation()
   const [openTab, setOpenTab] = useState<string | null>(null)
 
-  const poliLines: MapPolyline[] = []
+  const poliLines: MapPolyline[] = routes?.paths ? 
+    Object.entries(routes.paths).flatMap(([truckId, paths]) => 
+      paths.map((path, pathIndex) => ({
+        id: `${truckId}-path-${pathIndex}`,
+        points: path.points?.map(location => [location.x, location.y] as [number, number]) || [],
+        stroke: `hsl(${(truckId.charCodeAt(0) * 137.5) % 360}, 70%, 50%)`, // Generate unique color per truck
+        strokeWidth: 0.7,
+        type: 'path' as const
+      }))
+    ) : []
 
   return (
     <div className="flex h-full w-full">
@@ -33,7 +43,7 @@ export default function Simulation() {
           <DynamicMap
             trucks={network?.trucks || []}
             stations={network?.stations || []}
-            orders={network?.orders || []}
+            orders={network?.orders.filter(order => order.status != 'COMPLETED' && order.date <= simulationTime!) || []}
             polylines={poliLines}
           />
         </div>

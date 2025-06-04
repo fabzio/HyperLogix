@@ -4,6 +4,7 @@ import Orders from './Orders'
 import Routes from './Routes'
 import Run from './Run'
 import Trucks from './Trucks'
+import Stations from './Stations'
 
 interface AsideTabProps {
   openTab: string
@@ -31,6 +32,9 @@ export default function AsideTab({ openTab }: AsideTabProps) {
         </TabsContent>
         <TabsContent value="routes">
           <Routes />
+        </TabsContent>
+        <TabsContent value="stations">
+          <Stations/>
         </TabsContent>
       </div>
     </Tabs>

@@ -43,6 +43,16 @@ public class SimulationEngine implements Runnable {
   private final Condition condition = lock.newCondition();
   private final Map<String, Integer> truckCurrentStopIndex = new ConcurrentHashMap<>();
 
+  // Metrics tracking fields
+  private final Map<String, Double> truckFuelConsumed = new ConcurrentHashMap<>();
+  private final Map<String, Double> truckDistanceTraveled = new ConcurrentHashMap<>();
+  private final Map<String, Integer> truckDeliveryCount = new ConcurrentHashMap<>();
+  private final Map<String, Duration> customerDeliveryTimes = new ConcurrentHashMap<>();
+  private final Map<String, LocalDateTime> orderStartTimes = new ConcurrentHashMap<>();
+  private int totalPlanificationRequests = 0;
+  private Duration totalPlanificationTime = Duration.ZERO;
+  private LocalDateTime lastPlanificationStart;
+
   public SimulationEngine(String sessionId,
       SimulationConfig simulationConfig,
       SimulationNotifier simulationNotifier,
@@ -85,8 +95,12 @@ public class SimulationEngine implements Runnable {
         log.info("Next planning time: {}", nextPlanningTime);
       }
       updateSystemState(timeStep);
+
+      // Calculate metrics and notify with snapshot
+      SimulationMetrics metrics = calculateMetrics();
       simulationNotifier
-          .notifySnapshot(new SimulationSnapshot(LocalDateTime.now(), simulatedTime, plgNetwork, activeRoutes));
+          .notifySnapshot(
+              new SimulationSnapshot(LocalDateTime.now(), simulatedTime, plgNetwork, activeRoutes, metrics));
       sleep(simulationConfig.simulationResolution());
     }
   }
@@ -241,6 +255,14 @@ public class SimulationEngine implements Runnable {
       // Update truck capacity
       truck.setCurrentCapacity(truck.getCurrentCapacity() - glpToDeliver);
 
+      // Track delivery metrics
+      truckDeliveryCount.merge(truck.getId(), 1, Integer::sum);
+
+      // Calculate delivery time if order just started
+      if (order.getDeliveredGLP() == glpToDeliver) { // First delivery for this order
+        orderStartTimes.put(order.getId(), simulatedTime);
+      }
+
       log.info("Truck {} delivered {} GLP to order {} (total delivered: {}/{})",
           truck.getId(), glpToDeliver, order.getId(),
           order.getDeliveredGLP(), order.getRequestedGLP());
@@ -248,6 +270,14 @@ public class SimulationEngine implements Runnable {
       // Check if order is completed
       if (order.getDeliveredGLP() >= order.getRequestedGLP()) {
         order.setStatus(OrderStatus.COMPLETED);
+
+        // Calculate delivery time
+        LocalDateTime startTime = orderStartTimes.get(order.getId());
+        if (startTime != null) {
+          Duration deliveryTime = Duration.between(startTime, simulatedTime);
+          customerDeliveryTimes.put(order.getClientId(), deliveryTime);
+        }
+
         log.info("Order {} completed", order.getId());
       }
     } else {
@@ -281,8 +311,14 @@ public class SimulationEngine implements Runnable {
     double stepHours = stepDuration.toSeconds() / 3600.0;
     double stepDistance = stepHours * Constants.TRUCK_SPEED;
 
+    // Track metrics
+    truckDistanceTraveled.merge(truck.getId(), stepDistance, Double::sum);
+
     // Calculate fuel consumption for the step distance only
     double fuelConsumed = truck.getFuelConsumption(stepDistance);
+
+    // Track fuel consumption
+    truckFuelConsumed.merge(truck.getId(), fuelConsumed, Double::sum);
 
     // Update truck fuel (ensure it doesn't go below 0)
     double newFuelLevel = Math.max(0, truck.getCurrentFuel() - fuelConsumed);
@@ -371,6 +407,8 @@ public class SimulationEngine implements Runnable {
         .anyMatch(order -> order.getStatus() == OrderStatus.CALCULATING);
 
     if (hasCalculatingOrders) {
+      lastPlanificationStart = LocalDateTime.now();
+      totalPlanificationRequests++;
       log.info("Requesting planification from {}", sessionId);
       eventPublisher.publishEvent(new PlanificationRequestEvent(sessionId, plgNetwork, simulatedTime));
     } else {
@@ -414,6 +452,13 @@ public class SimulationEngine implements Runnable {
       // Reset stop indices when new routes are received
       truckCurrentStopIndex.clear();
     }
+
+    // Track planification time
+    if (lastPlanificationStart != null) {
+      Duration planificationDuration = Duration.between(lastPlanificationStart, LocalDateTime.now());
+      totalPlanificationTime = totalPlanificationTime.plus(planificationDuration);
+    }
+
     List<Order> calculatingOrders = orderRepository.stream()
         .filter(order -> order.getStatus() == OrderStatus.CALCULATING)
         .toList();
@@ -430,5 +475,52 @@ public class SimulationEngine implements Runnable {
         running.get(),
         paused.get(),
         simulationConfig.timeAcceleration());
+  }
+
+  private SimulationMetrics calculateMetrics() {
+    // Fleet utilization
+    int totalTrucks = plgNetwork.getTrucks().size();
+    int activeTrucks = (int) plgNetwork.getTrucks().stream()
+        .filter(t -> t.getStatus() != TruckState.MAINTENANCE && t.getStatus() != TruckState.BROKEN_DOWN)
+        .count();
+    double fleetUtilization = totalTrucks > 0 ? (double) activeTrucks / totalTrucks * 100 : 0;
+
+    // Fuel efficiency
+    double totalFuelConsumed = truckFuelConsumed.values().stream().mapToDouble(Double::doubleValue).sum();
+    double totalDistance = truckDistanceTraveled.values().stream().mapToDouble(Double::doubleValue).sum();
+    double avgFuelConsumption = totalDistance > 0 ? totalFuelConsumed / totalDistance : 0;
+
+    // Delivery performance
+    int totalOrders = orderRepository.size();
+    int completedOrders = (int) orderRepository.stream().filter(o -> o.getStatus() == OrderStatus.COMPLETED).count();
+    double completionPercentage = totalOrders > 0 ? (double) completedOrders / totalOrders * 100 : 0;
+    double avgDeliveryTime = customerDeliveryTimes.values().stream()
+        .mapToDouble(d -> d.toMinutes())
+        .average().orElse(0);
+
+    // Capacity utilization
+    double avgCapacityUtilization = plgNetwork.getTrucks().stream()
+        .mapToDouble(t -> (double) t.getCurrentCapacity() / t.getMaxCapacity() * 100)
+        .average().orElse(0);
+
+    // Planning efficiency
+    double avgPlanificationTimeSeconds = totalPlanificationRequests > 0
+        ? totalPlanificationTime.toSeconds() / (double) totalPlanificationRequests
+        : 0;
+
+    // GLP delivery efficiency
+    int totalGLPRequested = orderRepository.stream().mapToInt(Order::getRequestedGLP).sum();
+    int totalGLPDelivered = orderRepository.stream().mapToInt(Order::getDeliveredGLP).sum();
+    double deliveryEfficiency = totalGLPRequested > 0 ? (double) totalGLPDelivered / totalGLPRequested * 100 : 0;
+
+    return new SimulationMetrics(
+        fleetUtilization,
+        avgFuelConsumption,
+        completionPercentage,
+        avgDeliveryTime,
+        avgCapacityUtilization,
+        avgPlanificationTimeSeconds,
+        totalDistance,
+        deliveryEfficiency);
   }
 }
