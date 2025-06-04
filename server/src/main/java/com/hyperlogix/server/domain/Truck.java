@@ -71,7 +71,7 @@ public class Truck implements Cloneable { // Implement Cloneable
    * @param distance Distancia recorrida en km.
    * @return Consumo de combustible en galones.
    */
-  public double getFuelConsumption(int distance) {
+  public double getFuelConsumption(double distance) {
     return distance * totalWeight() / 180;
   }
 
@@ -80,7 +80,8 @@ public class Truck implements Cloneable { // Implement Cloneable
    */
   public Duration getTimeToDestination(int distance) {
     double hours = distance / Constants.TRUCK_SPEED;
-    return Duration.ofHours((long) hours);
+    long minutes = Math.round(hours * 60);
+    return Duration.ofMinutes(minutes);
   }
 
   /**

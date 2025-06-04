@@ -1,5 +1,6 @@
 package com.hyperlogix.server.optimizer;
 
+import com.hyperlogix.server.config.Constants;
 import com.hyperlogix.server.domain.*;
 import com.hyperlogix.server.optimizer.AntColony.AntColonyConfig;
 import com.hyperlogix.server.util.AStar;
@@ -75,7 +76,7 @@ public class Graph implements Cloneable {
             .encontrarRuta(origin.getLocation(), destination.getLocation(), currentTime,
                 this.plgNetwork.getRoadblocks().stream().filter(rb -> currentActiveRoadblocks.contains(rb))
                     .collect(Collectors.toList())); // Pass only active ones
-        Path path = new Path(bestPath, bestPath.size());
+        Path path = new Path(bestPath, bestPath.size() * Constants.EDGE_LENGTH);
 
         newAdjacencyMap.get(origin).put(destination, path);
         newAdjacencyMap.get(destination).put(origin, path);
@@ -120,7 +121,7 @@ public class Graph implements Cloneable {
       double addPheromone = antColonyConfig.Q() / solution.getCost();
       for (String truck : solution.getStops().keySet()) {
         List<Stop> route = solution.getStops().get(truck);
-        for (int i = 0; i < route.size() - 1; i++) {
+        for (int i = 1; i < route.size() - 1; i++) {
           Node origin = route.get(i).getNode();
           Node destination = route.get(i + 1).getNode();
           pheromoneMap.get(origin).compute(destination, (k, pheromone) -> pheromone + addPheromone);

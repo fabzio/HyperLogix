@@ -43,7 +43,7 @@ export const useStartSimulation = () => {
 }
 
 export const useWatchSimulation = () => {
-  const { plgNetwork, simulationTime, setState } = useSimulationStore()
+  const { plgNetwork, simulationTime, setState,routes } = useSimulationStore()
   const { username } = useSessionStore()
   const { subscribe, unsubscribe, connected, client } = useWebSocketStore()
 
@@ -70,6 +70,7 @@ export const useWatchSimulation = () => {
   return {
     plgNetwork,
     simulationTime,
+    routes
   }
 }
 
@@ -98,7 +99,7 @@ export const useStopSimulation = () => {
       return stopSimulation(username)
     },
     onSuccess: () => {
-      setState({ plgNetwork: null, simulationTime: null })
+      setState({ plgNetwork: null, simulationTime: null,routes: null })
       queryClient.invalidateQueries({ queryKey: ['simulation'] })
     },
     onError: (error) => {

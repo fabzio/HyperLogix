@@ -4,6 +4,9 @@ import jakarta.persistence.Embeddable;
 
 @Embeddable
 public record Point(
-                int x,
-                int y) {
+        double x,
+        double y) {
+    public Point integerPoint() {
+        return new Point(Math.round(x), Math.round(y));
+    }
 }

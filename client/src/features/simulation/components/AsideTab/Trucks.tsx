@@ -36,7 +36,7 @@ export default function Trucks() {
               <TableRow key={truck.code} className="hover:bg-muted">
                 <TableCell className="px-4 py-2">{truck.id}</TableCell>
                 <TableCell className="px-4 py-2">
-                  {truck.currentFuel} / {truck.fuelCapacity}
+                  {truck.currentFuel.toFixed(2)} / {truck.fuelCapacity}
                 </TableCell>
                 <TableCell className="px-4 py-2">
                   {truck.currentCapacity} / {truck.maxCapacity}

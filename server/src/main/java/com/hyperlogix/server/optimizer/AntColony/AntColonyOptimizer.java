@@ -25,10 +25,11 @@ public class AntColonyOptimizer implements Optimizer {
   @Override
   public OptimizerResult run(OptimizerContext ctx, Duration maxDuration, Notifier notifier) {
     graph = new Graph(ctx.plgNetwork, ctx.algorithmStartDate, antColonyConfig);
-    ants = new ArrayList<>();
 
+    ants = new ArrayList<>();
     for (int i = 0; i < antColonyConfig.NUM_ANTS(); i++) {
-      ants.add(new Ant(ctx.plgNetwork, graph, antColonyConfig));
+      Ant ant = new Ant(ctx.plgNetwork, graph, antColonyConfig);
+      ants.add(ant);
     }
 
     Routes bestSolution = null;
@@ -54,6 +55,7 @@ public class AntColonyOptimizer implements Optimizer {
         } catch (InterruptedException | ExecutionException e) {
           Thread.currentThread().interrupt();
           System.err.println("Error retrieving ant solution: " + e.getMessage());
+          e.printStackTrace();
         }
       }
 
