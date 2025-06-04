@@ -10,8 +10,20 @@ import com.hyperlogix.server.optimizer.OptimizerResult;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.*;
+
+import com.hyperlogix.server.config.Constants;
+import com.hyperlogix.server.domain.OrderStatus;
+import com.hyperlogix.server.domain.PLGNetwork;
+import com.hyperlogix.server.domain.Path;
+import com.hyperlogix.server.domain.Point;
+import com.hyperlogix.server.domain.Truck;
+import com.hyperlogix.server.util.AStar;
+
+import ch.qos.logback.core.joran.action.NOPAction;
 
 public class AntColonyOptimizer implements Optimizer {
   private AntColonyConfig antColonyConfig;
@@ -25,10 +37,11 @@ public class AntColonyOptimizer implements Optimizer {
   @Override
   public OptimizerResult run(OptimizerContext ctx, Duration maxDuration, Notifier notifier) {
     graph = new Graph(ctx.plgNetwork, ctx.algorithmStartDate, antColonyConfig);
-    ants = new ArrayList<>();
 
+    ants = new ArrayList<>();
     for (int i = 0; i < antColonyConfig.NUM_ANTS(); i++) {
-      ants.add(new Ant(ctx.plgNetwork, graph, antColonyConfig));
+      Ant ant = new Ant(ctx.plgNetwork, graph, antColonyConfig);
+      ants.add(ant);
     }
 
     Routes bestSolution = null;
@@ -54,6 +67,7 @@ public class AntColonyOptimizer implements Optimizer {
         } catch (InterruptedException | ExecutionException e) {
           Thread.currentThread().interrupt();
           System.err.println("Error retrieving ant solution: " + e.getMessage());
+          e.printStackTrace();
         }
       }
 
@@ -75,7 +89,7 @@ public class AntColonyOptimizer implements Optimizer {
     }
     executor.shutdown();
     try {
-      if (!executor.awaitTermination(800, TimeUnit.MILLISECONDS)) {
+      if (!executor.awaitTermination(3000, TimeUnit.MILLISECONDS)) {
         executor.shutdownNow();
       }
     } catch (InterruptedException e) {

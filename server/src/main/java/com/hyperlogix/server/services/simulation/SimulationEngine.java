@@ -276,8 +276,13 @@ public class SimulationEngine implements Runnable {
     // Calculate progress along the path (0.0 to 1.0)
     double progress = Math.min(distanceTraveled / totalPathDistance, 1.0);
 
-    // Calculate fuel consumption for the distance traveled
-    double fuelConsumed = truck.getFuelConsumption(distanceTraveled);
+    // Calculate distance traveled in this simulation step only
+    Duration stepDuration = simulationConfig.simulationResolution().multipliedBy(simulationConfig.timeAcceleration());
+    double stepHours = stepDuration.toSeconds() / 3600.0;
+    double stepDistance = stepHours * Constants.TRUCK_SPEED;
+
+    // Calculate fuel consumption for the step distance only
+    double fuelConsumed = truck.getFuelConsumption(stepDistance);
 
     // Update truck fuel (ensure it doesn't go below 0)
     double newFuelLevel = Math.max(0, truck.getCurrentFuel() - fuelConsumed);

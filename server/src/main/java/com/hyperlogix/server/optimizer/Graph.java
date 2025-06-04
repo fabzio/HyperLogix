@@ -121,7 +121,7 @@ public class Graph implements Cloneable {
       double addPheromone = antColonyConfig.Q() / solution.getCost();
       for (String truck : solution.getStops().keySet()) {
         List<Stop> route = solution.getStops().get(truck);
-        for (int i = 0; i < route.size() - 1; i++) {
+        for (int i = 1; i < route.size() - 1; i++) {
           Node origin = route.get(i).getNode();
           Node destination = route.get(i + 1).getNode();
           pheromoneMap.get(origin).compute(destination, (k, pheromone) -> pheromone + addPheromone);
