@@ -46,9 +46,10 @@ public class StartSimulationUseCase {
         .map(TruckMapper::mapToDomain).toList();
     List<Station> stations = stationRepository.findAll().stream()
         .map(StationMapper::mapToDomain).toList();
-    List<Roadblock> roadblocks = roadblockRepository.findAll().stream()
+    List<Roadblock> roadblocks = roadblockRepository.findByStartTimeBetween(startTimeOrders, endTimeOrders).stream()
         .map(BlockMapper::mapToDomain).toList();
 
+    
     PLGNetwork plgNetwork = new PLGNetwork(trucks, stations, orders, List.of(), roadblocks);
 
     simulationService.startSimulation(req.getSimulationId(), plgNetwork);

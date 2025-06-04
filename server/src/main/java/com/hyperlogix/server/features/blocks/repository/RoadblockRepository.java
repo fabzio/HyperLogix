@@ -8,5 +8,5 @@ import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface RoadblockRepository extends JpaRepository<BlockEntity, Long> {
-  List<BlockEntity> findByStartTimeBetween(LocalDateTime startDate, LocalDateTime endDate);
+  List<BlockEntity> findByStartTimeBetween(LocalDateTime starTime, LocalDateTime endTime);
 }
