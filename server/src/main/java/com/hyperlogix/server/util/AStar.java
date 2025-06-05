@@ -48,17 +48,53 @@ public class AStar {
 
     return Collections.emptyList();
   }
-
   private static boolean esBloqueado(Point a, Point b, LocalDateTime tiempo, List<Roadblock> bloqueos) {
-    Edge movimiento = new Edge(a, b).normalize();
     for (Roadblock rb : bloqueos) {
       if (!tiempo.isBefore(rb.start()) && !tiempo.isAfter(rb.end())) {
-        if (rb.parseRoadlock().contains(movimiento)) {
-          return true;
+        Edge movimiento = new Edge(a, b);
+        for (Edge bloqueado : rb.parseRoadlock()) {
+          if (intersect(movimiento, bloqueado)) {
+            return true;
+          }
         }
       }
     }
     return false;
+  }
+  
+  //Chequear si el movimiento crua entre tras un bloqueo
+  private static boolean intersect(Edge e1, Edge e2) {
+    Point p1 = e1.from();
+    Point p2 = e1.to();
+    Point p3 = e2.from();
+    Point p4 = e2.to();
+    
+    if (p1.equals(p3) || p1.equals(p4) || p2.equals(p3) || p2.equals(p4)) {
+      return true;
+    }
+    
+    boolean e1Vertical = Math.abs(p1.x() - p2.x()) < 0.0001;
+    boolean e2Vertical = Math.abs(p3.x() - p4.x()) < 0.0001;
+    
+    if (e1Vertical == e2Vertical) {
+      return false;
+    }
+    
+    // At this point, one is vertical and one is horizontal
+    Edge vertical = e1Vertical ? e1 : e2;
+    Edge horizontal = e1Vertical ? e2 : e1;
+    
+    // Check if the vertical line's x is between the horizontal line's x range
+    // and if the horizontal line's y is between the vertical line's y range
+    double vx = vertical.from().x();
+    double minx = Math.min(horizontal.from().x(), horizontal.to().x());
+    double maxx = Math.max(horizontal.from().x(), horizontal.to().x());
+    
+    double hy = horizontal.from().y();
+    double miny = Math.min(vertical.from().y(), vertical.to().y());
+    double maxy = Math.max(vertical.from().y(), vertical.to().y());
+    
+    return vx >= minx && vx <= maxx && hy >= miny && hy <= maxy;
   }
 
   private static List<Point> getVecinos(Point p) {

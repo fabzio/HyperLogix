@@ -20,8 +20,12 @@ import java.util.regex.Pattern;
 public class MockData {
 
   private static final Pattern FILENAME_PATTERN = Pattern.compile("ventas(\\d{4})(\\d{2})\\.txt");
+  private static final Pattern FILENAME_PATTERN_BLOCKS = Pattern.compile("(\\d{4})(\\d{2})\\.bloqueos\\.txt");
   private static final Pattern ORDER_LINE_PATTERN = Pattern.compile(
       "(\\d+)d(\\d+)h(\\d+)m:(\\d+),(\\d+),c-(\\d+),(\\d+)m3,(\\d+)h");
+  private static final Pattern ORDER_LINE_PATTERN_BLOCKS = Pattern.compile(
+    "^(\\d{2}d\\d{2}h\\d{2}m)-(\\d{2}d\\d{2}h\\d{2}m):((\\d{2},\\d{2})(,\\d{2},\\d{2})*)$"
+);
 
   public static List<Order> loadOrdersFromFiles(List<String> filePaths, int limit) {
     List<Order> orders = new ArrayList<>();
@@ -75,6 +79,70 @@ public class MockData {
       }
     }
     return orders;
+  }
+
+    public static List<Roadblock> loadRoadlocksFromFiles(List<String> filePaths, int limit) {
+    List<Roadblock> roadblocks = new ArrayList<>();
+    if (filePaths == null) {
+      return roadblocks;
+    }
+
+    int orderCount = 0;
+    boolean loadAll = limit < 0;
+
+    for (String filePath : filePaths) {
+      try {
+        String fileName = Paths.get(filePath).getFileName().toString();
+        Matcher fileNameMatcher = FILENAME_PATTERN_BLOCKS.matcher(fileName);
+        if (!fileNameMatcher.matches()) {
+          System.err.println("Skipping file with invalid name format: " + filePath);
+          continue;
+        }
+
+        int year = Integer.parseInt(fileNameMatcher.group(1));
+        int month = Integer.parseInt(fileNameMatcher.group(2));
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
+          String line;
+          while ((line = reader.readLine()) != null && (loadAll || orderCount < limit)) {
+            Matcher orderLineMatcher = ORDER_LINE_PATTERN_BLOCKS.matcher(line);
+            if (orderLineMatcher.matches()) {              
+              String startTimeStr = orderLineMatcher.group(1);
+              int startDay = Integer.parseInt(startTimeStr.substring(0, 2));
+              int startHour = Integer.parseInt(startTimeStr.substring(3, 5));
+              int startMinute = Integer.parseInt(startTimeStr.substring(6, 8));
+
+              String endTimeStr = orderLineMatcher.group(2);
+              int endDay = Integer.parseInt(endTimeStr.substring(0, 2));
+              int endHour = Integer.parseInt(endTimeStr.substring(3, 5));
+              int endMinute = Integer.parseInt(endTimeStr.substring(6, 8));
+
+              LocalDateTime startTime = LocalDateTime.of(year, Month.of(month), startDay, startHour, startMinute);
+              LocalDateTime endTime = LocalDateTime.of(year, Month.of(month), endDay, endHour, endMinute);
+
+              String[] coordinates = orderLineMatcher.group(3).split(",");
+              List<Point> points = new ArrayList<>();
+              for (int i = 0; i < coordinates.length; i += 2) {
+                  points.add(new Point(
+                      Integer.parseInt(coordinates[i]),
+                      Integer.parseInt(coordinates[i + 1])
+                  ));
+              }
+
+              roadblocks.add(new Roadblock(
+                  startTime,
+                  endTime,
+                  points));
+            } else {
+              System.err.println("Skipping malformed line in " + filePath + ": " + line);
+            }
+          }
+        }
+      } catch (IOException | NumberFormatException e) {
+        System.err.println("Error processing file " + filePath + ": " + e.getMessage());
+      }
+    }
+    return roadblocks;
   }
 
   public static PLGNetwork mockNetwork() {
