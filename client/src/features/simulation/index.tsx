@@ -3,10 +3,11 @@ import DynamicMap from '@/components/DynamicMap'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { BarChart2, Fuel, Play, Receipt, Route, Truck } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import AsideTab from './components/AsideTab'
 import SimulationHeader from './components/SimulationHeader'
 import { useWatchSimulation } from './hooks/useSimulation'
+import SimulationEndDialog from './components/SimulationEndDialog'
 
 const TABS = [
   { key: 'run', icon: <Play />, label: 'Ejecutar' },
@@ -20,6 +21,30 @@ const TABS = [
 export default function Simulation() {
   const { plgNetwork: network, simulationTime ,routes} = useWatchSimulation()
   const [openTab, setOpenTab] = useState<string | null>(null)
+  const [isOpen, setIsOpen] = useState(false)
+  const [endReason, setEndReason] = useState<'completed' | 'manual' | null>(null)
+
+  const wasActiveRef = useRef(false)
+  const prevAllCompletedRef = useRef(false);
+  useEffect(() => {
+    if (!network?.orders?.length) return
+
+    const allCompleted = network.orders.every(order => order.status === 'COMPLETED')
+    if (allCompleted && !prevAllCompletedRef.current) {
+      setEndReason('completed')
+      setIsOpen(true)
+    }
+    prevAllCompletedRef.current = allCompleted;
+  }, [network?.orders])
+
+  useEffect(() => {
+    const isActive = !!network
+    if (wasActiveRef.current && !isActive) {
+      setEndReason('manual')
+      setIsOpen(true) // 👈 abrir modal de "simulación detenida manualmente"
+    }
+    wasActiveRef.current = isActive
+  }, [network])
 
   const poliLines: MapPolyline[] = routes?.paths ? 
     Object.entries(routes.paths).flatMap(([truckId, paths]) => 
@@ -78,6 +103,7 @@ export default function Simulation() {
           )
         })}
       </div>
+      <SimulationEndDialog open={isOpen} onClose={() => setIsOpen(false)} reason={endReason}/>
     </div>
   )
 }

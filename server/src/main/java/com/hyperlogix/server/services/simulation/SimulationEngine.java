@@ -85,6 +85,12 @@ public class SimulationEngine implements Runnable {
       if (!running.get())
         break;
 
+      // Check if all orders are completed
+      if (areAllOrdersCompleted()) {
+        log.info("All orders completed. Ending simulation.");
+        break;
+      }
+
       simulatedTime = simulatedTime.plus(timeStep);
       if (simulatedTime.isAfter(nextPlanningTime)) {
         log.info("Simulated time: {}", simulatedTime);
@@ -103,6 +109,13 @@ public class SimulationEngine implements Runnable {
               new SimulationSnapshot(LocalDateTime.now(), simulatedTime, plgNetwork, activeRoutes, metrics));
       sleep(simulationConfig.simulationResolution());
     }
+
+    log.info("=====Simulation ended=====");
+  }
+
+  private boolean areAllOrdersCompleted() {
+    return orderRepository.stream()
+        .allMatch(order -> order.getStatus() == OrderStatus.COMPLETED);
   }
 
   public void stop() {
