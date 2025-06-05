@@ -1,0 +1,77 @@
+name: Deploy
+
+on:
+  push:
+   branches:
+    - main
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+      runs-on: ubuntu-latest
+      steps:
+        - name: Checkout code
+          uses: actions/checkout@v4
+
+        - name: Setup Java21
+          uses: actions/setup-java@v4
+          with:
+            java-version: '21'
+            distribution: 'temurin'
+        - name: Build with maven
+          run: mvn clean package -DskipTests
+          working-directory: server
+        
+        - name: Setup Docker
+          uses: docker/setup-buildx-action@v3
+
+        - name: Log in to GitHub Container Registry
+          uses: docker/login-action@v3
+          with:
+            registry: ghcr.io
+            username: ${{ github.actor }}
+            password: ${{ secrets.GITHUB_TOKEN }}
+
+        - name: Build Docker Server image
+          run: docker build -t ghcr.io/fabzio/hyperlogix-server:latest .
+          working-directory: server
+        
+        - name: Push Docker Server image
+          run: docker push ghcr.io/fabzio/hyperlogix-server:latest
+        
+        - name: Build Docker Client image
+          run: docker build -t ghcr.io/fabzio/hyperlogix-client:latest --build-arg VITE_API=/api/v1 --build-arg VITE_WS_HOST=${{ secrets.HOST }} .
+          working-directory: client
+        
+        - name: Push Docker Client image
+          run: docker push ghcr.io/fabzio/hyperlogix-client:latest
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          password: ${{ secrets.PASSWORD }}
+          script: |
+            cd ~/app
+            echo "DB_USERNAME=${{ secrets.DB_USERNAME }}" > .env
+            echo "DB_PASSWORD='${{ secrets.DB_PASSWORD }}'" >> .env            
+            echo "DB_HOST=${{ secrets.DB_HOST }}" >> .env
+            docker compose pull
+            docker compose down
+            docker compose up -d
+
+
+
+
+
+
+
+
