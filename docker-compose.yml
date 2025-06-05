@@ -1,22 +1,28 @@
 services:
-  backend:
+  server:
     container_name: hyperlogix-backend
-    build:
-      context: ./server
     environment:
-      - DB_URL=jdbc:postgresql://db:5432/postgres
-      - DB_USERNAME=postgres
+      - DB_HOST=db:3306
+      - DB_USERNAME=admin
       - DB_PASSWORD=admin
+      - SERVER_PORT=8080
     depends_on:
       - db
+    build:
+      context: ./server
     networks:
       - app-network
 
   db:
-    image: postgres:latest
+    image: mysql:latest
     container_name: hyperlogix-db
     environment:
-      POSTGRES_PASSWORD: admin
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: hyperlogix
+      MYSQL_USER: admin
+      MYSQL_PASSWORD: admin
+    volumes:
+      - db_data:/var/lib/mysql
     networks:
       - app-network
 
@@ -24,13 +30,20 @@ services:
     container_name: hyperlogix-frontend
     build:
       context: ./client
+      args:
+        - VITE_API=/api/v1
+        - VITE_WS_HOST=localhost:80
     ports:
       - "80:80"
+      - "443:443"
     depends_on:
-      - backend
+      - server
     networks:
       - app-network
 
 networks:
   app-network:
     driver: bridge
+
+volumes:
+  db_data:

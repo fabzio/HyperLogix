@@ -1,13 +1,12 @@
-FROM amazoncorretto:21-alpine3.21-jdk
+FROM eclipse-temurin:21-jre-alpine
+
+ENV DB_HOST=localhost:3306
+ENV DB_USERNAME=admin
+ENV DB_PASSWORD=admin
 
 WORKDIR /app
 
-COPY . /app
+COPY target/server-*.jar app.jar
 
-ENV DB_URL=jdbc:postgresql://localhost:5432/postgres
-ENV DB_USERNAME=postgres
-ENV DB_PASSWORD=password
-
-RUN ./mvnw clean package -DskipTests
 EXPOSE 8080
-CMD ["java", "-jar", "target/server-0.0.1-SNAPSHOT.jar"]
+CMD ["java", "-jar", "app.jar", "--spring.profiles.active=prod"]
