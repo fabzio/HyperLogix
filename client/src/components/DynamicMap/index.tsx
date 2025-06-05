@@ -26,6 +26,8 @@ export interface MapPolyline {
   stroke?: string
   strokeWidth?: number
   type?: 'path' | 'roadblock'
+  startTime?: string // ISO date-time string
+  endTime?: string // ISO date-time string
 }
 
 interface DynamicMapProps {

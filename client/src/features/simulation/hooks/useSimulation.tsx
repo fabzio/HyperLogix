@@ -11,7 +11,7 @@ import {
   useQueryClient,
   useSuspenseQuery,
 } from '@tanstack/react-query'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSimulationStore } from '../store/simulation'
 
 type MesaggeResponse = {
@@ -43,7 +43,7 @@ export const useStartSimulation = () => {
 }
 
 export const useWatchSimulation = () => {
-  const { plgNetwork, simulationTime, setState,routes } = useSimulationStore()
+  const { plgNetwork, simulationTime, setState, routes } = useSimulationStore()
   const { username } = useSessionStore()
   const { subscribe, unsubscribe, connected, client } = useWebSocketStore()
 
@@ -51,7 +51,7 @@ export const useWatchSimulation = () => {
     (message: unknown) => {
       try {
         const typedMessage = message as MesaggeResponse
-        console.log(typedMessage.plgNetwork.roadblocks)
+        //console.log(typedMessage.plgNetwork.roadblocks)
         setState(typedMessage)
       } catch (error) {
         console.error('Error parsing message:', error)
@@ -71,7 +71,7 @@ export const useWatchSimulation = () => {
   return {
     plgNetwork,
     simulationTime,
-    routes
+    routes,
   }
 }
 
@@ -100,11 +100,44 @@ export const useStopSimulation = () => {
       return stopSimulation(username)
     },
     onSuccess: () => {
-      setState({ plgNetwork: null, simulationTime: null,routes: null })
+      setState({ plgNetwork: null, simulationTime: null, routes: null })
       queryClient.invalidateQueries({ queryKey: ['simulation'] })
     },
     onError: (error) => {
       console.error('Error stopping simulation:', error)
     },
   })
+}
+export const useSimulationEndDialog = (network: PLGNetwork|null)=> {
+  const [isOpen, setIsOpen] = useState(false)
+  const [endReason, setEndReason] = useState<'completed' | 'manual' | null>(null)
+  
+  const wasActiveRef = useRef(false)
+  const prevAllCompletedRef = useRef(false)
+
+  useEffect(() => {
+    const isActive = !!network
+    
+    // Check for manual stop
+    if (wasActiveRef.current && !isActive) {
+      setEndReason('manual')
+      setIsOpen(true)
+    }
+    
+    // Check for completion
+    if (network?.orders?.length) {
+      const allCompleted = network.orders.every(order => order.status === 'COMPLETED')
+      if (allCompleted && !prevAllCompletedRef.current) {
+        setEndReason('completed')
+        setIsOpen(true)
+      }
+      prevAllCompletedRef.current = allCompleted
+    }
+    
+    wasActiveRef.current = isActive
+  }, [network])
+
+  const closeDialog = () => setIsOpen(false)
+
+  return { isOpen, endReason, closeDialog }
 }

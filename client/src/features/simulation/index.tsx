@@ -3,11 +3,12 @@ import DynamicMap from '@/components/DynamicMap'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { BarChart2, Fuel, Play, Receipt, Route, Truck } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useState, useMemo } from 'react'
 import AsideTab from './components/AsideTab'
 import SimulationHeader from './components/SimulationHeader'
-import { useWatchSimulation } from './hooks/useSimulation'
+import { useSimulationEndDialog, useWatchSimulation } from './hooks/useSimulation'
 import SimulationEndDialog from './components/SimulationEndDialog'
+
 
 const TABS = [
   { key: 'run', icon: <Play />, label: 'Ejecutar' },
@@ -19,43 +20,38 @@ const TABS = [
 ]
 
 export default function Simulation() {
-  const { plgNetwork: network, simulationTime ,routes} = useWatchSimulation()
+  const { plgNetwork: network, simulationTime, routes } = useWatchSimulation()
   const [openTab, setOpenTab] = useState<string | null>(null)
-  const [isOpen, setIsOpen] = useState(false)
-  const [endReason, setEndReason] = useState<'completed' | 'manual' | null>(null)
+  const { isOpen, endReason, closeDialog } = useSimulationEndDialog(network)
 
-  const wasActiveRef = useRef(false)
-  const prevAllCompletedRef = useRef(false);
-  useEffect(() => {
-    if (!network?.orders?.length) return
-
-    const allCompleted = network.orders.every(order => order.status === 'COMPLETED')
-    if (allCompleted && !prevAllCompletedRef.current) {
-      setEndReason('completed')
-      setIsOpen(true)
-    }
-    prevAllCompletedRef.current = allCompleted;
-  }, [network?.orders])
-
-  useEffect(() => {
-    const isActive = !!network
-    if (wasActiveRef.current && !isActive) {
-      setEndReason('manual')
-      setIsOpen(true) // 👈 abrir modal de "simulación detenida manualmente"
-    }
-    wasActiveRef.current = isActive
-  }, [network])
-
-  const poliLines: MapPolyline[] = routes?.paths ? 
-    Object.entries(routes.paths).flatMap(([truckId, paths]) => 
-      paths.map((path, pathIndex) => ({
-        id: `${truckId}-path-${pathIndex}`,
-        points: path.points?.map(location => [location.x, location.y] as [number, number]) || [],
-        stroke: `hsl(${(truckId.charCodeAt(0) * 137.5) % 360}, 70%, 50%)`, // Generate unique color per truck
-        strokeWidth: 0.7,
-        type: 'path' as const
-      }))
-    ) : []
+  const poliLines: MapPolyline[] = useMemo(() => {
+    const pathPolylines = routes?.paths
+      ? Object.entries(routes.paths).flatMap(([truckId, paths]) =>
+        paths.map((path, pathIndex) => ({
+          id: `${truckId}-path-${pathIndex}`,
+          points:
+            path.points?.map(
+              (location) => [location.x, location.y] as [number, number],
+            ) || [],
+          stroke: `hsl(${(truckId.charCodeAt(0) * 137.5) % 360}, 70%, 50%)`,
+          strokeWidth: 0.7,
+          type: 'path' as const,
+        })),
+      )
+      : []
+    const roadblockPolylines =
+      network?.roadblocks?.map((block, index) => ({
+        id: `roadblock-${index}`,
+        points: block.blockedNodes?.map(
+          (node) => [node.x, node.y] as [number, number],
+        ),
+        strokeWidth: 1.5,
+        type: 'roadblock' as const,
+        startTime: block.start,
+        endTime: block.end,
+      })) || [] 
+    return [...pathPolylines, ...roadblockPolylines]
+  }, [routes?.paths, network?.roadblocks])
 
   return (
     <div className="flex h-full w-full">
@@ -68,8 +64,25 @@ export default function Simulation() {
           <DynamicMap
             trucks={network?.trucks || []}
             stations={network?.stations || []}
-            orders={network?.orders.filter(order => order.status != 'COMPLETED' && order.date <= simulationTime!) || []}
-            polylines={poliLines}
+            orders={
+              network?.orders.filter(
+                (order) =>
+                  order.status !== 'COMPLETED' &&
+                  simulationTime &&
+                  order.date <= simulationTime,
+              ) || []
+            }
+            polylines={
+              poliLines.filter(
+                (line) =>
+                  line.type !== 'roadblock' ||
+                  (line.startTime &&
+                    line.endTime &&
+                    simulationTime &&
+                    new Date(line.startTime) <= new Date(simulationTime) &&
+                    new Date(line.endTime) >= new Date(simulationTime)),
+              ) || []
+            }
           />
         </div>
       </div>
@@ -103,7 +116,7 @@ export default function Simulation() {
           )
         })}
       </div>
-      <SimulationEndDialog open={isOpen} onClose={() => setIsOpen(false)} reason={endReason}/>
+      <SimulationEndDialog open={isOpen} onClose={closeDialog} reason={endReason} />
     </div>
   )
 }
