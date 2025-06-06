@@ -3,6 +3,7 @@ import Hyperlogix from '@/components/Hyperlogix'
 import Logo from '@/components/Logo'
 import { ModeToggle } from '@/components/mode-togle'
 import Typography from '@/components/typography'
+import CommitHash from '@/components/CommitHash'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import AdminLogin from './components/AdminLogin'
 import DriverLogin from './components/DriverLogin'
@@ -14,6 +15,11 @@ export default function Login() {
       <header className="flex w-full justify-end px-4 py-1 relative z-10">
         <ModeToggle />
       </header>
+
+      <div className="absolute bottom-4 left-4 z-10">
+        <CommitHash />
+      </div>
+
       <section className="flex grow items-center justify-center  z-10">
         <article className="flex flex-col gap-4 items-center">
           <Logo size={80} />
