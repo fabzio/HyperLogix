@@ -39,17 +39,17 @@ public class StartSimulationUseCase {
     LocalDateTime startTimeOrders = req.getStartTimeOrders();
     LocalDateTime endTimeOrders = req.getEndTimeOrders();
 
-    List<Order> orders = orderRepository.findByDateBetween(startTimeOrders, endTimeOrders).stream()
+    List<Order> orders = orderRepository.findByDateBetweenOrderByDateAsc(startTimeOrders, endTimeOrders).stream()
         .map(OrderMapper::mapToDomain).toList();
 
     List<Truck> trucks = truckRepository.findAll().stream()
         .map(TruckMapper::mapToDomain).toList();
     List<Station> stations = stationRepository.findAll().stream()
         .map(StationMapper::mapToDomain).toList();
-    List<Roadblock> roadblocks = roadblockRepository.findByStartTimeBetween(startTimeOrders, endTimeOrders).stream()
+    List<Roadblock> roadblocks = roadblockRepository
+        .findByStartTimeBetweenOrderByStartTimeAsc(startTimeOrders, endTimeOrders).stream()
         .map(BlockMapper::mapToDomain).toList();
 
-    
     PLGNetwork plgNetwork = new PLGNetwork(trucks, stations, orders, List.of(), roadblocks);
 
     simulationService.startSimulation(req.getSimulationId(), plgNetwork);
