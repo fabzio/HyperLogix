@@ -4,6 +4,8 @@ ENV DB_HOST=localhost:3306
 ENV DB_USERNAME=admin
 ENV DB_PASSWORD=admin
 
+RUN apk add --no-cache curl
+
 WORKDIR /app
 
 COPY target/server-*.jar app.jar
