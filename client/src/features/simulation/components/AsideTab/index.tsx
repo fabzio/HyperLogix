@@ -1,8 +1,9 @@
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
+import { useSearch } from '@tanstack/react-router'
 import { BarChart2, Fuel, Play, Receipt, Truck } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Metrics from './Metrics'
 import Orders from './Orders'
 import Run from './Run'
@@ -11,7 +12,14 @@ import Trucks from './Trucks'
 
 export default function AsideTab() {
   const [openTab, setOpenTab] = useState<string>()
-
+  const { orderId, truckId } = useSearch({ from: '/_auth/simulacion' })
+  useEffect(() => {
+    if (orderId) {
+      setOpenTab('orders')
+    } else if (truckId) {
+      setOpenTab('truck')
+    }
+  }, [orderId, truckId])
   return (
     <Tabs
       value={openTab}

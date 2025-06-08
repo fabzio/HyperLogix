@@ -11,6 +11,7 @@ import {
   useQueryClient,
   useSuspenseQuery,
 } from '@tanstack/react-query'
+import { useNavigate } from '@tanstack/react-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSimulationStore } from '../store/simulation'
 
@@ -89,6 +90,7 @@ export const useStatusSimulation = () => {
 }
 
 export const useStopSimulation = () => {
+  const navigate = useNavigate({ from: '/simulacion' })
   const { setState } = useSimulationStore()
   const { username } = useSessionStore()
   const queryClient = useQueryClient()
@@ -105,6 +107,10 @@ export const useStopSimulation = () => {
         simulationTime: null,
         routes: null,
         metrics: null,
+      })
+      navigate({
+        to: '/simulacion',
+        search: { truckId: undefined, orderId: undefined },
       })
       queryClient.invalidateQueries({ queryKey: ['simulation'] })
     },

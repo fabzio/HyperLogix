@@ -137,7 +137,6 @@ export default function TruckDetail({ truckId }: Props) {
                 </div>
               </div>
 
-              {/* Status Badge */}
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium">Estado:</span>
                 <Badge variant="outline" className="text-xs">
@@ -149,7 +148,6 @@ export default function TruckDetail({ truckId }: Props) {
 
           <Separator />
 
-          {/* Stops Section */}
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <MapPin className="h-4 w-4" />
             <span>{filteredStops.length} paradas</span>
@@ -158,7 +156,7 @@ export default function TruckDetail({ truckId }: Props) {
           <div className="space-y-2">
             {filteredStops.map((stop, index) => {
               let displayName = stop.node.id
-              let displayType = stop.node.type
+              let displayType: string = stop.node.type
 
               if (stop.node.type === NodeType.STATION) {
                 const station = plgNetwork?.stations.find(
@@ -177,7 +175,27 @@ export default function TruckDetail({ truckId }: Props) {
               return (
                 <div
                   key={stop.node.id}
-                  className="flex items-center justify-between p-2 rounded-md border bg-card hover:bg-accent/50 transition-colors"
+                  className="flex items-center justify-between p-2 rounded-md border bg-card hover:bg-accent/50 transition-colors cursor-pointer"
+                  onClick={() => {
+                    if (stop.node.type === NodeType.DELIVERY) {
+                      navigate({
+                        to: '/simulacion',
+                        search: { orderId: stop.node.id },
+                      })
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (
+                      (e.key === 'Enter' || e.key === ' ') &&
+                      stop.node.type === NodeType.DELIVERY
+                    ) {
+                      e.preventDefault()
+                      navigate({
+                        to: '/simulacion',
+                        search: { orderId: stop.node.id },
+                      })
+                    }
+                  }}
                 >
                   <div className="flex items-center gap-3">
                     <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-xs font-medium">
