@@ -1,36 +1,42 @@
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { useSimulationStore } from "../../store/simulation"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { useSimulationStore } from '../../store/simulation'
 
 export default function Stations() {
-  const { plgNetwork ,simulationTime} = useSimulationStore()
+  const { plgNetwork, simulationTime } = useSimulationStore()
   const stations = plgNetwork?.stations || []
   return (
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>
-            Nombre de Estación
-          </TableHead>
-          <TableHead>
-            Ubicación
-          </TableHead>
-          <TableHead>
-            Capacidad de Combustible
-          </TableHead>
+          <TableHead>Nombre de Estación</TableHead>
+          <TableHead>Ubicación</TableHead>
+          <TableHead>Capacidad de Combustible</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {stations.length > 0 ? (
           stations.map((station) => (
             <TableRow key={station.id} className="hover:bg-muted">
-              <TableCell>
-                {station.name}
-              </TableCell>
+              <TableCell>{station.name}</TableCell>
               <TableCell>
                 ({station.location.x}, {station.location.y})
               </TableCell>
               <TableCell>
-                {station.availableCapacityPerDate[simulationTime!]?.toFixed(2) || station.mainStation? '♾️':station.maxCapacity} m³
+                {(simulationTime &&
+                  station.availableCapacityPerDate[simulationTime]?.toFixed(
+                    2,
+                  )) ||
+                station.mainStation
+                  ? '♾️'
+                  : station.maxCapacity}{' '}
+                m³
               </TableCell>
             </TableRow>
           ))

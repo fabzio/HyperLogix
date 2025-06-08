@@ -100,7 +100,12 @@ export const useStopSimulation = () => {
       return stopSimulation(username)
     },
     onSuccess: () => {
-      setState({ plgNetwork: null, simulationTime: null, routes: null })
+      setState({
+        plgNetwork: null,
+        simulationTime: null,
+        routes: null,
+        metrics: null,
+      })
       queryClient.invalidateQueries({ queryKey: ['simulation'] })
     },
     onError: (error) => {
@@ -108,32 +113,36 @@ export const useStopSimulation = () => {
     },
   })
 }
-export const useSimulationEndDialog = (network: PLGNetwork|null)=> {
+export const useSimulationEndDialog = (network: PLGNetwork | null) => {
   const [isOpen, setIsOpen] = useState(false)
-  const [endReason, setEndReason] = useState<'completed' | 'manual' | null>(null)
-  
+  const [endReason, setEndReason] = useState<'completed' | 'manual' | null>(
+    null,
+  )
+
   const wasActiveRef = useRef(false)
   const prevAllCompletedRef = useRef(false)
 
   useEffect(() => {
     const isActive = !!network
-    
+
     // Check for manual stop
     if (wasActiveRef.current && !isActive) {
       setEndReason('manual')
       setIsOpen(true)
     }
-    
+
     // Check for completion
     if (network?.orders?.length) {
-      const allCompleted = network.orders.every(order => order.status === 'COMPLETED')
+      const allCompleted = network.orders.every(
+        (order) => order.status === 'COMPLETED',
+      )
       if (allCompleted && !prevAllCompletedRef.current) {
         setEndReason('completed')
         setIsOpen(true)
       }
       prevAllCompletedRef.current = allCompleted
     }
-    
+
     wasActiveRef.current = isActive
   }, [network])
 

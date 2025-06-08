@@ -86,7 +86,7 @@ export default function DynamicMap({
       )
     }
     return lines
-  }, [gridColor]) // CELL_SIZE, GRID_WIDTH, GRID_HEIGHT are constants
+  }, [gridColor])
 
   const horizontalLines = useMemo(() => {
     const lines = []
@@ -104,12 +104,12 @@ export default function DynamicMap({
       )
     }
     return lines
-  }, [gridColor]) // CELL_SIZE, GRID_WIDTH, GRID_HEIGHT are constants
+  }, [gridColor])
 
   const transformedPoints = useMemo(
     () =>
       points.map(([x, y]) => [x * CELL_SIZE, (GRID_HEIGHT - y) * CELL_SIZE]),
-    [points], // Depends on points, CELL_SIZE and GRID_HEIGHT are constants
+    [points],
   )
 
   const transformLocation = useMemo(
@@ -118,7 +118,7 @@ export default function DynamicMap({
         number,
         number,
       ],
-    [], // CELL_SIZE and GRID_HEIGHT are constants
+    [],
   )
 
   const transformRawPoint = useMemo(
@@ -128,7 +128,7 @@ export default function DynamicMap({
           number,
           number,
         ],
-    [], // CELL_SIZE and GRID_HEIGHT are constants
+    [],
   )
 
   const handlePolylineHover = useCallback(
@@ -145,7 +145,6 @@ export default function DynamicMap({
     [onPolylineClick],
   )
 
-  // Add a class to the map when any polyline is hovered
   const anyPolylineHovered = !!hoveredPolylineId
 
   return (
@@ -179,7 +178,6 @@ export default function DynamicMap({
               {verticalLines}
               {horizontalLines}
 
-              {/* User-provided points */}
               {transformedPoints.map(([x, y]) => (
                 <Marker key={`point-${x}-${y}`} coordinates={[x, y]}>
                   <circle
@@ -191,7 +189,6 @@ export default function DynamicMap({
                 </Marker>
               ))}
 
-              {/* Render Trucks */}
               {trucks.map((truck) => {
                 const [cx, cy] = transformLocation(truck.location)
                 return (
@@ -199,7 +196,6 @@ export default function DynamicMap({
                 )
               })}
 
-              {/* Render Stations */}
               {stations.map((station) => {
                 const [cx, cy] = transformLocation(station.location)
                 return (
@@ -212,7 +208,6 @@ export default function DynamicMap({
                 )
               })}
 
-              {/* Render Orders */}
               {orders.map((order) => {
                 const [cx, cy] = transformLocation(order.location)
                 return (
@@ -220,7 +215,6 @@ export default function DynamicMap({
                 )
               })}
 
-              {/* Render Polylines */}
               {polylines.map((polyline) => (
                 <PolylineItem
                   key={polyline.id}
