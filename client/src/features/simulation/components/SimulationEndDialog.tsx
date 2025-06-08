@@ -1,4 +1,10 @@
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 
 interface Props {
@@ -17,7 +23,10 @@ export default function SimulationEndDialog({ open, onClose, reason }: Props) {
             {reason === 'manual' ? (
               <p>Simulación detenida manualmente con éxito</p>
             ) : (
-              <p>Simulación finalizada porque todos los pedidos fueron completados.</p>
+              <p>
+                Simulación finalizada porque todos los pedidos fueron
+                completados.
+              </p>
             )}
           </DialogDescription>
         </DialogHeader>

@@ -20,7 +20,7 @@ export default function MainLayout({ children }: Props) {
             </div>
             <ModeToggle />
           </header>
-          <main className="h-[calc(100vh-72px)] bg-transparent">
+          <main className="h-[calc(100vh-44px)] bg-transparent">
             {children}
           </main>
         </SidebarInset>

@@ -8,5 +8,6 @@ export interface Order {
   deliveredGLP: number
   date: string // ISO date-time string
   limitTime: string // ISO date-time string
+  maxDeliveryDate: string // ISO date-time string
   status: 'PENDING' | 'CALCULATING' | 'IN_PROGRESS' | 'COMPLETED'
 }

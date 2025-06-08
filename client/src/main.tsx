@@ -8,8 +8,15 @@ import * as TanstackQuery from './integrations/tanstack-query/root-provider'
 import { routeTree } from './routeTree.gen'
 
 import './styles.css'
+import { setDefaultOptions } from 'date-fns'
+import { es } from 'date-fns/locale/es'
 import { ThemeProvider } from './components/theme-provider.tsx'
 import reportWebVitals from './reportWebVitals.ts'
+
+setDefaultOptions({
+  locale: es,
+  weekStartsOn: 1,
+})
 
 export const router = createRouter({
   routeTree,
