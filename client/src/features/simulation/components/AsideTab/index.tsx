@@ -1,11 +1,10 @@
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
-import { BarChart2, Fuel, Play, Receipt, Route, Truck } from 'lucide-react'
+import { BarChart2, Fuel, Play, Receipt, Truck } from 'lucide-react'
 import { useState } from 'react'
 import Metrics from './Metrics'
 import Orders from './Orders'
-import Routes from './Routes'
 import Run from './Run'
 import Stations from './Stations'
 import Trucks from './Trucks'
@@ -62,6 +61,5 @@ const TABS = [
   },
   { key: 'truck', icon: <Truck />, label: 'Camiones', component: Trucks },
   { key: 'orders', icon: <Receipt />, label: 'Pedidos', component: Orders },
-  { key: 'routes', icon: <Route />, label: 'Rutas', component: Routes },
   { key: 'stations', icon: <Fuel />, label: 'Estaciones', component: Stations },
 ]

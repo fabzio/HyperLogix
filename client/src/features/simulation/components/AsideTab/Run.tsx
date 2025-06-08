@@ -56,7 +56,7 @@ export default function Run() {
 
   const onSubmit = form.handleSubmit((data) => {
     let startDate: Date
-    let endDate: Date
+    let endDate: Date = new Date()
 
     if (data.mode === 'absolute') {
       startDate = data.absolute.from
@@ -64,22 +64,14 @@ export default function Run() {
     } else {
       startDate = data.relative.startDate
       const { duration, unit } = data.relative
-
-      switch (unit) {
-        case 'days':
-          endDate = addDays(startDate, duration)
-          break
-        case 'weeks':
-          endDate = addWeeks(startDate, duration)
-          break
-        case 'months':
-          endDate = addMonths(startDate, duration)
-          break
-        case 'years':
-          endDate = addYears(startDate, duration)
-          break
-        default:
-          endDate = addDays(startDate, duration)
+      if (unit === 'days') {
+        endDate = addDays(startDate, duration)
+      } else if (unit === 'weeks') {
+        endDate = addWeeks(startDate, duration)
+      } else if (unit === 'months') {
+        endDate = addMonths(startDate, duration)
+      } else if (unit === 'years') {
+        endDate = addYears(startDate, duration)
       }
     }
 

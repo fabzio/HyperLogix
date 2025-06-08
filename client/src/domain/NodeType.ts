@@ -1,4 +1,5 @@
-export enum NodeType {
-  STATION = 'STATION',
-  DELIVERY = 'DELIVERY',
-}
+export const NodeType = {
+  LOCATION: 'LOCATION',
+  STATION: 'STATION',
+  DELIVERY: 'DELIVERY',
+} as const

@@ -1,3 +1,4 @@
+import Typography from '@/components/typography'
 import {
   Pagination,
   PaginationContent,
@@ -14,14 +15,21 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { useSearch } from '@tanstack/react-router'
 import { useState } from 'react'
 import { useSimulationStore } from '../../store/simulation'
 
 export default function Orders() {
-  const { plgNetwork } = useSimulationStore()
+  const { truckId } = useSearch({ from: '/_auth/simulacion' })
+  const { plgNetwork, routes, simulationTime } = useSimulationStore()
   const [page, setPage] = useState(1)
   const [pageSize] = useState(10)
-  const orders = plgNetwork?.orders || []
+  const orders =
+    plgNetwork?.orders.filter((order) => {
+      if (!truckId) return true
+      const stops = routes?.stops[truckId] || []
+      return stops.some((stop) => stop.node.id === order.id)
+    }) || []
   const startIndex = (page - 1) * pageSize
   const endIndex = startIndex + pageSize
   const paginatedOrders = orders.slice(startIndex, endIndex)
@@ -31,11 +39,14 @@ export default function Orders() {
       setPage(newPage)
     }
   }
-
   const paginationNumbers = generatePaginationNumbers(page, totalPages)
+  if (!plgNetwork || !routes || !simulationTime) {
+    return <div>Cargando...</div>
+  }
 
   return (
-    <div>
+    <article>
+      <Typography variant="h3">Pedidos</Typography>
       <Table>
         <TableHeader>
           <TableRow>
@@ -43,32 +54,47 @@ export default function Orders() {
               Estado
             </TableHead>
             <TableHead className="px-4 py-2 text-left font-semibold">
-              GLP Entregado
+              GLP
             </TableHead>
             <TableHead className="px-4 py-2 text-left font-semibold">
-              Fecha de Recepción
+              Tiempo Restante
             </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {orders.length > 0 ? (
-            paginatedOrders.map((order) => (
-              <TableRow key={order.id} className="hover:bg-muted">
-                <TableCell className="px-4 py-2">
-                  {order.status === 'PENDING' && 'Pendiente'}
-                  {order.status === 'CALCULATING' && 'Calculando'}
-                  {order.status === 'IN_PROGRESS' && 'En Progreso'}
-                  {order.status === 'COMPLETED' && 'Completado'}
-                </TableCell>
-                <TableCell className="px-4 py-2">
-                  {order.deliveredGLP}/{order.requestedGLP}
-                </TableCell>
-                <TableCell className="px-4 py-2">
-                  {new Date(order.date).toLocaleDateString()}{' '}
-                  {new Date(order.date).toLocaleTimeString()}
-                </TableCell>
-              </TableRow>
-            ))
+            paginatedOrders.map((order) => {
+              const maxDate = new Date(order.maxDeliveryDate)
+              const simulationDate = new Date(simulationTime)
+              const remainingTime = Math.max(
+                Math.ceil(
+                  (maxDate.getTime() - simulationDate.getTime()) /
+                    (1000 * 60 * 60),
+                ),
+                0,
+              )
+              return (
+                <TableRow key={order.id} className="hover:bg-muted">
+                  <TableCell className="px-4 py-2">
+                    {order.status === 'PENDING' && 'Pendiente'}
+                    {order.status === 'CALCULATING' && 'Calculando'}
+                    {order.status === 'IN_PROGRESS' && 'En Progreso'}
+                    {order.status === 'COMPLETED' && 'Completado'}
+                  </TableCell>
+                  <TableCell className="px-4 py-2">
+                    {order.deliveredGLP.toString().padStart(2, ' ')}/
+                    {order.requestedGLP.toString().padStart(2, ' ')}
+                  </TableCell>
+                  <TableCell className="px-4 py-2">
+                    {order.status === 'COMPLETED'
+                      ? 'A tiempo'
+                      : remainingTime > 0
+                        ? `${remainingTime} horas`
+                        : 'Retrasado'}
+                  </TableCell>
+                </TableRow>
+              )
+            })
           ) : (
             <TableRow>
               <TableCell colSpan={4} className="text-center">
@@ -116,7 +142,7 @@ export default function Orders() {
           </PaginationItem>
         </PaginationContent>
       </Pagination>
-    </div>
+    </article>
   )
 }
 

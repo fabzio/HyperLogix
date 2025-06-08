@@ -1,15 +1,20 @@
 import type { MapPolyline } from '@/components/DynamicMap'
 import DynamicMap from '@/components/DynamicMap'
-import { useMemo } from 'react'
+import { useNavigate, useSearch } from '@tanstack/react-router'
+import { useMemo, useState } from 'react'
 import AsideTab from './components/AsideTab'
+import SimulationEndDialog from './components/SimulationEndDialog'
 import SimulationHeader from './components/SimulationHeader'
 import {
   useSimulationEndDialog,
   useWatchSimulation,
 } from './hooks/useSimulation'
-import SimulationEndDialog from './components/SimulationEndDialog'
 
 export default function Simulation() {
+  const [polylineHover, setPolylineHover] = useState<string | null>(null)
+
+  const { truckId } = useSearch({ from: '/_auth/simulacion' })
+  const navigate = useNavigate({ from: '/simulacion' })
   const { plgNetwork: network, simulationTime, routes } = useWatchSimulation()
   const { isOpen, endReason, closeDialog } = useSimulationEndDialog(network)
 
@@ -72,6 +77,37 @@ export default function Simulation() {
                     new Date(line.endTime) >= new Date(simulationTime)),
               ) || []
             }
+            hoveredPolylineId={polylineHover}
+            onPolylineHover={(lineId) => {
+              const isRoadblock = lineId?.startsWith('roadblock-')
+              if (lineId === null || lineId === undefined) {
+                return
+              }
+              if (isRoadblock) {
+                setPolylineHover(null)
+                return
+              }
+              const truckId = Number(lineId?.split('-')[0])
+              setPolylineHover(lineId)
+              navigate({
+                search: {
+                  truckId,
+                },
+              })
+            }}
+            onPolylineClick={(lineId) => {
+              const isRoadblock = lineId?.startsWith('roadblock-')
+              if (isRoadblock) {
+                setPolylineHover(null)
+                return
+              }
+              const truckId = Number(lineId?.split('-')[0])
+              navigate({
+                search: {
+                  truckId,
+                },
+              })
+            }}
           />
         </div>
       </div>
