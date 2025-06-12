@@ -1,16 +1,4 @@
-import {
-  Truck,
-  AlertCircle,
-  Slash,
-  Fuel,
-  XCircle,
-  Building2,
-} from 'lucide-react'
-
-/*function getTruckColor(truckId: string): string {
-    const hue = (truckId.charCodeAt(0) * 137.5) % 360
-    return `hsl(${hue}, 70%, 50%)`
-}*/
+import { Building2, Fuel, Receipt, Slash, Truck, XCircle } from 'lucide-react'
 
 export default function Leyenda() {
   return (
@@ -26,7 +14,7 @@ export default function Leyenda() {
           icon={<Building2 className="text-muted-foreground" />}
           label="Planta principal"
         />
-        <LegendItem icon={<DestinoIcon />} label="Punto de destino" />
+        <LegendItem icon={<Receipt />} label="Punto de destino" />
         <LegendItem
           icon={<Fuel className="text-muted-foreground" />}
           label="Tanque secundario"
@@ -85,14 +73,3 @@ function ColorLabel({ color, label }: { color: string; label: string }) {
     </div>
   )
 }
-
-// Ícono para el destino
-function DestinoIcon() {
-  return (
-    <div className="relative w-5 h-5 bg-white border border-gray-400 rounded-sm">
-      <div className="absolute top-[2px] left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-black rounded-full" />
-      <div className="absolute bottom-[2px] left-[2px] right-[2px] h-0.5 bg-black" />
-    </div>
-  )
-}
-export { default as Leyenda } from './Leyenda'

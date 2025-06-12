@@ -34,7 +34,7 @@ export default function SimulationHeader({
         <div className="text-right">
           {isSimulationActive && simulatedTimeDate ? (
             <>
-              <p className="text-xl font-mono font-bold text-primary">
+              <p className="text-md font-mono font-bold text-primary">
                 {simulatedTimeDate.toLocaleDateString('es-ES', {
                   weekday: 'long',
                   year: 'numeric',

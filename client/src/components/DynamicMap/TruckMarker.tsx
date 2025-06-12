@@ -1,5 +1,5 @@
-import TruckIcon from '@/components/icons/TruckIcon'
-import type { Truck } from '@/domain/Truck'
+import type { Truck as TruckType } from '@/domain/Truck'
+import { Truck } from 'lucide-react'
 import { memo } from 'react'
 import { Marker } from 'react-simple-maps'
 import { formatTooltipText } from './index'
@@ -10,12 +10,12 @@ const TruckMarker = memo(
     cx,
     cy,
   }: {
-    truck: Truck
+    truck: TruckType
     cx: number
     cy: number
   }) => (
     <Marker coordinates={[cx - 2, cy - 2]}>
-      <TruckIcon />
+      <Truck size={5} />
       <title>{formatTooltipText(truck)}</title>
     </Marker>
   ),

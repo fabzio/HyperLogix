@@ -131,12 +131,9 @@ export default function DynamicMap({
     [],
   )
 
-  const handlePolylineHover = useCallback(
-    (polylineId: string | null) => {
-      onPolylineHover?.(polylineId)
-    },
-    [onPolylineHover],
-  )
+  const handlePolylineHover = (polylineId: string | null) => {
+    onPolylineHover?.(polylineId)
+  }
 
   const handlePolylineClick = useCallback(
     (polylineId: string, polyline: MapPolyline) => {
@@ -148,7 +145,7 @@ export default function DynamicMap({
   const anyPolylineHovered = !!hoveredPolylineId
 
   return (
-    <div className="h-screen flex flex-col justify-center overflow-hidden box-border">
+    <div className="p-1 h-full flex flex-col justify-center overflow-hidden box-border">
       <div className="w-full h-full max-h-[calc(100vh-2rem)] flex justify-center items-center">
         <div
           className={`w-full h-full aspect-[${GRID_WIDTH}/${GRID_HEIGHT}]`}
