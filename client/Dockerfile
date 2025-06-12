@@ -37,11 +37,16 @@ RUN printf "server {\n\
         root /usr/share/nginx/html;\n\
         try_files \$uri \$uri/ /index.html;\n\
     }\n\
+}\n\
+\n\
+server {\n\
+    listen 443;\n\
+    return 301 http://\$host:80\$request_uri;\n\
 }" > /etc/nginx/conf.d/default.conf.template
 
 CMD ["/bin/sh", "-c", "envsubst '$BACKEND_URL' < /etc/nginx/conf.d/default.conf.template > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"]
 
-EXPOSE 80
+EXPOSE 80 443
 
 
 
