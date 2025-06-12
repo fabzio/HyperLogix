@@ -1,13 +1,17 @@
 package com.hyperlogix.server.util;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.PriorityQueue;
+
 import com.hyperlogix.server.config.Constants;
 import com.hyperlogix.server.domain.Edge;
 import com.hyperlogix.server.domain.Point;
 import com.hyperlogix.server.domain.Roadblock;
-
-import java.time.Duration;
-import java.time.LocalDateTime;
-import java.util.*;
 
 public class AStar {
   public static List<Point> encontrarRuta(Point inicio, Point fin, LocalDateTime tiempoInicio,
@@ -27,7 +31,8 @@ public class AStar {
 
       for (Point vecino : getVecinos(actual.punto)) {
         double hours = Constants.EDGE_LENGTH / Constants.TRUCK_SPEED;
-        LocalDateTime nuevoTiempo = actual.tiempo.plus(Duration.ofHours((long) hours));
+        long seconds = (long) (hours * 3600); // convierte a segundos
+        LocalDateTime nuevoTiempo = actual.tiempo.plusSeconds(seconds);
         if (esBloqueado(actual.punto, vecino, nuevoTiempo, bloqueosTemporales)) {
           continue;
         }
