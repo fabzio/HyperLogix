@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils'
+import { PlayCircle, PauseCircle } from 'lucide-react'
 
 interface SimulationHeaderProps {
   simulationTime: string | null
@@ -12,7 +13,7 @@ export default function SimulationHeader({
   const simulatedTimeDate = simulationTime ? new Date(simulationTime) : null
 
   return (
-    <header>
+    <header className="px-2">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div
@@ -21,14 +22,19 @@ export default function SimulationHeader({
               isSimulationActive ? 'bg-green-500 animate-pulse' : 'bg-gray-400',
             )}
           />
-          <p className="text-lg font-semibold">
+          {isSimulationActive ? (
+            <PauseCircle className="w-7 h-7 text-primary" />
+          ) : (
+            <PlayCircle className="w-7 h-7 text-primary" />
+          )}
+          <p className="text-base font-semibold">
             {isSimulationActive ? 'Simulación en curso' : 'Simulación detenida'}
           </p>
         </div>
         <div className="text-right">
           {isSimulationActive && simulatedTimeDate ? (
             <>
-              <p className="text-xl font-mono font-bold text-primary">
+              <p className="text-md font-mono font-bold text-primary">
                 {simulatedTimeDate.toLocaleDateString('es-ES', {
                   weekday: 'long',
                   year: 'numeric',

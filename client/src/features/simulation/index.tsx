@@ -1,7 +1,7 @@
 import type { MapPolyline } from '@/components/DynamicMap'
 import DynamicMap from '@/components/DynamicMap'
 import { useNavigate, useSearch } from '@tanstack/react-router'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import AsideTab from './components/AsideTab'
 import SimulationEndDialog from './components/SimulationEndDialog'
 import SimulationHeader from './components/SimulationHeader'
@@ -9,13 +9,28 @@ import {
   useSimulationEndDialog,
   useWatchSimulation,
 } from './hooks/useSimulation'
+const truckTypeColors: Record<string, string> = {
+  TA: '#a855f7', // purple-500
+  TB: '#38bdf8', // sky-400
+  TC: '#4ade80', // green-400
+  TD: '#facc15', // yellow-400
+}
 
 export default function Simulation() {
   const [polylineHover, setPolylineHover] = useState<string | null>(null)
 
   const { truckId } = useSearch({ from: '/_auth/simulacion' })
   const navigate = useNavigate({ from: '/simulacion' })
+
   const { plgNetwork: network, simulationTime, routes } = useWatchSimulation()
+
+  const getTruckColorById = useCallback(
+    (id: string): string => {
+      const truck = network?.trucks.find((t) => t.id === id)
+      return truckTypeColors[truck?.type ?? 'TA']
+    },
+    [network?.trucks],
+  )
   const { isOpen, endReason, closeDialog } = useSimulationEndDialog(network)
   useEffect(() => {
     if (truckId) {
@@ -33,7 +48,7 @@ export default function Simulation() {
               path.points?.map(
                 (location) => [location.x, location.y] as [number, number],
               ) || [],
-            stroke: `hsl(${(truckId.charCodeAt(0) * 137.5) % 360}, 70%, 50%)`,
+            stroke: getTruckColorById(truckId),
             strokeWidth: 0.7,
             type: 'path' as const,
           })),
@@ -51,7 +66,7 @@ export default function Simulation() {
         endTime: block.end,
       })) || []
     return [...pathPolylines, ...roadblockPolylines]
-  }, [routes?.paths, network?.roadblocks])
+  }, [routes?.paths, network?.roadblocks, getTruckColorById])
 
   return (
     <div className="flex h-full w-full">
@@ -87,18 +102,14 @@ export default function Simulation() {
             onPolylineHover={(lineId) => {
               const isRoadblock = lineId?.startsWith('roadblock-')
               if (lineId === null || lineId === undefined) {
+                setPolylineHover(null)
                 return
               }
               if (isRoadblock) {
                 setPolylineHover(null)
                 return
               }
-              const truckId = Number(lineId?.split('-')[0])
-              navigate({
-                search: {
-                  truckId,
-                },
-              })
+              setPolylineHover(lineId)
             }}
             onPolylineClick={(lineId) => {
               const isRoadblock = lineId?.startsWith('roadblock-')

@@ -9,6 +9,8 @@ import Orders from './Orders'
 import Run from './Run'
 import Stations from './Stations'
 import Trucks from './Trucks'
+import { Info } from 'lucide-react'
+import Leyenda from './Leyenda'
 
 export default function AsideTab() {
   const [openTab, setOpenTab] = useState<string>()
@@ -70,4 +72,5 @@ const TABS = [
   { key: 'truck', icon: <Truck />, label: 'Camiones', component: Trucks },
   { key: 'orders', icon: <Receipt />, label: 'Pedidos', component: Orders },
   { key: 'stations', icon: <Fuel />, label: 'Estaciones', component: Stations },
+  { key: 'leyenda', icon: <Info />, label: 'Leyenda', component: Leyenda },
 ]

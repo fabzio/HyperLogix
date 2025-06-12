@@ -1,5 +1,5 @@
-import OrderIcon from '@/components/icons/OrderIcon'
 import type { Order } from '@/domain/Order'
+import { Receipt } from 'lucide-react'
 import { memo } from 'react'
 import { Marker } from 'react-simple-maps'
 import { formatTooltipText } from './index'
@@ -15,7 +15,7 @@ const OrderMarker = memo(
     cy: number
   }) => (
     <Marker coordinates={[cx - 2.5, cy - 2]}>
-      <OrderIcon />
+      <Receipt size={5} />
       <title>{formatTooltipText(order)}</title>
     </Marker>
   ),
