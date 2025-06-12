@@ -9,6 +9,17 @@ import {
   useSimulationEndDialog,
   useWatchSimulation,
 } from './hooks/useSimulation'
+const truckTypeColors: Record<string, string> = {
+  TA: '#a855f7', // purple-500
+  TB: '#38bdf8', // sky-400
+  TC: '#4ade80', // green-400
+  TD: '#facc15', // yellow-400
+}
+
+function getTruckColorById(id: string): string {
+  const truck = network?.trucks.find((t) => t.id === Number(id))
+  return truckTypeColors[truck?.type ?? 'TA']
+}
 
 export default function Simulation() {
   const [polylineHover, setPolylineHover] = useState<string | null>(null)
@@ -33,7 +44,7 @@ export default function Simulation() {
               path.points?.map(
                 (location) => [location.x, location.y] as [number, number],
               ) || [],
-            stroke: `hsl(${(truckId.charCodeAt(0) * 137.5) % 360}, 70%, 50%)`,
+            stroke: getTruckColorById(truckId),
             strokeWidth: 0.7,
             type: 'path' as const,
           })),
