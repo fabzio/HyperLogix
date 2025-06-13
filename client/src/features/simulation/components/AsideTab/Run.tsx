@@ -41,7 +41,7 @@ export default function Run() {
   const form = useForm<FormSchema>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      mode: 'absolute',
+      mode: 'relative',
       absolute: {
         from: new Date('2025-01-01'),
         to: new Date('2025-01-08'),
@@ -93,7 +93,7 @@ export default function Run() {
       <Form {...form}>
         <form onSubmit={onSubmit}>
           <Tabs
-            defaultValue="relative"
+            value={form.watch('mode')}
             onValueChange={(value) => {
               form.setValue('mode', value as 'absolute' | 'relative')
             }}
@@ -184,8 +184,8 @@ export default function Run() {
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
                         <Calendar
-                          initialFocus
                           mode="single"
+                          autoFocus
                           selected={field.value}
                           onSelect={field.onChange}
                           disabled={isRunning}
