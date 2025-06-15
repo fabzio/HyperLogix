@@ -36,11 +36,13 @@ public class StartSimulationUseCase {
   @Autowired
   private StationRepository stationRepository;
   
+  
   @Autowired
   private RoadblockRepository roadblockRepository;
   
   @Autowired
   private IncidentRepository incidentRepository;
+  
 
   public void startSimulation(StartSimulationUseCaseIn req) {
     LocalDateTime startTimeOrders = req.getStartTimeOrders();
@@ -77,6 +79,5 @@ public class StartSimulationUseCase {
     System.out.println("PLGNetwork incidents after creation: " + plgNetwork.getIncidents().size());
     System.out.println("==================== END DEBUG ====================");
 
-    simulationService.startSimulation(req.getSimulationId(), plgNetwork, req.getMode());
   }
 }
