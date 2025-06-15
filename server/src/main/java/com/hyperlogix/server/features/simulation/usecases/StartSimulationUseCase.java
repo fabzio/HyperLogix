@@ -37,6 +37,7 @@ public class StartSimulationUseCase {
   private StationRepository stationRepository;
   
   
+  
   @Autowired
   private RoadblockRepository roadblockRepository;
   
@@ -79,5 +80,6 @@ public class StartSimulationUseCase {
     System.out.println("PLGNetwork incidents after creation: " + plgNetwork.getIncidents().size());
     System.out.println("==================== END DEBUG ====================");
 
+    simulationService.startSimulation(req.getSimulationId(), plgNetwork, req.getMode());
   }
 }
