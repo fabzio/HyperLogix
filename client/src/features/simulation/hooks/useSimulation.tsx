@@ -53,7 +53,7 @@ export const useWatchSimulation = () => {
     (message: unknown) => {
       try {
         const typedMessage = message as MesaggeResponse
-        //console.log(typedMessage.plgNetwork.roadblocks)
+        console.log(typedMessage.plgNetwork.incidents)
         setState(typedMessage)
       } catch (error) {
         console.error('Error parsing message:', error)
