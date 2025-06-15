@@ -54,6 +54,7 @@ public class Ant {
 
   public Routes findSolution() {
     for (Truck truck : network.getTrucks()) {
+      // Create the first node representing the truck's starting location
       Stop firstNode = new Stop(
           new Node(truck.getCode(), truck.getType().toString(), NodeType.LOCATION, truck.getLocation().integerPoint()),
           graph.getAlgorithmStartDate());
@@ -316,7 +317,6 @@ public class Ant {
     }
     return availableNodes.getLast();
   }
-
   private void moveToNode(Truck truck, Stop currentNode, Stop nextNode) {
     Path path;
     if (currentNode.getNode().getType() == NodeType.LOCATION) {
@@ -324,6 +324,8 @@ public class Ant {
     } else {
       path = adjacencyMap.get(currentNode.getNode()).get(nextNode.getNode());
     }
+    
+    // Normal movement logic when no incident or incident doesn't affect movement
     this.paths.get(truck.getId())
         .add(path.points().getFirst() == currentNode.getNode().getLocation() ? path : path.reverse());
     int distance = path.length();
@@ -363,7 +365,6 @@ public class Ant {
     this.tourCost.put(truck.getId(), this.tourCost.get(truck.getId()) + fuelConsumption);
 
   }
-
   public void resetState() {
     this.network = originalNetwork.clone();
     this.adjacencyMap = graph.createAdjacencyMap(graph.getAlgorithmStartDate());
