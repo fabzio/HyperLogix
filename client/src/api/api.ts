@@ -82,17 +82,18 @@ export interface Order {
      * @type {string}
      * @memberof Order
      */
-    'maxDeliveryDate'?: string;
+    'minDeliveryDate'?: string;
     /**
      * 
      * @type {string}
      * @memberof Order
      */
-    'minDeliveryDate'?: string;
+    'maxDeliveryDate'?: string;
 }
 
 export const OrderStatusEnum = {
     Pending: 'PENDING',
+    Calculating: 'CALCULATING',
     InProgress: 'IN_PROGRESS',
     Completed: 'COMPLETED'
 } as const;
@@ -290,6 +291,18 @@ export interface PageableObject {
     'sort'?: SortObject;
     /**
      * 
+     * @type {boolean}
+     * @memberof PageableObject
+     */
+    'unpaged'?: boolean;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof PageableObject
+     */
+    'paged'?: boolean;
+    /**
+     * 
      * @type {number}
      * @memberof PageableObject
      */
@@ -300,18 +313,25 @@ export interface PageableObject {
      * @memberof PageableObject
      */
     'pageSize'?: number;
+}
+/**
+ * 
+ * @export
+ * @interface PlanificationStatus
+ */
+export interface PlanificationStatus {
     /**
      * 
      * @type {boolean}
-     * @memberof PageableObject
+     * @memberof PlanificationStatus
      */
-    'paged'?: boolean;
+    'planning'?: boolean;
     /**
      * 
-     * @type {boolean}
-     * @memberof PageableObject
+     * @type {number}
+     * @memberof PlanificationStatus
      */
-    'unpaged'?: boolean;
+    'currentNodesProcessed'?: number;
 }
 /**
  * 
@@ -331,6 +351,19 @@ export interface Point {
      * @memberof Point
      */
     'y'?: number;
+}
+/**
+ * 
+ * @export
+ * @interface SimulationCommandRequest
+ */
+export interface SimulationCommandRequest {
+    /**
+     * 
+     * @type {string}
+     * @memberof SimulationCommandRequest
+     */
+    'command'?: string;
 }
 /**
  * 
@@ -528,6 +561,7 @@ export const TruckTypeEnum = {
 export type TruckTypeEnum = typeof TruckTypeEnum[keyof typeof TruckTypeEnum];
 export const TruckStatusEnum = {
     Maintenance: 'MAINTENANCE',
+    Idle: 'IDLE',
     Active: 'ACTIVE',
     BrokenDown: 'BROKEN_DOWN'
 } as const;
@@ -730,6 +764,110 @@ export class OrderControllerApi extends BaseAPI {
 
 
 /**
+ * PlanificationControllerApi - axios parameter creator
+ * @export
+ */
+export const PlanificationControllerApiAxiosParamCreator = function (configuration?: Configuration) {
+    return {
+        /**
+         * 
+         * @param {string} sessionId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getPlanificationStatus: async (sessionId: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'sessionId' is not null or undefined
+            assertParamExists('getPlanificationStatus', 'sessionId', sessionId)
+            const localVarPath = `/planification/status/{sessionId}`
+                .replace(`{${"sessionId"}}`, encodeURIComponent(String(sessionId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+    }
+};
+
+/**
+ * PlanificationControllerApi - functional programming interface
+ * @export
+ */
+export const PlanificationControllerApiFp = function(configuration?: Configuration) {
+    const localVarAxiosParamCreator = PlanificationControllerApiAxiosParamCreator(configuration)
+    return {
+        /**
+         * 
+         * @param {string} sessionId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getPlanificationStatus(sessionId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<PlanificationStatus>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getPlanificationStatus(sessionId, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['PlanificationControllerApi.getPlanificationStatus']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+    }
+};
+
+/**
+ * PlanificationControllerApi - factory interface
+ * @export
+ */
+export const PlanificationControllerApiFactory = function (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) {
+    const localVarFp = PlanificationControllerApiFp(configuration)
+    return {
+        /**
+         * 
+         * @param {string} sessionId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getPlanificationStatus(sessionId: string, options?: RawAxiosRequestConfig): AxiosPromise<PlanificationStatus> {
+            return localVarFp.getPlanificationStatus(sessionId, options).then((request) => request(axios, basePath));
+        },
+    };
+};
+
+/**
+ * PlanificationControllerApi - object-oriented interface
+ * @export
+ * @class PlanificationControllerApi
+ * @extends {BaseAPI}
+ */
+export class PlanificationControllerApi extends BaseAPI {
+    /**
+     * 
+     * @param {string} sessionId 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof PlanificationControllerApi
+     */
+    public getPlanificationStatus(sessionId: string, options?: RawAxiosRequestConfig) {
+        return PlanificationControllerApiFp(this.configuration).getPlanificationStatus(sessionId, options).then((request) => request(this.axios, this.basePath));
+    }
+}
+
+
+
+/**
  * SimulationControllerApi - axios parameter creator
  * @export
  */
@@ -762,6 +900,45 @@ export const SimulationControllerApiAxiosParamCreator = function (configuration?
             setSearchParams(localVarUrlObj, localVarQueryParameter);
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {string} simulationId 
+         * @param {SimulationCommandRequest} simulationCommandRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        sendCommand: async (simulationId: string, simulationCommandRequest: SimulationCommandRequest, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'simulationId' is not null or undefined
+            assertParamExists('sendCommand', 'simulationId', simulationId)
+            // verify required parameter 'simulationCommandRequest' is not null or undefined
+            assertParamExists('sendCommand', 'simulationCommandRequest', simulationCommandRequest)
+            const localVarPath = `/simulation/command/{simulationId}`
+                .replace(`{${"simulationId"}}`, encodeURIComponent(String(simulationId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(simulationCommandRequest, localVarRequestOptions, configuration)
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -865,6 +1042,19 @@ export const SimulationControllerApiFp = function(configuration?: Configuration)
         /**
          * 
          * @param {string} simulationId 
+         * @param {SimulationCommandRequest} simulationCommandRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async sendCommand(simulationId: string, simulationCommandRequest: SimulationCommandRequest, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.sendCommand(simulationId, simulationCommandRequest, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['SimulationControllerApi.sendCommand']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {string} simulationId 
          * @param {StartSimulationRequest} startSimulationRequest 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -909,6 +1099,16 @@ export const SimulationControllerApiFactory = function (configuration?: Configur
         /**
          * 
          * @param {string} simulationId 
+         * @param {SimulationCommandRequest} simulationCommandRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        sendCommand(simulationId: string, simulationCommandRequest: SimulationCommandRequest, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.sendCommand(simulationId, simulationCommandRequest, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {string} simulationId 
          * @param {StartSimulationRequest} startSimulationRequest 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -944,6 +1144,18 @@ export class SimulationControllerApi extends BaseAPI {
      */
     public getSimulationStatus(simulationId: string, options?: RawAxiosRequestConfig) {
         return SimulationControllerApiFp(this.configuration).getSimulationStatus(simulationId, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {string} simulationId 
+     * @param {SimulationCommandRequest} simulationCommandRequest 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof SimulationControllerApi
+     */
+    public sendCommand(simulationId: string, simulationCommandRequest: SimulationCommandRequest, options?: RawAxiosRequestConfig) {
+        return SimulationControllerApiFp(this.configuration).sendCommand(simulationId, simulationCommandRequest, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

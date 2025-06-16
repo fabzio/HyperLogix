@@ -25,10 +25,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { addDays, addMonths, addWeeks, addYears, format } from 'date-fns'
-import { CalendarIcon, Loader2, PauseIcon, Square } from 'lucide-react'
+import {
+  CalendarIcon,
+  FastForward,
+  Loader2,
+  PauseIcon,
+  Play,
+  Rewind,
+  Square,
+} from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import {
+  useCommandSimulation,
   useStartSimulation,
   useStatusSimulation,
   useStopSimulation,
@@ -36,8 +45,9 @@ import {
 
 export default function Run() {
   const { mutate: startSimulation, isPending } = useStartSimulation()
+  const { mutate: sendCommand } = useCommandSimulation()
   const { mutate: stopSimulation } = useStopSimulation()
-  const { data } = useStatusSimulation()
+  const { data: status } = useStatusSimulation()
   const form = useForm<FormSchema>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -81,12 +91,23 @@ export default function Run() {
     })
   })
 
-  const isRunning = data?.running || false
+  const isRunning = status?.running || false
 
   const handleStop = () => {
     stopSimulation()
   }
-
+  const handlePause = () => {
+    sendCommand({ command: 'PAUSE' })
+  }
+  const handleResume = () => {
+    sendCommand({ command: 'RESUME' })
+  }
+  const handleDesaccelerate = () => {
+    sendCommand({ command: 'DESACCELERATE' })
+  }
+  const handleAccelerate = () => {
+    sendCommand({ command: 'ACCELERATE' })
+  }
   return (
     <article>
       <Typography variant="h3">Simulación</Typography>
@@ -248,8 +269,25 @@ export default function Run() {
           <div className="mt-4">
             {isRunning ? (
               <div className="flex items-center justify-center gap-2">
-                <Button size="icon" variant="secondary">
-                  <PauseIcon className="h-4 w-4" />
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="secondary"
+                  onClick={handleDesaccelerate}
+                >
+                  <Rewind className="h-4 w-4" />
+                </Button>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="secondary"
+                  onClick={status?.paused ? handleResume : handlePause}
+                >
+                  {status?.paused ? (
+                    <Play className="h-4 w-4" />
+                  ) : (
+                    <PauseIcon className="h-4 w-4" />
+                  )}
                 </Button>
                 <Button
                   type="button"
@@ -258,6 +296,14 @@ export default function Run() {
                   onClick={handleStop}
                 >
                   <Square className="h-4 w-4" />
+                </Button>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="secondary"
+                  onClick={handleAccelerate}
+                >
+                  <FastForward className="h-4 w-4" />
                 </Button>
               </div>
             ) : (

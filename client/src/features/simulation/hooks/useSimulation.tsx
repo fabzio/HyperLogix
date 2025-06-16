@@ -1,5 +1,6 @@
 import type { PLGNetwork } from '@/domain/PLGNetwork'
 import {
+  commandSimulation,
   getSimulationStatus,
   startSimulation,
   stopSimulation,
@@ -155,4 +156,21 @@ export const useSimulationEndDialog = (network: PLGNetwork | null) => {
   const closeDialog = () => setIsOpen(false)
 
   return { isOpen, endReason, closeDialog }
+}
+
+export const useCommandSimulation = () => {
+  const { username } = useSessionStore()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (params: {
+      command: 'PAUSE' | 'RESUME' | 'DESACCELERATE' | 'ACCELERATE'
+    }) => {
+      if (!username) {
+        throw new Error('Username is required to start simulation')
+      }
+      return commandSimulation(username, params.command)
+    },
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ['simulation'] }),
+  })
 }

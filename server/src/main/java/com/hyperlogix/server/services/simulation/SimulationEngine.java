@@ -2,6 +2,8 @@ package com.hyperlogix.server.services.simulation;
 
 import com.hyperlogix.server.config.Constants;
 import com.hyperlogix.server.domain.*;
+import com.hyperlogix.server.services.planification.PlanificationService;
+import com.hyperlogix.server.services.planification.PlanificationStatus;
 
 import lombok.Setter;
 
@@ -25,6 +27,7 @@ public class SimulationEngine implements Runnable {
   private static final Logger log = LoggerFactory.getLogger(SimulationEngine.class);
 
   private final ApplicationEventPublisher eventPublisher;
+  private final PlanificationService planificationService;
   private final String sessionId;
   private final SimulationConfig simulationConfig;
   private final SimulationNotifier simulationNotifier;
@@ -53,15 +56,23 @@ public class SimulationEngine implements Runnable {
   private Duration totalPlanificationTime = Duration.ZERO;
   private LocalDateTime lastPlanificationStart;
 
+  // Order arrival rate tracking
+  private final Map<LocalDateTime, Integer> orderArrivalHistory = new ConcurrentHashMap<>();
+  private LocalDateTime lastOrderRateCheck = null;
+  private static final Duration ORDER_RATE_CHECK_WINDOW = Duration.ofMinutes(10);
+
   public SimulationEngine(String sessionId,
       SimulationConfig simulationConfig,
       SimulationNotifier simulationNotifier,
-      List<Order> orderRepository, ApplicationEventPublisher eventPublisher) {
+      List<Order> orderRepository,
+      ApplicationEventPublisher eventPublisher,
+      PlanificationService planificationService) {
     this.sessionId = sessionId;
     this.simulationConfig = simulationConfig;
     this.simulationNotifier = simulationNotifier;
     this.orderRepository = orderRepository;
     this.eventPublisher = eventPublisher;
+    this.planificationService = planificationService;
   }
 
   @Override
@@ -69,15 +80,14 @@ public class SimulationEngine implements Runnable {
     running.set(true);
     log.info("=====Simulation started=====");
     log.info("Config K={}, Sa={}, Sc={}, Ta={}",
-        simulationConfig.timeAcceleration(),
-        simulationConfig.algorithmInterval(),
+        simulationConfig.getTimeAcceleration(),
+        simulationConfig.getCurrentAlgorithmInterval(),
         simulationConfig.getConsumptionInterval(),
-        simulationConfig.algorithmTime());
+        simulationConfig.getAlgorithmTime());
 
     simulatedTime = orderRepository.getFirst().getDate().plus(Duration.ofNanos(1));
-
-    Duration timeStep = simulationConfig.simulationResolution().multipliedBy(simulationConfig.timeAcceleration());
     nextPlanningTime = simulatedTime;
+    lastOrderRateCheck = simulatedTime;
 
     while (running.get()) {
       waitIfPaused();
@@ -91,23 +101,42 @@ public class SimulationEngine implements Runnable {
         break;
       }
 
+      Duration timeStep = simulationConfig.getSimulationResolution()
+          .multipliedBy((long) simulationConfig.getTimeAcceleration());
+
       simulatedTime = simulatedTime.plus(timeStep);
+
+      // Check and adjust algorithm interval based on order arrival rate
+      if (simulatedTime.isAfter(lastOrderRateCheck.plus(ORDER_RATE_CHECK_WINDOW))) {
+        adjustAlgorithmIntervalBasedOnOrderRate();
+        lastOrderRateCheck = simulatedTime;
+      }
+
       if (simulatedTime.isAfter(nextPlanningTime)) {
         log.info("Simulated time: {}", simulatedTime);
-        getOrderBatch(simulatedTime);
+        int newOrderCount = getOrderBatch(simulatedTime);
+
+        // Track order arrivals for rate calculation
+        if (newOrderCount > 0) {
+          orderArrivalHistory.put(simulatedTime, newOrderCount);
+        }
+
         requestPlanification();
         nextPlanningTime = nextPlanningTime
             .plus(simulationConfig.getConsumptionInterval());
-        log.info("Next planning time: {}", nextPlanningTime);
+        log.info("Next planning time: {} (interval: {})", nextPlanningTime,
+            simulationConfig.getCurrentAlgorithmInterval());
       }
       updateSystemState(timeStep);
 
       // Calculate metrics and notify with snapshot
       SimulationMetrics metrics = calculateMetrics();
+      PlanificationStatus planificationStatus = planificationService.getPlanificationStatus(sessionId);
       simulationNotifier
           .notifySnapshot(
-              new SimulationSnapshot(LocalDateTime.now(), simulatedTime, plgNetwork, activeRoutes, metrics));
-      sleep(simulationConfig.simulationResolution());
+              new SimulationSnapshot(LocalDateTime.now(), simulatedTime, plgNetwork, activeRoutes, metrics,
+                  planificationStatus));
+      sleep(simulationConfig.getSimulationResolution());
     }
 
     log.info("=====Simulation ended=====");
@@ -145,11 +174,16 @@ public class SimulationEngine implements Runnable {
         }
         log.info("Simulation resumed");
       }
-      case "STOP" -> {
-        running.set(false);
-        stop();
+      case "DESACCELERATE" -> {
+        double newAcceleration = Math.max(1.0, simulationConfig.getTimeAcceleration() / 2);
+        simulationConfig.setTimeAcceleration(newAcceleration);
+        log.info("Simulation time acceleration set to {:.2f}x", newAcceleration);
       }
-      default -> log.warn("Unknown command: {}", command);
+      case "ACCELERATE" -> {
+        double newAcceleration = simulationConfig.getTimeAcceleration() * 2;
+        simulationConfig.setTimeAcceleration(newAcceleration);
+        log.info("Simulation time acceleration set to {:.2f}x", newAcceleration);
+      }
     }
   }
 
@@ -171,7 +205,8 @@ public class SimulationEngine implements Runnable {
         }
 
         List<Stop> stops = activeRoutes.getStops().getOrDefault(truck.getId(), List.of());
-        if (stops.isEmpty()) {
+        if (stops.size() <= 1) {
+          log.debug("Truck {} has no assigned stops", truck.getId());
           continue;
         }
 
@@ -320,7 +355,8 @@ public class SimulationEngine implements Runnable {
     double progress = Math.min(distanceTraveled / totalPathDistance, 1.0);
 
     // Calculate distance traveled in this simulation step only
-    Duration stepDuration = simulationConfig.simulationResolution().multipliedBy(simulationConfig.timeAcceleration());
+    Duration stepDuration = simulationConfig.getSimulationResolution()
+        .multipliedBy((long) simulationConfig.getTimeAcceleration());
     double stepHours = stepDuration.toSeconds() / 3600.0;
     double stepDistance = stepHours * Constants.TRUCK_SPEED;
 
@@ -391,7 +427,7 @@ public class SimulationEngine implements Runnable {
     return pathPoints.get(pathPoints.size() - 1);
   }
 
-  private void getOrderBatch(LocalDateTime currenDateTime) {
+  private int getOrderBatch(LocalDateTime currenDateTime) {
     List<Order> newOrders = orderRepository.stream()
         .filter(order -> order.getDate().isBefore(currenDateTime) && order.getStatus() == OrderStatus.PENDING).toList();
 
@@ -412,6 +448,29 @@ public class SimulationEngine implements Runnable {
         log.info("Order {} set back to CALCULATING due to new batch", order.getId());
       });
     }
+
+    return newOrders.size();
+  }
+
+  private void adjustAlgorithmIntervalBasedOnOrderRate() {
+    // Calculate order arrival rate over the last window
+    LocalDateTime windowStart = simulatedTime.minus(ORDER_RATE_CHECK_WINDOW);
+
+    // Clean up old entries and calculate rate
+    orderArrivalHistory.entrySet().removeIf(entry -> entry.getKey().isBefore(windowStart));
+
+    int totalOrdersInWindow = orderArrivalHistory.values().stream().mapToInt(Integer::intValue).sum();
+    double windowHours = ORDER_RATE_CHECK_WINDOW.toMinutes() / 60.0;
+    double orderArrivalRate = totalOrdersInWindow / windowHours; // orders per hour
+
+    Duration previousInterval = simulationConfig.getCurrentAlgorithmInterval();
+    simulationConfig.adjustIntervalBasedOnOrderRate(orderArrivalRate);
+    Duration newInterval = simulationConfig.getCurrentAlgorithmInterval();
+
+    if (!previousInterval.equals(newInterval)) {
+      log.info("Algorithm interval adjusted from {} to {} based on order arrival rate: {:.2f} orders/hour",
+          previousInterval, newInterval, orderArrivalRate);
+    }
   }
 
   private void requestPlanification() {
@@ -423,7 +482,8 @@ public class SimulationEngine implements Runnable {
       lastPlanificationStart = LocalDateTime.now();
       totalPlanificationRequests++;
       log.info("Requesting planification from {}", sessionId);
-      eventPublisher.publishEvent(new PlanificationRequestEvent(sessionId, plgNetwork, simulatedTime));
+      eventPublisher.publishEvent(
+          new PlanificationRequestEvent(sessionId, plgNetwork, simulatedTime, simulationConfig.getAlgorithmTime()));
     } else {
       log.debug("No orders in CALCULATING status, skipping planification request");
     }
@@ -464,6 +524,22 @@ public class SimulationEngine implements Runnable {
       this.activeRoutes = routes;
       // Reset stop indices when new routes are received
       truckCurrentStopIndex.clear();
+
+      // Update truck status based on route assignments
+      for (Truck truck : plgNetwork.getTrucks()) {
+        if (truck.getStatus() == TruckState.MAINTENANCE || truck.getStatus() == TruckState.BROKEN_DOWN) {
+          continue; // Don't change status for trucks in maintenance or broken down
+        }
+
+        List<Stop> assignedStops = routes.getStops().getOrDefault(truck.getId(), List.of());
+        if (assignedStops.size() == 1) {
+          truck.setStatus(TruckState.IDLE);
+          log.debug("Truck {} set to IDLE - no assigned routes", truck.getId());
+        } else {
+          truck.setStatus(TruckState.ACTIVE);
+          log.debug("Truck {} set to ACTIVE - has {} assigned stops", truck.getId(), assignedStops.size());
+        }
+      }
     }
 
     // Track planification time
@@ -487,14 +563,16 @@ public class SimulationEngine implements Runnable {
     return new SimulationStatus(
         running.get(),
         paused.get(),
-        simulationConfig.timeAcceleration());
+        simulationConfig.getTimeAcceleration());
   }
 
   private SimulationMetrics calculateMetrics() {
-    // Fleet utilization
-    int totalTrucks = plgNetwork.getTrucks().size();
-    int activeTrucks = (int) plgNetwork.getTrucks().stream()
+    // Fleet utilization - count only ACTIVE trucks as being used
+    int totalTrucks = (int) plgNetwork.getTrucks().stream()
         .filter(t -> t.getStatus() != TruckState.MAINTENANCE && t.getStatus() != TruckState.BROKEN_DOWN)
+        .count();
+    int activeTrucks = (int) plgNetwork.getTrucks().stream()
+        .filter(t -> t.getStatus() == TruckState.ACTIVE)
         .count();
     double fleetUtilization = totalTrucks > 0 ? (double) activeTrucks / totalTrucks * 100 : 0;
 

@@ -1,5 +1,6 @@
 package com.hyperlogix.server.features.planification.usecases;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,7 +15,8 @@ public class GeneratePlanificationUseCase {
   @Autowired
   private PlanificationService planificationService;
 
-  public void generateRoutes(String sessionId, PLGNetwork network, LocalDateTime algorithmTime) {
-    planificationService.startPlanification(sessionId, network, algorithmTime);
+  public void generateRoutes(String sessionId, PLGNetwork network, LocalDateTime algorithmTime,
+      Duration algorithmDuration) {
+    planificationService.startPlanification(sessionId, network, algorithmTime, algorithmDuration);
   }
 }

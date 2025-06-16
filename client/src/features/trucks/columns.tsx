@@ -83,6 +83,10 @@ const statusMap = {
     label: 'Averiado',
     className: 'bg-red-600/10 text-red-600 border-red-600/30',
   },
+  IDLE: {
+    label: 'En reposo',
+    className: 'bg-gray-600/10 text-gray-600 border-gray-600/30',
+  },
 } as const
 
 const typeMap = {

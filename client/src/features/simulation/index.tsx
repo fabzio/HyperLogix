@@ -1,5 +1,6 @@
 import type { MapPolyline } from '@/components/DynamicMap'
 import DynamicMap from '@/components/DynamicMap'
+import { TruckState } from '@/domain/TruckState'
 import { useNavigate, useSearch } from '@tanstack/react-router'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import AsideTab from './components/AsideTab'
@@ -7,6 +8,7 @@ import SimulationEndDialog from './components/SimulationEndDialog'
 import SimulationHeader from './components/SimulationHeader'
 import {
   useSimulationEndDialog,
+  useStatusSimulation,
   useWatchSimulation,
 } from './hooks/useSimulation'
 const truckTypeColors: Record<string, string> = {
@@ -23,7 +25,7 @@ export default function Simulation() {
   const navigate = useNavigate({ from: '/simulacion' })
 
   const { plgNetwork: network, simulationTime, routes } = useWatchSimulation()
-
+  const { data: status } = useStatusSimulation()
   const getTruckColorById = useCallback(
     (id: string): string => {
       const truck = network?.trucks.find((t) => t.id === id)
@@ -74,10 +76,15 @@ export default function Simulation() {
         <SimulationHeader
           simulationTime={simulationTime ?? null}
           isSimulationActive={!!network}
+          acceleration={status.timeAcceleration || 1}
         />
         <div className="flex-1 overflow-auto">
           <DynamicMap
-            trucks={network?.trucks || []}
+            trucks={
+              network?.trucks.filter(
+                (truck) => truck.status !== TruckState.IDLE,
+              ) || []
+            }
             stations={network?.stations || []}
             orders={
               network?.orders.filter(

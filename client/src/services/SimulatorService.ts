@@ -27,3 +27,12 @@ export const startSimulation = async (params: {
 export const stopSimulation = async (simulationId: string) => {
   await simulatorService.stopSimulation(simulationId)
 }
+
+export const commandSimulation = async (
+  simulationId: string,
+  command: 'PAUSE' | 'RESUME' | 'DESACCELERATE' | 'ACCELERATE',
+) => {
+  await simulatorService.sendCommand(simulationId, {
+    command,
+  })
+}

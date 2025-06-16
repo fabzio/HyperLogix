@@ -43,7 +43,6 @@ public class Ant {
 
   public Routes findSolution() {
     for (Truck truck : network.getTrucks()) {
-
       Stop firstNode = new Stop(
           new Node(truck.getCode(), truck.getType().toString(), NodeType.LOCATION, truck.getLocation().integerPoint()),
           graph.getAlgorithmStartDate());
@@ -55,27 +54,120 @@ public class Ant {
       Stop nextNode = availableNodes.get(new Random().nextInt(availableNodes.size()));
       moveToNode(truck, firstNode, nextNode);
     }
-    int truckWithoutOrdersOrOnlyRefilling = 0;
+
     while (!nodesLeft.stream().filter(node -> node.getType() == NodeType.DELIVERY).toList().isEmpty()) {
-      truckWithoutOrdersOrOnlyRefilling = 0;
-      for (Truck truck : network.getTrucks()) {
-        Stop currentNode = routes.get(truck.getId()).getLast();
-        Stop nextNode = getNextNode(currentNode, truck);
-        if (nextNode == null || nextNode.getNode().getType() == NodeType.STATION) {
-          truckWithoutOrdersOrOnlyRefilling++;
-          if (truckWithoutOrdersOrOnlyRefilling == network.getTrucks().size()) {
-            System.out.println("Logistic collapse, no more nodes available");
-            truck.setCurrentCapacity(25);
-            return new Routes(routes, paths,
-                truck.getFuelConsumption((Constants.MAP_HEIGHT + Constants.MAP_WIDTH) * network.getOrders().size()));
-          }
-          if (nextNode == null)
-            continue;
-        }
-        moveToNode(truck, currentNode, nextNode);
+      // Select best truck instead of iterating in fixed order
+      Truck bestTruck = selectBestTruck();
+      if (bestTruck == null) {
+        System.out.println("Logistic collapse, no more trucks available");
+        return new Routes(routes, paths, tourCost.values().stream().mapToDouble(Double::doubleValue).sum());
       }
+
+      Stop currentNode = routes.get(bestTruck.getId()).getLast();
+      Stop nextNode = getNextNode(currentNode, bestTruck);
+      if (nextNode == null) {
+        // Mark truck as temporarily unavailable by setting a flag or continue
+        continue;
+      }
+      moveToNode(bestTruck, currentNode, nextNode);
     }
     return new Routes(routes, paths, tourCost.values().stream().mapToDouble(Double::doubleValue).sum());
+  }
+
+  private Truck selectBestTruck() {
+    List<Truck> availableTrucks = new ArrayList<>();
+    List<Double> truckScores = new ArrayList<>();
+
+    for (Truck truck : network.getTrucks()) {
+      if (truck.getStatus() == TruckState.MAINTENANCE || truck.getStatus() == TruckState.BROKEN_DOWN) {
+        continue;
+      }
+
+      Stop currentNode = routes.get(truck.getId()).getLast();
+      List<Stop> availableNodes = getAvailableNodes(truck, currentNode);
+
+      if (availableNodes.isEmpty()) {
+        continue;
+      }
+
+      availableTrucks.add(truck);
+
+      // Calculate truck efficiency score
+      double score = calculateTruckScore(truck, currentNode, availableNodes);
+      truckScores.add(score);
+    }
+
+    if (availableTrucks.isEmpty()) {
+      return null;
+    }
+
+    // Select truck using weighted random selection based on scores
+    double totalScore = truckScores.stream().mapToDouble(Double::doubleValue).sum();
+    if (totalScore == 0) {
+      return availableTrucks.get(new Random().nextInt(availableTrucks.size()));
+    }
+
+    List<Double> probabilities = truckScores.stream().map(score -> score / totalScore).toList();
+
+    double randomValue = new Random().nextDouble();
+    double cumulativeProbability = 0.0;
+    for (int i = 0; i < availableTrucks.size(); i++) {
+      cumulativeProbability += probabilities.get(i);
+      if (randomValue <= cumulativeProbability) {
+        return availableTrucks.get(i);
+      }
+    }
+    return availableTrucks.getLast();
+  }
+
+  private double calculateTruckScore(Truck truck, Stop currentNode, List<Stop> availableNodes) {
+    // Base efficiency: smaller trucks are more fuel efficient
+    double fuelEfficiency = switch (truck.getType()) {
+      case TD -> 4.0; // Best fuel efficiency (smallest truck)
+      case TC -> 3.0;
+      case TB -> 2.0;
+      case TA -> 1.0; // Worst fuel efficiency (largest truck)
+    };
+
+    // Capacity utilization factor - prefer trucks that can make full use of their
+    // capacity
+    double remainingOrders = nodesLeft.stream()
+        .filter(node -> node.getType() == NodeType.DELIVERY)
+        .mapToDouble(node -> {
+          Order order = network.getOrders().stream()
+              .filter(o -> o.getId().equals(node.getId()))
+              .findFirst().orElse(null);
+          return order != null ? (order.getRequestedGLP() - order.getDeliveredGLP()) : 0;
+        }).sum();
+
+    double capacityMatch = Math.min(truck.getCurrentCapacity() / Math.max(remainingOrders, 1.0), 1.0);
+
+    // Status bonus - prefer IDLE trucks to better distribute work
+    double statusBonus = switch (truck.getStatus()) {
+      case IDLE -> 2.0;
+      case ACTIVE -> 1.0;
+      default -> 0.1;
+    };
+
+    // Distance factor - consider proximity to available nodes
+    double avgDistance = availableNodes.stream()
+        .mapToDouble(node -> {
+          if (currentNode.getNode().getType() == NodeType.LOCATION) {
+            return firstPath.containsKey(node.getNode()) ? firstPath.get(node.getNode()).length() : 1000; // Fallback
+                                                                                                          // high value
+          } else {
+            return adjacencyMap.get(currentNode.getNode()).get(node.getNode()).length();
+          }
+        })
+        .average().orElse(1000.0);
+
+    double distanceFactor = 1000.0 / Math.max(avgDistance, 1.0);
+
+    // Fuel level factor - trucks with more fuel are preferred
+    double fuelFactor = truck.getCurrentFuel() / truck.getFuelCapacity();
+
+    // Combine factors
+    return fuelEfficiency * statusBonus * capacityMatch * distanceFactor * fuelFactor;
   }
 
   private List<Stop> getAvailableNodes(Truck truck, Stop currentNode) {

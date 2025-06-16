@@ -2,6 +2,11 @@ import type { PLGNetwork } from '@/domain/PLGNetwork'
 import type { Routes } from '@/domain/Routes'
 import { create } from 'zustand'
 
+type PlanificationStatus = {
+  planning: boolean
+  currentNodesProcessed: number
+}
+
 type SimulationMetrics = {
   fleetUtilizationPercentage: number
 
@@ -20,6 +25,7 @@ type SimulationMetrics = {
 }
 export interface SimulationStore {
   plgNetwork: PLGNetwork | null
+  planificationStatus: PlanificationStatus | null
   simulationTime: string | null
   routes: Routes | null
   metrics: SimulationMetrics | null
@@ -29,6 +35,7 @@ export interface SimulationStore {
 
 export const useSimulationStore = create<SimulationStore>((set) => ({
   plgNetwork: null,
+  planificationStatus: null,
   simulationTime: null,
   routes: null,
   metrics: null,
