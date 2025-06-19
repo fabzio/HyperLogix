@@ -433,6 +433,13 @@ export interface StartSimulationRequest {
      * @memberof StartSimulationRequest
      */
     'endTimeOrders'?: string;
+
+    /**
+     * 
+     * @type {'real' | 'simulation'}
+     * @memberof StartSimulationRequest
+     */
+    'mode'?: 'real' | 'simulation';
 }
 /**
  * 

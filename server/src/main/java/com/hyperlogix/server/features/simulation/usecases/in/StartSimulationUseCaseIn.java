@@ -11,5 +11,5 @@ public class StartSimulationUseCaseIn {
   String simulationId = "fabzio";
   LocalDateTime startTimeOrders = LocalDateTime.of(2025, 1, 1, 1, 24);
   LocalDateTime endTimeOrders = LocalDateTime.of(2023, 1, 8, 1, 24);
-
+  String mode;
 }

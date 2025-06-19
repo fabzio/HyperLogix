@@ -33,13 +33,25 @@ public class SimulationService {
     this.eventPublisher = eventPublisher;
   }
 
-  public void startSimulation(String simulationId, PLGNetwork network) {
-    SimulationConfig config = new SimulationConfig(
+  public void startSimulation(String simulationId, PLGNetwork network, String mode) {
+    SimulationConfig config;
+
+    if ("real".equals(mode)) {
+    config = new SimulationConfig(
+        Duration.ofSeconds(3),  
+        Duration.ofSeconds(5),
+        1.0,                     
+        Duration.ofMillis(100)
+    );
+  } else {
+    config = new SimulationConfig(
         Duration.ofSeconds(3),
         Duration.ofSeconds(5),
-        300.0,
-        Duration.ofMillis(100));
-    SimulationNotifier notifier = snapshot -> {
+        256.0,
+        Duration.ofMillis(100)
+    );
+  }
+  SimulationNotifier notifier = snapshot -> {
       messaging.convertAndSend("/topic/simulation/" + simulationId, snapshot);
     };
     List<Order> orderslist = new ArrayList<>(network.getOrders());

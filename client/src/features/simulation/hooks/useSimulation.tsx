@@ -29,6 +29,7 @@ export const useStartSimulation = () => {
     mutationFn: (params: {
       endTimeOrders: string
       startTimeOrders: string
+      mode?: 'real' | 'simulation'
     }) => {
       if (!username) {
         throw new Error('Username is required to start simulation')
@@ -37,6 +38,7 @@ export const useStartSimulation = () => {
         endTimeOrders: params.endTimeOrders,
         startTimeOrders: params.startTimeOrders,
         simulationId: username,
+        mode: params.mode ?? 'simulation',
       })
     },
     onSuccess: () =>
