@@ -2,15 +2,16 @@ import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 import { useSearch } from '@tanstack/react-router'
-import { BarChart2, Fuel, Play, Receipt, Truck } from 'lucide-react'
+import { BarChart2, Brain, Fuel, Play, Receipt, Truck } from 'lucide-react'
+import { Info } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import Leyenda from './Leyenda'
 import Metrics from './Metrics'
 import Orders from './Orders'
+import Planification from './Planification'
 import Run from './Run'
 import Stations from './Stations'
 import Trucks from './Trucks'
-import { Info } from 'lucide-react'
-import Leyenda from './Leyenda'
 
 export default function AsideTab() {
   const [openTab, setOpenTab] = useState<string>()
@@ -73,4 +74,10 @@ const TABS = [
   { key: 'orders', icon: <Receipt />, label: 'Pedidos', component: Orders },
   { key: 'stations', icon: <Fuel />, label: 'Estaciones', component: Stations },
   { key: 'leyenda', icon: <Info />, label: 'Leyenda', component: Leyenda },
+  {
+    key: 'planification',
+    icon: <Brain />,
+    label: 'Planificación',
+    component: Planification,
+  },
 ]

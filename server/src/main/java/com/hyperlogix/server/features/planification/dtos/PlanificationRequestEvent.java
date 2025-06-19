@@ -1,5 +1,6 @@
 package com.hyperlogix.server.features.planification.dtos;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 
 import com.hyperlogix.server.domain.PLGNetwork;
@@ -13,4 +14,5 @@ public class PlanificationRequestEvent {
   private String sessionId;
   private PLGNetwork plgNetwork;
   private LocalDateTime simulatedTime;
+  private Duration algorithmDuration;
 }

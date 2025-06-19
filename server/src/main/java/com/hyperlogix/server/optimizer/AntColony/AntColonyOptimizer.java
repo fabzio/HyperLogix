@@ -36,7 +36,16 @@ public class AntColonyOptimizer implements Optimizer {
     int numThreads = Math.min(ants.size(), Runtime.getRuntime().availableProcessors());
     ExecutorService executor = Executors.newFixedThreadPool(numThreads);
 
+    long startTime = System.currentTimeMillis();
+    long maxDurationMillis = maxDuration.toMillis();
+
     for (int i = 0; i < antColonyConfig.NUM_ITERATIONS(); i++) {
+      long elapsedTime = System.currentTimeMillis() - startTime;
+      if (elapsedTime >= maxDurationMillis) {
+        System.out.println("Optimization terminated due to time limit. Completed " + i + " iterations.");
+        break;
+      }
+
       ants.forEach(Ant::resetState);
       List<Routes> solutions = Collections.synchronizedList(new ArrayList<>());
       List<Future<Routes>> futures = new ArrayList<>();
@@ -77,7 +86,8 @@ public class AntColonyOptimizer implements Optimizer {
     }
     executor.shutdown();
     try {
-      if (!executor.awaitTermination(800, TimeUnit.MILLISECONDS)) {
+      if (!executor.awaitTermination(maxDurationMillis - (System.currentTimeMillis() - startTime),
+          TimeUnit.MILLISECONDS)) {
         executor.shutdownNow();
       }
     } catch (InterruptedException e) {

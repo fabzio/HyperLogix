@@ -15,6 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { TruckState } from '@/domain/TruckState'
 import { useSimulationStore } from '@/features/simulation/store/simulation'
 import { useNavigate, useSearch } from '@tanstack/react-router'
 import { useState } from 'react'
@@ -28,11 +29,13 @@ export default function Trucks() {
   const [pageSize] = useState(10)
 
   const trucks =
-    plgNetwork?.trucks.sort(
-      (t1, t2) =>
-        t1.currentCapacity / t1.maxCapacity -
-        t2.currentCapacity / t2.maxCapacity,
-    ) || []
+    plgNetwork?.trucks
+      .filter((truck) => truck.status !== TruckState.IDLE)
+      .sort(
+        (t1, t2) =>
+          t1.currentCapacity / t1.maxCapacity -
+          t2.currentCapacity / t2.maxCapacity,
+      ) || []
 
   const startIndex = (page - 1) * pageSize
   const endIndex = startIndex + pageSize

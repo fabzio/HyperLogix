@@ -1,14 +1,16 @@
 import { cn } from '@/lib/utils'
-import { PlayCircle, PauseCircle } from 'lucide-react'
+import { PauseCircle, PlayCircle } from 'lucide-react'
 
 interface SimulationHeaderProps {
   simulationTime: string | null
   isSimulationActive: boolean
+  acceleration: number
 }
 
 export default function SimulationHeader({
   simulationTime,
   isSimulationActive,
+  acceleration,
 }: SimulationHeaderProps) {
   const simulatedTimeDate = simulationTime ? new Date(simulationTime) : null
 
@@ -30,6 +32,7 @@ export default function SimulationHeader({
           <p className="text-base font-semibold">
             {isSimulationActive ? 'Simulación en curso' : 'Simulación detenida'}
           </p>
+          <p>{isSimulationActive ? `${acceleration.toFixed(1)}x` : ''}</p>
         </div>
         <div className="text-right">
           {isSimulationActive && simulatedTimeDate ? (

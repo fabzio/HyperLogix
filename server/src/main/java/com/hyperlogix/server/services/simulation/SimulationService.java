@@ -11,10 +11,12 @@ import java.util.concurrent.Executors;
 import com.hyperlogix.server.domain.Order;
 import com.hyperlogix.server.domain.PLGNetwork;
 import com.hyperlogix.server.domain.Routes;
+import com.hyperlogix.server.services.planification.PlanificationService;
 
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Service
 public class SimulationService {
@@ -22,6 +24,9 @@ public class SimulationService {
   private final SimpMessagingTemplate messaging;
   private final Map<String, SimulationEngine> simulation = new ConcurrentHashMap<>();
   private final ExecutorService executor = Executors.newCachedThreadPool();
+
+  @Autowired
+  private PlanificationService planificationService;
 
   public SimulationService(SimpMessagingTemplate messaging, ApplicationEventPublisher eventPublisher) {
     this.messaging = messaging;
@@ -32,7 +37,7 @@ public class SimulationService {
     SimulationConfig config = new SimulationConfig(
         Duration.ofSeconds(3),
         Duration.ofSeconds(5),
-        300,
+        300.0,
         Duration.ofMillis(100));
     SimulationNotifier notifier = snapshot -> {
       messaging.convertAndSend("/topic/simulation/" + simulationId, snapshot);
@@ -40,7 +45,7 @@ public class SimulationService {
     List<Order> orderslist = new ArrayList<>(network.getOrders());
     stopSimulation(simulationId);
     SimulationEngine engine = new SimulationEngine(simulationId, config, notifier, orderslist,
-        eventPublisher);
+        eventPublisher, planificationService);
     engine.setPlgNetwork(network);
     simulation.put(simulationId, engine);
     executor.execute(engine);

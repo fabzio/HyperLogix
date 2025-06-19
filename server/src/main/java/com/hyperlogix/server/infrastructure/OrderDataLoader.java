@@ -21,7 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 public class OrderDataLoader implements CommandLineRunner {
 
   // Fixed batch size for processing
-  private static final int BATCH_SIZE = 1000;
+  private static final int BATCH_SIZE = 10000;
 
   @Autowired
   private OrderRepository orderRepository;

@@ -8,10 +8,10 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.beans.factory.annotation.Autowired;
 
-
 import org.springframework.web.bind.annotation.GetMapping;
 
 import com.hyperlogix.server.features.simulation.dtos.StartSimulationRequest;
+import com.hyperlogix.server.features.simulation.dtos.SimulationCommandRequest;
 import com.hyperlogix.server.features.simulation.usecases.StartSimulationUseCase;
 import com.hyperlogix.server.features.simulation.usecases.in.StartSimulationUseCaseIn;
 import com.hyperlogix.server.services.simulation.SimulationService;
@@ -54,4 +54,13 @@ public class SimulationController {
     simulationService.stopSimulation(simulationId);
     return ResponseEntity.ok().build();
   }
+
+  @PostMapping("/command/{simulationId}")
+  public ResponseEntity<Void> sendCommand(
+      @PathVariable String simulationId,
+      @RequestBody SimulationCommandRequest commandRequest) {
+    simulationService.sendCommand(simulationId, commandRequest.getCommand());
+    return ResponseEntity.ok().build();
+  }
+
 }
