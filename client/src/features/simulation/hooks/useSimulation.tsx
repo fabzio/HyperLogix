@@ -24,6 +24,7 @@ type MesaggeResponse = {
 
 export const useStartSimulation = () => {
   const { username } = useSessionStore()
+  const { setState } = useSimulationStore()
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (params: {
@@ -39,8 +40,11 @@ export const useStartSimulation = () => {
         simulationId: username,
       })
     },
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ['simulation'] }),
+    onSuccess: () => {
+      // Save simulation start time
+      setState({ simulationStartTime: new Date().toISOString() })
+      queryClient.invalidateQueries({ queryKey: ['simulation'] })
+    },
   })
 }
 
@@ -92,7 +96,8 @@ export const useStatusSimulation = () => {
 
 export const useStopSimulation = () => {
   const navigate = useNavigate({ from: '/simulacion' })
-  const { setState } = useSimulationStore()
+  const { setState, metrics, plgNetwork, saveFinalMetrics } =
+    useSimulationStore()
   const { username } = useSessionStore()
   const queryClient = useQueryClient()
   return useMutation({
@@ -103,6 +108,15 @@ export const useStopSimulation = () => {
       return stopSimulation(username)
     },
     onSuccess: () => {
+      // Save final metrics before clearing state
+      if (metrics) {
+        saveFinalMetrics(
+          metrics,
+          new Date().toISOString(),
+          plgNetwork || undefined,
+        )
+      }
+
       setState({
         plgNetwork: null,
         simulationTime: null,
@@ -125,6 +139,7 @@ export const useSimulationEndDialog = (network: PLGNetwork | null) => {
   const [endReason, setEndReason] = useState<'completed' | 'manual' | null>(
     null,
   )
+  const { metrics, plgNetwork, saveFinalMetrics } = useSimulationStore()
 
   const wasActiveRef = useRef(false)
   const prevAllCompletedRef = useRef(false)
@@ -144,6 +159,14 @@ export const useSimulationEndDialog = (network: PLGNetwork | null) => {
         (order) => order.status === 'COMPLETED',
       )
       if (allCompleted && !prevAllCompletedRef.current) {
+        // Save final metrics when simulation completes
+        if (metrics) {
+          saveFinalMetrics(
+            metrics,
+            new Date().toISOString(),
+            network || plgNetwork || undefined,
+          )
+        }
         setEndReason('completed')
         setIsOpen(true)
       }
@@ -151,7 +174,7 @@ export const useSimulationEndDialog = (network: PLGNetwork | null) => {
     }
 
     wasActiveRef.current = isActive
-  }, [network])
+  }, [network, metrics, saveFinalMetrics, plgNetwork])
 
   const closeDialog = () => setIsOpen(false)
 

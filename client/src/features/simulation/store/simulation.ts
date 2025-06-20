@@ -29,8 +29,17 @@ export interface SimulationStore {
   simulationTime: string | null
   routes: Routes | null
   metrics: SimulationMetrics | null
+  finalMetrics: SimulationMetrics | null
+  finalPlgNetwork: PLGNetwork | null
+  simulationStartTime: string | null
+  simulationEndTime: string | null
 
   setState: (state: Partial<SimulationStore> | null) => void
+  saveFinalMetrics: (
+    metrics: SimulationMetrics,
+    endTime: string,
+    plgNetwork?: PLGNetwork,
+  ) => void
 }
 
 export const useSimulationStore = create<SimulationStore>((set) => ({
@@ -39,5 +48,16 @@ export const useSimulationStore = create<SimulationStore>((set) => ({
   simulationTime: null,
   routes: null,
   metrics: null,
+  finalMetrics: null,
+  finalPlgNetwork: null,
+  simulationStartTime: null,
+  simulationEndTime: null,
   setState: (state) => set((prev) => ({ ...prev, ...state })),
+  saveFinalMetrics: (metrics, endTime, plgNetwork) =>
+    set((prev) => ({
+      ...prev,
+      finalMetrics: metrics,
+      simulationEndTime: endTime,
+      finalPlgNetwork: plgNetwork || prev.plgNetwork,
+    })),
 }))
