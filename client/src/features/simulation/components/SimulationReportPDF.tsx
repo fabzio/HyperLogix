@@ -466,8 +466,7 @@ const SimulationReportDocument = ({
             {metrics.deliveryEfficiencyPercentage.toFixed(1)}%.
             {networkAnalysis &&
               networkAnalysis.totalOrders > 0 &&
-              ` Se procesaron ${networkAnalysis.totalOrders} pedidos, entregando ${networkAnalysis.totalGLPDelivered.toFixed(0)}L de GLP 
-              de un total solicitado de ${networkAnalysis.totalGLPRequested.toFixed(0)}L, con un consumo de combustible de ${networkAnalysis.totalFuelConsumed.toFixed(1)}L.`}
+              ` Se procesaron ${networkAnalysis.totalOrders} pedidos, entregando ${networkAnalysis.totalGLPDelivered.toFixed(0)}L de GLP de un total solicitado de ${networkAnalysis.totalGLPRequested.toFixed(0)}L, con un consumo de combustible de ${networkAnalysis.totalFuelConsumed.toFixed(1)}L.`}
           </Text>
         </View>{' '}
         <View style={styles.footer}>
