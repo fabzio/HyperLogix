@@ -21,10 +21,10 @@ export default function SimulationEndDialog({ open, onClose, reason }: Props) {
           <DialogTitle>Simulación finalizada</DialogTitle>
           <DialogDescription>
             {reason === 'manual' ? (
-              <p>Simulación detenida manualmente con éxito</p>
+              <p>Visualizador finalizado manualmente con éxito</p>
             ) : (
               <p>
-                Simulación finalizada porque todos los pedidos fueron
+                Visualizador finalizado porque todos los pedidos fueron
                 completados.
               </p>
             )}

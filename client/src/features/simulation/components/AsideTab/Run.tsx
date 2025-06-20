@@ -70,8 +70,8 @@ export default function Run() {
     let endDate: Date = new Date()
 
     if (data.executionMode === 'real') {
-      startDate = new Date('2025-01-01')
-      endDate = new Date('2025-01-08')
+      startDate = new Date()
+      endDate = addDays(startDate, 3)
     } else if (data.mode === 'absolute') {
       startDate = data.absolute.from
       endDate = data.absolute.to
