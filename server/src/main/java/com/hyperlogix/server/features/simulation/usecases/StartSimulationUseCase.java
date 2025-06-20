@@ -52,6 +52,6 @@ public class StartSimulationUseCase {
 
     PLGNetwork plgNetwork = new PLGNetwork(trucks, stations, orders, List.of(), roadblocks);
 
-    simulationService.startSimulation(req.getSimulationId(), plgNetwork);
+    simulationService.startSimulation(req.getSimulationId(), plgNetwork, req.getMode());
   }
 }

@@ -16,11 +16,13 @@ export const startSimulation = async (params: {
   simulationId: string
   endTimeOrders: string
   startTimeOrders: string
+  mode?: 'real' | 'simulation'
 }) => {
-  const { simulationId, endTimeOrders, startTimeOrders } = params
+  const { simulationId, endTimeOrders, startTimeOrders, mode } = params
   await simulatorService.startSimulation(simulationId, {
     endTimeOrders,
     startTimeOrders,
+    mode: mode ?? 'simulation',
   })
 }
 

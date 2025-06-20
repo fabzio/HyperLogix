@@ -35,7 +35,8 @@ public class SimulationController {
     StartSimulationUseCaseIn useCaseIn = new StartSimulationUseCaseIn(
         simulationId,
         request.getStartTimeOrders(),
-        request.getEndTimeOrders());
+        request.getEndTimeOrders(),
+        request.getMode());
     startSimulationUseCase.startSimulation(useCaseIn);
     return ResponseEntity.ok().build();
   }

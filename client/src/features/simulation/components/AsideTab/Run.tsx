@@ -52,6 +52,7 @@ export default function Run() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       mode: 'relative',
+      executionMode: 'simulation',
       absolute: {
         from: new Date('2025-01-01'),
         to: new Date('2025-01-08'),
@@ -68,7 +69,10 @@ export default function Run() {
     let startDate: Date
     let endDate: Date = new Date()
 
-    if (data.mode === 'absolute') {
+    if (data.executionMode === 'real') {
+      startDate = new Date()
+      endDate = addDays(startDate, 3)
+    } else if (data.mode === 'absolute') {
       startDate = data.absolute.from
       endDate = data.absolute.to
     } else {
@@ -88,10 +92,12 @@ export default function Run() {
     startSimulation({
       startTimeOrders: startDate.toISOString(),
       endTimeOrders: endDate.toISOString(),
+      mode: data.executionMode,
     })
   })
 
   const isRunning = status?.running || false
+  const executionMode = form.watch('executionMode')
 
   const handleStop = () => {
     stopSimulation()
@@ -103,10 +109,14 @@ export default function Run() {
     sendCommand({ command: 'RESUME' })
   }
   const handleDesaccelerate = () => {
-    sendCommand({ command: 'DESACCELERATE' })
+    if (status?.timeAcceleration && status.timeAcceleration >= 1) {
+      sendCommand({ command: 'DESACCELERATE' })
+    }
   }
   const handleAccelerate = () => {
-    sendCommand({ command: 'ACCELERATE' })
+    if (status?.timeAcceleration && status.timeAcceleration <= 1024) {
+      sendCommand({ command: 'ACCELERATE' })
+    }
   }
   return (
     <article>
@@ -269,26 +279,31 @@ export default function Run() {
           <div className="mt-4">
             {isRunning ? (
               <div className="flex items-center justify-center gap-2">
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="secondary"
-                  onClick={handleDesaccelerate}
-                >
-                  <Rewind className="h-4 w-4" />
-                </Button>
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="secondary"
-                  onClick={status?.paused ? handleResume : handlePause}
-                >
-                  {status?.paused ? (
-                    <Play className="h-4 w-4" />
-                  ) : (
-                    <PauseIcon className="h-4 w-4" />
-                  )}
-                </Button>
+                {executionMode === 'simulation' && (
+                  <>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="secondary"
+                      onClick={handleDesaccelerate}
+                      disabled={(status?.timeAcceleration ?? 1) <= 1}
+                    >
+                      <Rewind className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="secondary"
+                      onClick={status?.paused ? handleResume : handlePause}
+                    >
+                      {status?.paused ? (
+                        <Play className="h-4 w-4" />
+                      ) : (
+                        <PauseIcon className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </>
+                )}
                 <Button
                   type="button"
                   size="icon"
@@ -297,23 +312,46 @@ export default function Run() {
                 >
                   <Square className="h-4 w-4" />
                 </Button>
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="secondary"
-                  onClick={handleAccelerate}
-                >
-                  <FastForward className="h-4 w-4" />
-                </Button>
+                {executionMode === 'simulation' && (
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="secondary"
+                    onClick={handleAccelerate}
+                    disabled={(status?.timeAcceleration ?? 1) >= 1024}
+                  >
+                    <FastForward className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
             ) : (
-              <Button type="submit" className="w-full" disabled={isPending}>
-                {isPending ? (
-                  <Loader2 className="animate-spin" />
-                ) : (
-                  'Iniciar simulación'
-                )}
-              </Button>
+              <div className="flex flex-col gap-2">
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={isPending}
+                  onClick={() => form.setValue('executionMode', 'simulation')}
+                >
+                  {isPending ? (
+                    <Loader2 className="animate-spin" />
+                  ) : (
+                    'Iniciar simulación'
+                  )}
+                </Button>
+                <Button
+                  type="submit"
+                  variant="secondary"
+                  className="w-full"
+                  disabled={isPending}
+                  onClick={() => form.setValue('executionMode', 'real')}
+                >
+                  {isPending ? (
+                    <Loader2 className="animate-spin" />
+                  ) : (
+                    'Ver en tiempo real'
+                  )}
+                </Button>
+              </div>
             )}
           </div>
         </form>
@@ -333,5 +371,6 @@ const formSchema = z.object({
     duration: z.number().min(1, 'La duración debe ser mayor a 0'),
     unit: z.enum(['days', 'weeks', 'months', 'years']),
   }),
+  executionMode: z.enum(['simulation', 'real']),
 })
 type FormSchema = z.infer<typeof formSchema>
