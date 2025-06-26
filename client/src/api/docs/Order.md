@@ -13,8 +13,8 @@ Name | Type | Description | Notes
 **deliveredGLP** | **number** |  | [optional] [default to undefined]
 **deliveryLimit** | **string** |  | [optional] [default to undefined]
 **status** | **string** |  | [optional] [default to undefined]
-**minDeliveryDate** | **string** |  | [optional] [default to undefined]
 **maxDeliveryDate** | **string** |  | [optional] [default to undefined]
+**minDeliveryDate** | **string** |  | [optional] [default to undefined]
 
 ## Example
 
@@ -30,8 +30,8 @@ const instance: Order = {
     deliveredGLP,
     deliveryLimit,
     status,
-    minDeliveryDate,
     maxDeliveryDate,
+    minDeliveryDate,
 };
 ```
 

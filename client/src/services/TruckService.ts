@@ -13,3 +13,8 @@ export const listTrucks = async (page = 0, size = 10) => {
   }
   return parsedData
 }
+
+export const getTruck = async (id: string) => {
+  const { data } = await repository.getTruckById(id)
+  return data as Truck
+}

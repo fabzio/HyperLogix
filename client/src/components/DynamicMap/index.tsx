@@ -212,6 +212,7 @@ export default function DynamicMap({
                 )
               })}
 
+              {/* Render polylines after markers so they appear above all icons */}
               {polylines.map((polyline) => (
                 <PolylineItem
                   key={polyline.id}

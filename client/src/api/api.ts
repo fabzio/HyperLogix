@@ -82,13 +82,13 @@ export interface Order {
      * @type {string}
      * @memberof Order
      */
-    'minDeliveryDate'?: string;
+    'maxDeliveryDate'?: string;
     /**
      * 
      * @type {string}
      * @memberof Order
      */
-    'maxDeliveryDate'?: string;
+    'minDeliveryDate'?: string;
 }
 
 export const OrderStatusEnum = {
@@ -111,25 +111,19 @@ export interface PageStation {
      * @type {number}
      * @memberof PageStation
      */
-    'totalPages'?: number;
+    'totalElements'?: number;
     /**
      * 
      * @type {number}
      * @memberof PageStation
      */
-    'totalElements'?: number;
+    'totalPages'?: number;
     /**
      * 
-     * @type {boolean}
+     * @type {PageableObject}
      * @memberof PageStation
      */
-    'first'?: boolean;
-    /**
-     * 
-     * @type {boolean}
-     * @memberof PageStation
-     */
-    'last'?: boolean;
+    'pageable'?: PageableObject;
     /**
      * 
      * @type {number}
@@ -156,16 +150,22 @@ export interface PageStation {
     'sort'?: SortObject;
     /**
      * 
+     * @type {boolean}
+     * @memberof PageStation
+     */
+    'first'?: boolean;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof PageStation
+     */
+    'last'?: boolean;
+    /**
+     * 
      * @type {number}
      * @memberof PageStation
      */
     'numberOfElements'?: number;
-    /**
-     * 
-     * @type {PageableObject}
-     * @memberof PageStation
-     */
-    'pageable'?: PageableObject;
     /**
      * 
      * @type {boolean}
@@ -184,25 +184,19 @@ export interface PageTruck {
      * @type {number}
      * @memberof PageTruck
      */
-    'totalPages'?: number;
+    'totalElements'?: number;
     /**
      * 
      * @type {number}
      * @memberof PageTruck
      */
-    'totalElements'?: number;
+    'totalPages'?: number;
     /**
      * 
-     * @type {boolean}
+     * @type {PageableObject}
      * @memberof PageTruck
      */
-    'first'?: boolean;
-    /**
-     * 
-     * @type {boolean}
-     * @memberof PageTruck
-     */
-    'last'?: boolean;
+    'pageable'?: PageableObject;
     /**
      * 
      * @type {number}
@@ -229,16 +223,22 @@ export interface PageTruck {
     'sort'?: SortObject;
     /**
      * 
+     * @type {boolean}
+     * @memberof PageTruck
+     */
+    'first'?: boolean;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof PageTruck
+     */
+    'last'?: boolean;
+    /**
+     * 
      * @type {number}
      * @memberof PageTruck
      */
     'numberOfElements'?: number;
-    /**
-     * 
-     * @type {PageableObject}
-     * @memberof PageTruck
-     */
-    'pageable'?: PageableObject;
     /**
      * 
      * @type {boolean}
@@ -279,24 +279,6 @@ export interface Pageable {
 export interface PageableObject {
     /**
      * 
-     * @type {number}
-     * @memberof PageableObject
-     */
-    'offset'?: number;
-    /**
-     * 
-     * @type {SortObject}
-     * @memberof PageableObject
-     */
-    'sort'?: SortObject;
-    /**
-     * 
-     * @type {boolean}
-     * @memberof PageableObject
-     */
-    'unpaged'?: boolean;
-    /**
-     * 
      * @type {boolean}
      * @memberof PageableObject
      */
@@ -313,25 +295,24 @@ export interface PageableObject {
      * @memberof PageableObject
      */
     'pageSize'?: number;
-}
-/**
- * 
- * @export
- * @interface PlanificationStatus
- */
-export interface PlanificationStatus {
     /**
      * 
      * @type {boolean}
-     * @memberof PlanificationStatus
+     * @memberof PageableObject
      */
-    'planning'?: boolean;
+    'unpaged'?: boolean;
     /**
      * 
      * @type {number}
-     * @memberof PlanificationStatus
+     * @memberof PageableObject
      */
-    'currentNodesProcessed'?: number;
+    'offset'?: number;
+    /**
+     * 
+     * @type {SortObject}
+     * @memberof PageableObject
+     */
+    'sort'?: SortObject;
 }
 /**
  * 
@@ -351,6 +332,49 @@ export interface Point {
      * @memberof Point
      */
     'y'?: number;
+}
+/**
+ * 
+ * @export
+ * @interface RegisterOrderRequest
+ */
+export interface RegisterOrderRequest {
+    /**
+     * 
+     * @type {string}
+     * @memberof RegisterOrderRequest
+     */
+    'id'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RegisterOrderRequest
+     */
+    'clientId'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RegisterOrderRequest
+     */
+    'date'?: string;
+    /**
+     * 
+     * @type {Point}
+     * @memberof RegisterOrderRequest
+     */
+    'location'?: Point;
+    /**
+     * 
+     * @type {number}
+     * @memberof RegisterOrderRequest
+     */
+    'requestedGLP'?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof RegisterOrderRequest
+     */
+    'deliveryLimit'?: string;
 }
 /**
  * 
@@ -401,12 +425,6 @@ export interface SortObject {
      * @type {boolean}
      * @memberof SortObject
      */
-    'empty'?: boolean;
-    /**
-     * 
-     * @type {boolean}
-     * @memberof SortObject
-     */
     'sorted'?: boolean;
     /**
      * 
@@ -414,6 +432,12 @@ export interface SortObject {
      * @memberof SortObject
      */
     'unsorted'?: boolean;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof SortObject
+     */
+    'empty'?: boolean;
 }
 /**
  * 
@@ -433,13 +457,12 @@ export interface StartSimulationRequest {
      * @memberof StartSimulationRequest
      */
     'endTimeOrders'?: string;
-
     /**
      * 
-     * @type {'real' | 'simulation'}
+     * @type {string}
      * @memberof StartSimulationRequest
      */
-    'mode'?: 'real' | 'simulation';
+    'mode'?: string;
 }
 /**
  * 
@@ -575,6 +598,19 @@ export const TruckStatusEnum = {
 
 export type TruckStatusEnum = typeof TruckStatusEnum[keyof typeof TruckStatusEnum];
 
+/**
+ * 
+ * @export
+ * @interface TruckBreakdownRequest
+ */
+export interface TruckBreakdownRequest {
+    /**
+     * 
+     * @type {string}
+     * @memberof TruckBreakdownRequest
+     */
+    'reason'?: string;
+}
 
 /**
  * MainControllerApi - axios parameter creator
@@ -674,6 +710,302 @@ export class MainControllerApi extends BaseAPI {
 
 
 /**
+ * OperationControllerApi - axios parameter creator
+ * @export
+ */
+export const OperationControllerApiAxiosParamCreator = function (configuration?: Configuration) {
+    return {
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getOperationStatus: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/operation/status`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        manualReplanification: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/operation/replan`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {RegisterOrderRequest} registerOrderRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        registerOrder: async (registerOrderRequest: RegisterOrderRequest, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'registerOrderRequest' is not null or undefined
+            assertParamExists('registerOrder', 'registerOrderRequest', registerOrderRequest)
+            const localVarPath = `/operation/orders`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(registerOrderRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {string} truckId 
+         * @param {TruckBreakdownRequest} truckBreakdownRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        reportTruckBreakdown: async (truckId: string, truckBreakdownRequest: TruckBreakdownRequest, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'truckId' is not null or undefined
+            assertParamExists('reportTruckBreakdown', 'truckId', truckId)
+            // verify required parameter 'truckBreakdownRequest' is not null or undefined
+            assertParamExists('reportTruckBreakdown', 'truckBreakdownRequest', truckBreakdownRequest)
+            const localVarPath = `/operation/trucks/{truckId}/breakdown`
+                .replace(`{${"truckId"}}`, encodeURIComponent(String(truckId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(truckBreakdownRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+    }
+};
+
+/**
+ * OperationControllerApi - functional programming interface
+ * @export
+ */
+export const OperationControllerApiFp = function(configuration?: Configuration) {
+    const localVarAxiosParamCreator = OperationControllerApiAxiosParamCreator(configuration)
+    return {
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getOperationStatus(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<{ [key: string]: any; }>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getOperationStatus(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['OperationControllerApi.getOperationStatus']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async manualReplanification(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<{ [key: string]: string; }>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.manualReplanification(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['OperationControllerApi.manualReplanification']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {RegisterOrderRequest} registerOrderRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async registerOrder(registerOrderRequest: RegisterOrderRequest, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.registerOrder(registerOrderRequest, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['OperationControllerApi.registerOrder']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {string} truckId 
+         * @param {TruckBreakdownRequest} truckBreakdownRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async reportTruckBreakdown(truckId: string, truckBreakdownRequest: TruckBreakdownRequest, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.reportTruckBreakdown(truckId, truckBreakdownRequest, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['OperationControllerApi.reportTruckBreakdown']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+    }
+};
+
+/**
+ * OperationControllerApi - factory interface
+ * @export
+ */
+export const OperationControllerApiFactory = function (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) {
+    const localVarFp = OperationControllerApiFp(configuration)
+    return {
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getOperationStatus(options?: RawAxiosRequestConfig): AxiosPromise<{ [key: string]: any; }> {
+            return localVarFp.getOperationStatus(options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        manualReplanification(options?: RawAxiosRequestConfig): AxiosPromise<{ [key: string]: string; }> {
+            return localVarFp.manualReplanification(options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {RegisterOrderRequest} registerOrderRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        registerOrder(registerOrderRequest: RegisterOrderRequest, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.registerOrder(registerOrderRequest, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {string} truckId 
+         * @param {TruckBreakdownRequest} truckBreakdownRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        reportTruckBreakdown(truckId: string, truckBreakdownRequest: TruckBreakdownRequest, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.reportTruckBreakdown(truckId, truckBreakdownRequest, options).then((request) => request(axios, basePath));
+        },
+    };
+};
+
+/**
+ * OperationControllerApi - object-oriented interface
+ * @export
+ * @class OperationControllerApi
+ * @extends {BaseAPI}
+ */
+export class OperationControllerApi extends BaseAPI {
+    /**
+     * 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof OperationControllerApi
+     */
+    public getOperationStatus(options?: RawAxiosRequestConfig) {
+        return OperationControllerApiFp(this.configuration).getOperationStatus(options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof OperationControllerApi
+     */
+    public manualReplanification(options?: RawAxiosRequestConfig) {
+        return OperationControllerApiFp(this.configuration).manualReplanification(options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {RegisterOrderRequest} registerOrderRequest 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof OperationControllerApi
+     */
+    public registerOrder(registerOrderRequest: RegisterOrderRequest, options?: RawAxiosRequestConfig) {
+        return OperationControllerApiFp(this.configuration).registerOrder(registerOrderRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {string} truckId 
+     * @param {TruckBreakdownRequest} truckBreakdownRequest 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof OperationControllerApi
+     */
+    public reportTruckBreakdown(truckId: string, truckBreakdownRequest: TruckBreakdownRequest, options?: RawAxiosRequestConfig) {
+        return OperationControllerApiFp(this.configuration).reportTruckBreakdown(truckId, truckBreakdownRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+}
+
+
+
+/**
  * OrderControllerApi - axios parameter creator
  * @export
  */
@@ -765,110 +1097,6 @@ export class OrderControllerApi extends BaseAPI {
      */
     public list2(options?: RawAxiosRequestConfig) {
         return OrderControllerApiFp(this.configuration).list2(options).then((request) => request(this.axios, this.basePath));
-    }
-}
-
-
-
-/**
- * PlanificationControllerApi - axios parameter creator
- * @export
- */
-export const PlanificationControllerApiAxiosParamCreator = function (configuration?: Configuration) {
-    return {
-        /**
-         * 
-         * @param {string} sessionId 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        getPlanificationStatus: async (sessionId: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'sessionId' is not null or undefined
-            assertParamExists('getPlanificationStatus', 'sessionId', sessionId)
-            const localVarPath = `/planification/status/{sessionId}`
-                .replace(`{${"sessionId"}}`, encodeURIComponent(String(sessionId)));
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-
-    
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-    }
-};
-
-/**
- * PlanificationControllerApi - functional programming interface
- * @export
- */
-export const PlanificationControllerApiFp = function(configuration?: Configuration) {
-    const localVarAxiosParamCreator = PlanificationControllerApiAxiosParamCreator(configuration)
-    return {
-        /**
-         * 
-         * @param {string} sessionId 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async getPlanificationStatus(sessionId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<PlanificationStatus>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.getPlanificationStatus(sessionId, options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['PlanificationControllerApi.getPlanificationStatus']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-    }
-};
-
-/**
- * PlanificationControllerApi - factory interface
- * @export
- */
-export const PlanificationControllerApiFactory = function (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) {
-    const localVarFp = PlanificationControllerApiFp(configuration)
-    return {
-        /**
-         * 
-         * @param {string} sessionId 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        getPlanificationStatus(sessionId: string, options?: RawAxiosRequestConfig): AxiosPromise<PlanificationStatus> {
-            return localVarFp.getPlanificationStatus(sessionId, options).then((request) => request(axios, basePath));
-        },
-    };
-};
-
-/**
- * PlanificationControllerApi - object-oriented interface
- * @export
- * @class PlanificationControllerApi
- * @extends {BaseAPI}
- */
-export class PlanificationControllerApi extends BaseAPI {
-    /**
-     * 
-     * @param {string} sessionId 
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof PlanificationControllerApi
-     */
-    public getPlanificationStatus(sessionId: string, options?: RawAxiosRequestConfig) {
-        return PlanificationControllerApiFp(this.configuration).getPlanificationStatus(sessionId, options).then((request) => request(this.axios, this.basePath));
     }
 }
 
@@ -1308,6 +1536,39 @@ export const TruckControllerApiAxiosParamCreator = function (configuration?: Con
     return {
         /**
          * 
+         * @param {string} truckId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getTruckById: async (truckId: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'truckId' is not null or undefined
+            assertParamExists('getTruckById', 'truckId', truckId)
+            const localVarPath = `/trucks/truck/{truckId}`
+                .replace(`{${"truckId"}}`, encodeURIComponent(String(truckId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
          * @param {Pageable} pageable 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -1356,6 +1617,18 @@ export const TruckControllerApiFp = function(configuration?: Configuration) {
     return {
         /**
          * 
+         * @param {string} truckId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getTruckById(truckId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Truck>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getTruckById(truckId, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['TruckControllerApi.getTruckById']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @param {Pageable} pageable 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -1378,6 +1651,15 @@ export const TruckControllerApiFactory = function (configuration?: Configuration
     return {
         /**
          * 
+         * @param {string} truckId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getTruckById(truckId: string, options?: RawAxiosRequestConfig): AxiosPromise<Truck> {
+            return localVarFp.getTruckById(truckId, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @param {Pageable} pageable 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -1395,6 +1677,17 @@ export const TruckControllerApiFactory = function (configuration?: Configuration
  * @extends {BaseAPI}
  */
 export class TruckControllerApi extends BaseAPI {
+    /**
+     * 
+     * @param {string} truckId 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof TruckControllerApi
+     */
+    public getTruckById(truckId: string, options?: RawAxiosRequestConfig) {
+        return TruckControllerApiFp(this.configuration).getTruckById(truckId, options).then((request) => request(this.axios, this.basePath));
+    }
+
     /**
      * 
      * @param {Pageable} pageable 

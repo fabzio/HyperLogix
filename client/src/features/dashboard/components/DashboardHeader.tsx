@@ -3,18 +3,17 @@ import Hyperlogix from '@/components/Hyperlogix'
 import Typography from '@/components/typography'
 import { useEffect, useState } from 'react'
 
-export function DashboardHeader() {
-  const [currentTime, setCurrentTime] = useState(new Date())
+interface Props {
+  currentTime: Date
+}
+
+export function DashboardHeader({ currentTime }: Props) {
   const [emojiIndex, setEmojiIndex] = useState(0)
   const [fadeState, setFadeState] = useState('fade-in')
 
   const techEmojis = ['⛽', '🛢️', '🚒', '🧪', '🔥', '💨', '🚛', '📍', '⏱️', '🔄']
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date())
-    }, 1000)
-
     const emojiTimer = setInterval(() => {
       // Start the fade out
       setFadeState('fade-out')
@@ -27,27 +26,9 @@ export function DashboardHeader() {
     }, 3000) // Change emoji every 3 seconds
 
     return () => {
-      clearInterval(timer)
       clearInterval(emojiTimer)
     }
   }, [])
-
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('es-ES', {
-      hour12: false,
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    })
-  }
-
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    })
-  }
 
   return (
     <>
@@ -70,4 +51,21 @@ export function DashboardHeader() {
       </div>
     </>
   )
+}
+
+const formatTime = (date: Date) => {
+  return date.toLocaleTimeString('es-ES', {
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  })
+}
+
+const formatDate = (date: Date) => {
+  return date.toLocaleDateString('es-ES', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
 }

@@ -7,6 +7,7 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **startTimeOrders** | **string** |  | [optional] [default to undefined]
 **endTimeOrders** | **string** |  | [optional] [default to undefined]
+**mode** | **string** |  | [optional] [default to undefined]
 
 ## Example
 
@@ -16,6 +17,7 @@ import { StartSimulationRequest } from './api';
 const instance: StartSimulationRequest = {
     startTimeOrders,
     endTimeOrders,
+    mode,
 };
 ```
 

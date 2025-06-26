@@ -206,7 +206,7 @@ public class SimulationEngine implements Runnable {
 
         List<Stop> stops = activeRoutes.getStops().getOrDefault(truck.getId(), List.of());
         if (stops.size() <= 1) {
-          log.debug("Truck {} has no assigned stops", truck.getId());
+          log.trace("Truck {} has no assigned stops", truck.getId());
           continue;
         }
 
@@ -219,6 +219,10 @@ public class SimulationEngine implements Runnable {
         }
 
         Stop currentStop = stops.get(currentStopIndex);
+
+        log.trace("Truck {} processing - currentStopIndex: {}, stops: {}, target stop: {} at {}",
+            truck.getId(), currentStopIndex, stops.size(),
+            currentStop.getNode().getId(), currentStop.getArrivalTime());
 
         // Check if truck has arrived at current stop
         if (simulatedTime.isAfter(currentStop.getArrivalTime()) ||
@@ -237,9 +241,18 @@ public class SimulationEngine implements Runnable {
           }
         }
 
-        // Update truck location during travel
-        if (currentStopIndex < stops.size()) {
+        // Update truck location during travel - truck should be traveling TO the
+        // current target stop
+        // Only update if truck hasn't arrived yet and there's a previous stop to travel
+        // from
+        if (currentStopIndex > 0 && currentStopIndex < stops.size() &&
+            simulatedTime.isBefore(currentStop.getArrivalTime())) {
+          log.trace("Truck {} traveling to stop {}, current time: {}, arrival time: {}",
+              truck.getId(), currentStop.getNode().getId(), simulatedTime, currentStop.getArrivalTime());
           updateTruckLocationDuringTravel(truck, stops, paths, currentStopIndex - 1);
+        } else {
+          log.trace("Truck {} not traveling - stopIndex: {}, totalStops: {}, currentTime: {}, arrivalTime: {}",
+              truck.getId(), currentStopIndex, stops.size(), simulatedTime, currentStop.getArrivalTime());
         }
       }
     }
@@ -333,17 +346,23 @@ public class SimulationEngine implements Runnable {
     }
   }
 
-  private void updateTruckLocationDuringTravel(Truck truck, List<Stop> stops, List<Path> paths, int currentStopIndex) {
-    if (currentStopIndex >= stops.size() - 1 || currentStopIndex >= paths.size()) {
-      return; // No more paths to travel
+  private void updateTruckLocationDuringTravel(Truck truck, List<Stop> stops, List<Path> paths, int pathIndex) {
+    if (pathIndex < 0 || pathIndex >= paths.size() || pathIndex >= stops.size() - 1) {
+      return; // Invalid path index or no more paths to travel
     }
 
-    Stop currentStop = stops.get(currentStopIndex);
-    Path currentPath = paths.get(currentStopIndex);
+    Stop fromStop = stops.get(pathIndex);
+    Stop toStop = stops.get(pathIndex + 1);
+    Path currentPath = paths.get(pathIndex);
 
-    // Calculate time elapsed since leaving current stop
-    Duration timeElapsed = Duration.between(currentStop.getArrivalTime(), simulatedTime);
+    // Calculate time elapsed since leaving the fromStop
+    Duration timeElapsed = Duration.between(fromStop.getArrivalTime(), simulatedTime);
     double hoursElapsed = timeElapsed.toSeconds() / 3600.0;
+
+    // Don't move backward in time
+    if (hoursElapsed < 0) {
+      return;
+    }
 
     // Calculate distance traveled based on truck speed
     double distanceTraveled = hoursElapsed * Constants.TRUCK_SPEED;
@@ -379,8 +398,9 @@ public class SimulationEngine implements Runnable {
     // Update truck location
     truck.setLocation(interpolatedPosition);
 
-    log.trace("Truck {} at position ({}, {}) - progress: {:.2f}%, fuel: {:.2f}gal",
-        truck.getId(), interpolatedPosition.x(), interpolatedPosition.y(), progress * 100, newFuelLevel);
+    log.debug("Truck {} traveling from stop {} to stop {} - position: ({}, {}) - progress: {:.2f}%, fuel: {:.2f}gal",
+        truck.getId(), fromStop.getNode().getId(), toStop.getNode().getId(),
+        interpolatedPosition.x(), interpolatedPosition.y(), progress * 100, newFuelLevel);
   }
 
   private Point interpolateAlongPath(List<Point> pathPoints, double progress) {
@@ -525,21 +545,42 @@ public class SimulationEngine implements Runnable {
       // Reset stop indices when new routes are received
       truckCurrentStopIndex.clear();
 
+      log.info("Received routes for {} trucks, {} total stops, {} total paths",
+          routes.getStops().size(),
+          routes.getStops().values().stream().mapToInt(List::size).sum(),
+          routes.getPaths().values().stream().mapToInt(List::size).sum());
+
       // Update truck status based on route assignments
+      int idleTrucks = 0;
+      int activeTrucks = 0;
+
       for (Truck truck : plgNetwork.getTrucks()) {
         if (truck.getStatus() == TruckState.MAINTENANCE || truck.getStatus() == TruckState.BROKEN_DOWN) {
           continue; // Don't change status for trucks in maintenance or broken down
         }
 
         List<Stop> assignedStops = routes.getStops().getOrDefault(truck.getId(), List.of());
-        if (assignedStops.size() == 1) {
+        if (assignedStops.size() <= 1) {
           truck.setStatus(TruckState.IDLE);
+          idleTrucks++;
           log.debug("Truck {} set to IDLE - no assigned routes", truck.getId());
         } else {
           truck.setStatus(TruckState.ACTIVE);
-          log.debug("Truck {} set to ACTIVE - has {} assigned stops", truck.getId(), assignedStops.size());
+          activeTrucks++;
+
+          // Log the route details for debugging
+          StringBuilder routeInfo = new StringBuilder();
+          for (int i = 1; i < assignedStops.size(); i++) { // Skip first stop (starting location)
+            Stop stop = assignedStops.get(i);
+            routeInfo.append(stop.getNode().getType()).append(":").append(stop.getNode().getId());
+            if (i < assignedStops.size() - 1)
+              routeInfo.append(" -> ");
+          }
+          log.info("Truck {} set to ACTIVE - route: {}", truck.getId(), routeInfo.toString());
         }
       }
+
+      log.info("Route assignment complete: {} active trucks, {} idle trucks", activeTrucks, idleTrucks);
     }
 
     // Track planification time
