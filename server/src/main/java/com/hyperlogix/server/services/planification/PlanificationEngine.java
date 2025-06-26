@@ -39,8 +39,20 @@ public class PlanificationEngine implements Runnable {
     log.info("Starting planification for network task");
     currentThread = Thread.currentThread();
     isPlanning = true;
-    currentNodesProcessed = (int) network.getOrders().stream().filter(order -> order.getStatus() == OrderStatus.CALCULATING)
-        .count() + network.getStations().size();
+
+    // Count calculating orders and log details for debugging
+    long calculatingOrdersCount = network.getOrders().stream()
+        .filter(order -> order.getStatus() == OrderStatus.CALCULATING)
+        .count();
+
+    currentNodesProcessed = (int) calculatingOrdersCount + network.getStations().size();
+
+    log.info("Planification starting with {} total orders, {} calculating orders, {} stations",
+        network.getOrders().size(), calculatingOrdersCount, network.getStations().size());
+
+    // Log order details for debugging
+    network.getOrders().forEach(order -> log.debug("Order {}: status={}, clientId={}, requestedGLP={}",
+        order.getId(), order.getStatus(), order.getClientId(), order.getRequestedGLP()));
 
     try {
       AntColonyConfig config = new AntColonyConfig(
@@ -57,8 +69,15 @@ public class PlanificationEngine implements Runnable {
           network,
           algorithmTime);
 
+      log.info("Running optimizer with {} trucks and {} calculating orders",
+          network.getTrucks().size(), calculatingOrdersCount);
+
       OptimizerResult result = optimizer.run(ctx, algorithmDuration);
       Routes routes = result.getRoutes();
+
+      log.info("Planification completed. Generated routes for {} trucks",
+          routes.getStops().keySet().size());
+
       sendPlanificationResult(routes);
     } catch (Exception e) {
       if (Thread.currentThread().isInterrupted()) {

@@ -12,17 +12,25 @@
 
 import { Route as rootRoute } from './routes/__root'
 import { Route as LoginImport } from './routes/login'
+import { Route as ClientsImport } from './routes/clients'
 import { Route as AuthImport } from './routes/_auth'
 import { Route as AuthIndexImport } from './routes/_auth/index'
 import { Route as AuthTrucksImport } from './routes/_auth/trucks'
 import { Route as AuthStationsImport } from './routes/_auth/stations'
 import { Route as AuthSimulacionImport } from './routes/_auth/simulacion'
+import { Route as AuthDriverImport } from './routes/_auth/driver'
 
 // Create/Update Routes
 
 const LoginRoute = LoginImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const ClientsRoute = ClientsImport.update({
+  id: '/clients',
+  path: '/clients',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -55,6 +63,12 @@ const AuthSimulacionRoute = AuthSimulacionImport.update({
   getParentRoute: () => AuthRoute,
 } as any)
 
+const AuthDriverRoute = AuthDriverImport.update({
+  id: '/driver',
+  path: '/driver',
+  getParentRoute: () => AuthRoute,
+} as any)
+
 // Populate the FileRoutesByPath interface
 
 declare module '@tanstack/react-router' {
@@ -66,12 +80,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthImport
       parentRoute: typeof rootRoute
     }
+    '/clients': {
+      id: '/clients'
+      path: '/clients'
+      fullPath: '/clients'
+      preLoaderRoute: typeof ClientsImport
+      parentRoute: typeof rootRoute
+    }
     '/login': {
       id: '/login'
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginImport
       parentRoute: typeof rootRoute
+    }
+    '/_auth/driver': {
+      id: '/_auth/driver'
+      path: '/driver'
+      fullPath: '/driver'
+      preLoaderRoute: typeof AuthDriverImport
+      parentRoute: typeof AuthImport
     }
     '/_auth/simulacion': {
       id: '/_auth/simulacion'
@@ -107,6 +135,7 @@ declare module '@tanstack/react-router' {
 // Create and export the route tree
 
 interface AuthRouteChildren {
+  AuthDriverRoute: typeof AuthDriverRoute
   AuthSimulacionRoute: typeof AuthSimulacionRoute
   AuthStationsRoute: typeof AuthStationsRoute
   AuthTrucksRoute: typeof AuthTrucksRoute
@@ -114,6 +143,7 @@ interface AuthRouteChildren {
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
+  AuthDriverRoute: AuthDriverRoute,
   AuthSimulacionRoute: AuthSimulacionRoute,
   AuthStationsRoute: AuthStationsRoute,
   AuthTrucksRoute: AuthTrucksRoute,
@@ -124,7 +154,9 @@ const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 
 export interface FileRoutesByFullPath {
   '': typeof AuthRouteWithChildren
+  '/clients': typeof ClientsRoute
   '/login': typeof LoginRoute
+  '/driver': typeof AuthDriverRoute
   '/simulacion': typeof AuthSimulacionRoute
   '/stations': typeof AuthStationsRoute
   '/trucks': typeof AuthTrucksRoute
@@ -132,7 +164,9 @@ export interface FileRoutesByFullPath {
 }
 
 export interface FileRoutesByTo {
+  '/clients': typeof ClientsRoute
   '/login': typeof LoginRoute
+  '/driver': typeof AuthDriverRoute
   '/simulacion': typeof AuthSimulacionRoute
   '/stations': typeof AuthStationsRoute
   '/trucks': typeof AuthTrucksRoute
@@ -142,7 +176,9 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRoute
   '/_auth': typeof AuthRouteWithChildren
+  '/clients': typeof ClientsRoute
   '/login': typeof LoginRoute
+  '/_auth/driver': typeof AuthDriverRoute
   '/_auth/simulacion': typeof AuthSimulacionRoute
   '/_auth/stations': typeof AuthStationsRoute
   '/_auth/trucks': typeof AuthTrucksRoute
@@ -151,13 +187,30 @@ export interface FileRoutesById {
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '' | '/login' | '/simulacion' | '/stations' | '/trucks' | '/'
+  fullPaths:
+    | ''
+    | '/clients'
+    | '/login'
+    | '/driver'
+    | '/simulacion'
+    | '/stations'
+    | '/trucks'
+    | '/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/login' | '/simulacion' | '/stations' | '/trucks' | '/'
+  to:
+    | '/clients'
+    | '/login'
+    | '/driver'
+    | '/simulacion'
+    | '/stations'
+    | '/trucks'
+    | '/'
   id:
     | '__root__'
     | '/_auth'
+    | '/clients'
     | '/login'
+    | '/_auth/driver'
     | '/_auth/simulacion'
     | '/_auth/stations'
     | '/_auth/trucks'
@@ -167,11 +220,13 @@ export interface FileRouteTypes {
 
 export interface RootRouteChildren {
   AuthRoute: typeof AuthRouteWithChildren
+  ClientsRoute: typeof ClientsRoute
   LoginRoute: typeof LoginRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRouteWithChildren,
+  ClientsRoute: ClientsRoute,
   LoginRoute: LoginRoute,
 }
 
@@ -186,20 +241,29 @@ export const routeTree = rootRoute
       "filePath": "__root.tsx",
       "children": [
         "/_auth",
+        "/clients",
         "/login"
       ]
     },
     "/_auth": {
       "filePath": "_auth.tsx",
       "children": [
+        "/_auth/driver",
         "/_auth/simulacion",
         "/_auth/stations",
         "/_auth/trucks",
         "/_auth/"
       ]
     },
+    "/clients": {
+      "filePath": "clients.tsx"
+    },
     "/login": {
       "filePath": "login.tsx"
+    },
+    "/_auth/driver": {
+      "filePath": "_auth/driver.tsx",
+      "parent": "/_auth"
     },
     "/_auth/simulacion": {
       "filePath": "_auth/simulacion.tsx",

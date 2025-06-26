@@ -5,15 +5,15 @@ base.ts
 common.ts
 configuration.ts
 docs/MainControllerApi.md
+docs/OperationControllerApi.md
 docs/Order.md
 docs/OrderControllerApi.md
 docs/PageStation.md
 docs/PageTruck.md
 docs/Pageable.md
 docs/PageableObject.md
-docs/PlanificationControllerApi.md
-docs/PlanificationStatus.md
 docs/Point.md
+docs/RegisterOrderRequest.md
 docs/SimulationCommandRequest.md
 docs/SimulationControllerApi.md
 docs/SimulationStatus.md
@@ -22,6 +22,7 @@ docs/StartSimulationRequest.md
 docs/Station.md
 docs/StationControllerApi.md
 docs/Truck.md
+docs/TruckBreakdownRequest.md
 docs/TruckControllerApi.md
 git_push.sh
 index.ts

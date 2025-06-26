@@ -15,7 +15,7 @@ const OrderMarker = memo(
     cy: number
   }) => (
     <Marker coordinates={[cx - 2.5, cy - 2]}>
-      <Receipt size={5} />
+      <Receipt size={8} />
       <title>{formatTooltipText(order)}</title>
     </Marker>
   ),

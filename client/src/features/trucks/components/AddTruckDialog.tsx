@@ -25,6 +25,17 @@ import {
 } from '@/components/ui/select'
 import { useForm } from 'react-hook-form'
 
+type TruckForm = {
+  code: string
+  type: string
+  tareWeight: number
+  maxCapacity: number
+  currentCapacity: number
+  fuelCapacity: number
+  currentFuel: number
+  status: string
+}
+
 export default function AddTruckDialog() {
   const form = useForm<TruckForm>({
     defaultValues: {
