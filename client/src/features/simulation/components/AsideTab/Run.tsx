@@ -42,12 +42,17 @@ import {
   useStatusSimulation,
   useStopSimulation,
 } from '../../hooks/useSimulation'
+import { useEffect } from 'react'
+import { useSimulationStore } from '@/store/executionMode'
 
 export default function Run() {
   const { mutate: startSimulation, isPending } = useStartSimulation()
   const { mutate: sendCommand } = useCommandSimulation()
   const { mutate: stopSimulation } = useStopSimulation()
   const { data: status } = useStatusSimulation()
+  const executionMode = useSimulationStore((state) => state.executionMode)
+  const setExecutionMode = useSimulationStore((state) => state.setExecutionMode)
+
   const form = useForm<FormSchema>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -64,6 +69,10 @@ export default function Run() {
       },
     },
   })
+
+  useEffect(() => {
+  form.setValue('executionMode', executionMode)
+}, [executionMode, form.setValue])
 
   const onSubmit = form.handleSubmit((data) => {
     let startDate: Date
@@ -97,7 +106,6 @@ export default function Run() {
   })
 
   const isRunning = status?.running || false
-  const executionMode = form.watch('executionMode')
 
   const handleStop = () => {
     stopSimulation()
@@ -330,26 +338,24 @@ export default function Run() {
                   type="submit"
                   className="w-full"
                   disabled={isPending}
-                  onClick={() => form.setValue('executionMode', 'simulation')}
+                  onClick={() => {
+                    setExecutionMode('simulation')
+                    form.setValue('executionMode', 'simulation')
+                  }}
                 >
-                  {isPending ? (
-                    <Loader2 className="animate-spin" />
-                  ) : (
-                    'Iniciar simulación'
-                  )}
+                  {isPending ? <Loader2 className="animate-spin" /> : 'Iniciar simulación'}
                 </Button>
                 <Button
                   type="submit"
                   variant="secondary"
                   className="w-full"
                   disabled={isPending}
-                  onClick={() => form.setValue('executionMode', 'real')}
+                  onClick={() => {
+                    setExecutionMode('real')
+                    form.setValue('executionMode', 'real')
+                  }}
                 >
-                  {isPending ? (
-                    <Loader2 className="animate-spin" />
-                  ) : (
-                    'Ver en tiempo real'
-                  )}
+                  {isPending ? <Loader2 className="animate-spin" /> : 'Ver en tiempo real'}
                 </Button>
               </div>
             )}
