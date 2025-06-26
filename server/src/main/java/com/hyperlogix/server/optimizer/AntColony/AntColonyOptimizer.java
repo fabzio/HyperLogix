@@ -41,6 +41,12 @@ public class AntColonyOptimizer implements Optimizer {
 
     for (int i = 0; i < antColonyConfig.NUM_ITERATIONS(); i++) {
       long elapsedTime = System.currentTimeMillis() - startTime;
+
+      if (Thread.currentThread().isInterrupted()) {
+        System.out.println("Optimization interrupted. Stopping execution.");
+        break;
+      }
+      
       if (elapsedTime >= maxDurationMillis) {
         System.out.println("Optimization terminated due to time limit. Completed " + i + " iterations.");
         break;

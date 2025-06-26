@@ -22,7 +22,7 @@ public class PlanificationService {
   @Autowired
   private SimpMessagingTemplate messaging;
   private final Map<String, PlanificationEngine> planification = new ConcurrentHashMap<>();
-  private final ExecutorService executor = Executors.newCachedThreadPool();
+  private final ExecutorService executor = Executors.newFixedThreadPool(8);
 
   public void startPlanification(String planificationId, PLGNetwork network, LocalDateTime algorithmTime,
       Duration algorithmDuration) {

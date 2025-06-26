@@ -1,21 +1,30 @@
 package com.hyperlogix.server.optimizer.AntColony;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.stream.Collectors;
+
 import com.hyperlogix.server.config.Constants;
-import com.hyperlogix.server.domain.*;
+import com.hyperlogix.server.domain.Node;
+import com.hyperlogix.server.domain.NodeType;
+import com.hyperlogix.server.domain.Order;
+import com.hyperlogix.server.domain.PLGNetwork;
+import com.hyperlogix.server.domain.Path;
+import com.hyperlogix.server.domain.Point;
+import com.hyperlogix.server.domain.Routes;
+import com.hyperlogix.server.domain.Station;
+import com.hyperlogix.server.domain.Stop;
+import com.hyperlogix.server.domain.Truck;
+import com.hyperlogix.server.domain.TruckState;
 import com.hyperlogix.server.optimizer.Graph;
 import com.hyperlogix.server.util.AStar;
 
 import lombok.Getter;
 import lombok.Setter;
-
-import java.time.Duration;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-import java.util.stream.Collectors;
 
 public class Ant {
   private PLGNetwork network;
@@ -30,7 +39,7 @@ public class Ant {
   private Map<String, List<Path>> paths;
   private Map<String, Duration> tourTime;
   private Map<String, Double> tourCost;
-  private Map<Node, Path> firstPath;
+
 
   public Ant(PLGNetwork network, Graph graph, AntColonyConfig antColonyConfig) {
     this.originalNetwork = network.clone();
@@ -70,6 +79,18 @@ public class Ant {
         continue;
       }
       moveToNode(bestTruck, currentNode, nextNode);
+    }
+    for (String truckId : routes.keySet()) {
+      List<Stop> stops = routes.get(truckId);
+      List<Path> realPaths = new ArrayList<>();
+      for (int i = 0; i < stops.size() - 1; i++) {
+        Point from = stops.get(i).getNode().getLocation();
+        Point to = stops.get(i + 1).getNode().getLocation();
+        List<Point> route = AStar.encontrarRuta(from, to, stops.get(i).getArrivalTime(), network.getRoadblocks());
+        int distance = route.size() * Constants.EDGE_LENGTH;
+        realPaths.add(new Path(route, distance));
+      }
+      paths.put(truckId, realPaths);
     }
     return new Routes(routes, paths, tourCost.values().stream().mapToDouble(Double::doubleValue).sum());
   }
@@ -153,8 +174,9 @@ public class Ant {
     double avgDistance = availableNodes.stream()
         .mapToDouble(node -> {
           if (currentNode.getNode().getType() == NodeType.LOCATION) {
-            return firstPath.containsKey(node.getNode()) ? firstPath.get(node.getNode()).length() : 1000; // Fallback
-                                                                                                          // high value
+            int dx = (int) Math.abs(currentNode.getNode().getLocation().x() - node.getNode().getLocation().x());
+            int dy = (int) Math.abs(currentNode.getNode().getLocation().y() - node.getNode().getLocation().y());
+            return (dx + dy) * Constants.EDGE_LENGTH;
           } else {
             return adjacencyMap.get(currentNode.getNode()).get(node.getNode()).length();
           }
@@ -180,12 +202,9 @@ public class Ant {
         continue;
       int distance;
       if (currentNode.getNode().getType() == NodeType.LOCATION) {
-        // Fallback to A* if not found in cache
-        List<Point> res = AStar.encontrarRuta(currentNode.getNode().getLocation(), node.getLocation(),
-            currentNode.getArrivalTime(), network.getRoadblocks());
-        distance = res.size() * Constants.EDGE_LENGTH;
-        firstPath.put(node, new Path(res, distance));
-
+        int dx = (int) Math.abs(currentNode.getNode().getLocation().x() - node.getLocation().x());
+        int dy = (int) Math.abs(currentNode.getNode().getLocation().y() - node.getLocation().y());
+        distance = (dx + dy) * Constants.EDGE_LENGTH;
       } else
         distance = adjacencyMap.get(currentNode.getNode()).get(node).length();
       Duration timeToDestination = truck.getTimeToDestination(distance);
@@ -286,7 +305,14 @@ public class Ant {
   private void moveToNode(Truck truck, Stop currentNode, Stop nextNode) {
     Path path;
     if (currentNode.getNode().getType() == NodeType.LOCATION) {
-      path = firstPath.get(nextNode.getNode());
+      List<Point> route = AStar.encontrarRuta(
+      currentNode.getNode().getLocation(),
+      nextNode.getNode().getLocation(),
+      currentNode.getArrivalTime(),
+      network.getRoadblocks()
+  );
+  int distance = route.size() * Constants.EDGE_LENGTH;
+  path = new Path(route, distance);
     } else {
       path = adjacencyMap.get(currentNode.getNode()).get(nextNode.getNode());
     }
@@ -342,7 +368,6 @@ public class Ant {
         .collect(Collectors.toMap(Truck::getId, truck -> Duration.ZERO));
     this.tourCost = network.getTrucks().stream()
         .collect(Collectors.toMap(Truck::getId, truck -> 0.0));
-    this.firstPath = new HashMap<>();
   }
 
 }
