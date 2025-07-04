@@ -125,7 +125,40 @@ public class AStar {
       ruta.add(0, nodo.punto);
       nodo = nodo.parent;
     }
-    return ruta;
+    return simplificarRuta(ruta);
+  }
+
+  /**
+   * Simplifies the route by removing redundant points that lie on straight lines.
+   * Only keeps points where direction changes occur.
+   */
+  private static List<Point> simplificarRuta(List<Point> rutaCompleta) {
+    if (rutaCompleta.size() <= 2) {
+      return rutaCompleta;
+    }
+
+    List<Point> rutaSimplificada = new ArrayList<>();
+    rutaSimplificada.add(rutaCompleta.get(0)); // Always keep the start point
+
+    for (int i = 1; i < rutaCompleta.size() - 1; i++) {
+      Point anterior = rutaCompleta.get(i - 1);
+      Point actual = rutaCompleta.get(i);
+      Point siguiente = rutaCompleta.get(i + 1);
+
+      // Calculate direction vectors
+      double dx1 = actual.x() - anterior.x();
+      double dy1 = actual.y() - anterior.y();
+      double dx2 = siguiente.x() - actual.x();
+      double dy2 = siguiente.y() - actual.y();
+
+      // If direction changes, keep this point
+      if (Math.abs(dx1 - dx2) > 0.0001 || Math.abs(dy1 - dy2) > 0.0001) {
+        rutaSimplificada.add(actual);
+      }
+    }
+
+    rutaSimplificada.add(rutaCompleta.get(rutaCompleta.size() - 1)); // Always keep the end point
+    return rutaSimplificada;
   }
 
   private static String clave(Nodo n) {

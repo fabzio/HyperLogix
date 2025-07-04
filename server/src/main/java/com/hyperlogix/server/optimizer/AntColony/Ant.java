@@ -60,7 +60,9 @@ public class Ant {
       Truck bestTruck = selectBestTruck();
       if (bestTruck == null) {
         System.out.println("Logistic collapse, no more trucks available");
-        return new Routes(routes, paths, tourCost.values().stream().mapToDouble(Double::doubleValue).sum());
+        // Process the current routes with A* before returning
+        Routes roughSolution = new Routes(routes, paths, tourCost.values().stream().mapToDouble(Double::doubleValue).sum());
+        return graph.processRoutesWithAStar(roughSolution, graph.getAlgorithmStartDate());
       }
 
       Stop currentNode = routes.get(bestTruck.getId()).getLast();
@@ -71,7 +73,10 @@ public class Ant {
       }
       moveToNode(bestTruck, currentNode, nextNode);
     }
-    return new Routes(routes, paths, tourCost.values().stream().mapToDouble(Double::doubleValue).sum());
+    
+    // Process the final routes with A* to get exact paths and timing
+    Routes roughSolution = new Routes(routes, paths, tourCost.values().stream().mapToDouble(Double::doubleValue).sum());
+    return graph.processRoutesWithAStar(roughSolution, graph.getAlgorithmStartDate());
   }
 
   private Truck selectBestTruck() {
@@ -180,11 +185,9 @@ public class Ant {
         continue;
       int distance;
       if (currentNode.getNode().getType() == NodeType.LOCATION) {
-        // Fallback to A* if not found in cache
-        List<Point> res = AStar.encontrarRuta(currentNode.getNode().getLocation(), node.getLocation(),
-            currentNode.getArrivalTime(), network.getRoadblocks());
-        distance = res.size() * Constants.EDGE_LENGTH;
-        firstPath.put(node, new Path(res, distance));
+        // Use Manhattan distance instead of A*
+        distance = calculateManhattanDistance(currentNode.getNode().getLocation(), node.getLocation());
+        firstPath.put(node, new Path(List.of(currentNode.getNode().getLocation(), node.getLocation()), distance));
 
       } else
         distance = adjacencyMap.get(currentNode.getNode()).get(node).length();
@@ -224,6 +227,10 @@ public class Ant {
       availableNodes.add(new Stop(node, arrivalTime));
     }
     return availableNodes;
+  }
+
+  private int calculateManhattanDistance(Point from, Point to) {
+    return (int) ((Math.abs(from.x() - to.x()) + Math.abs(from.y() - to.y())) * Constants.EDGE_LENGTH);
   }
 
   private Stop getNextNode(Stop currentNode, Truck truck) {
@@ -293,7 +300,7 @@ public class Ant {
     this.paths.get(truck.getId())
         .add(path.points().getFirst() == currentNode.getNode().getLocation() ? path : path.reverse());
     int distance = path.length();
-    this.adjacencyMap = graph.createAdjacencyMap(nextNode.getArrivalTime());
+    // No need to recalculate adjacency map since we're using Manhattan distance
     Duration timeToDestination = truck.getTimeToDestination(distance);
     double fuelConsumption = truck.getFuelConsumption(distance);
     nextNode.setArrivalTime(currentNode.getArrivalTime().plus(timeToDestination));
