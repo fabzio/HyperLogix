@@ -57,7 +57,7 @@ public class PlanificationEngine implements Runnable {
     try {
       AntColonyConfig config = new AntColonyConfig(
           4,
-          10,
+          5,
           1.0,
           2.0,
           0.5,

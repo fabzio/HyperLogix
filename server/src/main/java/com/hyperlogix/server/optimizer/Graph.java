@@ -7,7 +7,9 @@ import com.hyperlogix.server.util.AStar;
 import lombok.Data;
 import lombok.Setter;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -47,14 +49,7 @@ public class Graph implements Cloneable {
   }
 
   public Map<Node, Map<Node, Path>> createAdjacencyMap(LocalDateTime currentTime) {
-    Set<Roadblock> currentActiveRoadblocks = getActiveRoadblocks(currentTime);
-
-    if (this.adjacencyMapCache != null &&
-        this.lastActiveRoadblocks != null &&
-        this.lastActiveRoadblocks.equals(currentActiveRoadblocks)) {
-      return this.adjacencyMapCache;
-    }
-
+    // For adjacency map creation, we use Manhattan distance without A*
     List<Node> ordersNode = plgNetwork.getCalculatedOrders().stream()
         .map(Node::new)
         .toList();
@@ -65,6 +60,7 @@ public class Graph implements Cloneable {
     List<Node> allNodes = new java.util.ArrayList<>(ordersNode);
     allNodes.addAll(stationsNodes);
     Map<Node, Map<Node, Path>> newAdjacencyMap = new HashMap<>();
+    
     for (int i = 0; i < allNodes.size(); i++) {
       Node origin = allNodes.get(i);
       for (int j = i + 1; j < allNodes.size(); j++) {
@@ -72,20 +68,100 @@ public class Graph implements Cloneable {
 
         newAdjacencyMap.putIfAbsent(origin, new HashMap<>());
         newAdjacencyMap.putIfAbsent(destination, new HashMap<>());
-        List<Point> bestPath = AStar
-            .encontrarRuta(origin.getLocation(), destination.getLocation(), currentTime,
-                this.plgNetwork.getRoadblocks().stream().filter(rb -> currentActiveRoadblocks.contains(rb))
-                    .collect(Collectors.toList())); // Pass only active ones
-        Path path = new Path(bestPath, bestPath.size() * Constants.EDGE_LENGTH);
+        
+        // Use Manhattan distance instead of A*
+        int manhattanDistance = calculateManhattanDistance(origin.getLocation(), destination.getLocation());
+        // Create a simple path with just start and end points for distance calculation
+        List<Point> simplePath = List.of(origin.getLocation(), destination.getLocation());
+        Path path = new Path(simplePath, manhattanDistance);
 
         newAdjacencyMap.get(origin).put(destination, path);
         newAdjacencyMap.get(destination).put(origin, path);
       }
     }
+    
     this.adjacencyMapCache = newAdjacencyMap;
     this.lastAdjacencyMapUpdateTime = currentTime;
-    this.lastActiveRoadblocks = currentActiveRoadblocks;
+    this.lastActiveRoadblocks = new HashSet<>(); // Reset since we're not using roadblocks for adjacency
     return newAdjacencyMap;
+  }
+
+  private int calculateManhattanDistance(Point from, Point to) {
+    return (int) ((Math.abs(from.x() - to.x()) + Math.abs(from.y() - to.y())) * Constants.EDGE_LENGTH);
+  }
+
+  /**
+   * Process the final routes using A* pathfinding to get exact paths and arrival times
+   */
+  public Routes processRoutesWithAStar(Routes routes, LocalDateTime algorithmStartTime) {
+    Map<String, List<Stop>> processedRoutes = new HashMap<>();
+    Map<String, List<Path>> processedPaths = new HashMap<>();
+    double totalCost = 0.0;
+
+    for (Map.Entry<String, List<Stop>> entry : routes.getStops().entrySet()) {
+      String truckId = entry.getKey();
+      List<Stop> originalRoute = entry.getValue();
+      
+      if (originalRoute.isEmpty()) {
+        processedRoutes.put(truckId, new ArrayList<>());
+        processedPaths.put(truckId, new ArrayList<>());
+        continue;
+      }
+
+      List<Stop> processedRoute = new ArrayList<>();
+      List<Path> processedPathList = new ArrayList<>();
+      
+      // Add the first stop (truck's starting location)
+      Stop currentStop = originalRoute.get(0);
+      currentStop.setArrivalTime(algorithmStartTime);
+      processedRoute.add(currentStop);
+      
+      // Process each subsequent stop with A* pathfinding
+      for (int i = 1; i < originalRoute.size(); i++) {
+        Stop nextStop = originalRoute.get(i);
+        Point fromLocation = currentStop.getNode().getLocation();
+        Point toLocation = nextStop.getNode().getLocation();
+        
+        // Use A* to find the actual path considering roadblocks
+        List<Point> actualPath = AStar.encontrarRuta(
+            fromLocation, 
+            toLocation, 
+            currentStop.getArrivalTime(), 
+            plgNetwork.getRoadblocks()
+        );
+        
+        if (actualPath.isEmpty()) {
+          // If A* fails, use direct path as fallback
+          actualPath = List.of(fromLocation, toLocation);
+        }
+        
+        Path realPath = new Path(actualPath, actualPath.size() * Constants.EDGE_LENGTH);
+        processedPathList.add(realPath);
+        
+        // Calculate actual arrival time based on path length
+        Truck truck = plgNetwork.getTrucks().stream()
+            .filter(t -> t.getId().equals(truckId))
+            .findFirst()
+            .orElse(null);
+            
+        if (truck != null) {
+          Duration travelTime = truck.getTimeToDestination(realPath.length());
+          LocalDateTime arrivalTime = currentStop.getArrivalTime().plus(travelTime);
+          nextStop.setArrivalTime(arrivalTime);
+          
+          double fuelCost = truck.getFuelConsumption(realPath.length());
+          totalCost += fuelCost;
+        }
+        
+        processedRoute.add(nextStop);
+        currentStop = nextStop;
+      }
+      
+      processedRoutes.put(truckId, processedRoute);
+      processedPaths.put(truckId, processedPathList);
+    }
+    
+    return new Routes(processedRoutes, processedPaths, totalCost);
   }
 
   public Map<Node, Map<Node, Double>> createPheromoneMap() {
