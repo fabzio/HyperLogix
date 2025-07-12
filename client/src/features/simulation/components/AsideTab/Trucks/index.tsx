@@ -1,3 +1,5 @@
+import { SearchFilter } from '@/components/SearchFilter'
+import { SemaphoreIndicator } from '@/components/SemaphoreIndicator'
 import Typography from '@/components/typography'
 import {
   Pagination,
@@ -27,15 +29,19 @@ export default function Trucks() {
   const { plgNetwork } = useSimulationStore()
   const [page, setPage] = useState(1)
   const [pageSize] = useState(10)
+  const [searchFilter, setSearchFilter] = useState('')
 
-  const trucks =
-    plgNetwork?.trucks
-      .filter((truck) => truck.status !== TruckState.IDLE)
-      .sort(
-        (t1, t2) =>
-          t1.currentCapacity / t1.maxCapacity -
-          t2.currentCapacity / t2.maxCapacity,
-      ) || []
+  const allTrucks =
+    plgNetwork?.trucks.filter((truck) => truck.status !== TruckState.IDLE) || []
+
+  const filteredTrucks = allTrucks.filter((truck) =>
+    truck.code.toLowerCase().includes(searchFilter.toLowerCase()),
+  )
+
+  const trucks = filteredTrucks.sort(
+    (t1, t2) =>
+      t1.currentCapacity / t1.maxCapacity - t2.currentCapacity / t2.maxCapacity,
+  )
 
   const startIndex = (page - 1) * pageSize
   const endIndex = startIndex + pageSize
@@ -55,6 +61,13 @@ export default function Trucks() {
       <Typography variant="h3">Camiones</Typography>
       {!truckId ? (
         <>
+          <div className="mb-4">
+            <SearchFilter
+              placeholder="Buscar por código de camión..."
+              value={searchFilter}
+              onChange={setSearchFilter}
+            />
+          </div>
           <Table>
             <TableHeader>
               <TableRow>
@@ -87,22 +100,52 @@ export default function Trucks() {
                   >
                     <TableCell className="px-4 py-2">{truck.code}</TableCell>
                     <TableCell className="px-4 py-2">
-                      {Math.floor(truck.currentFuel)
-                        .toString()
-                        .padStart(2, ' ')}{' '}
-                      /{' '}
-                      {Math.floor(truck.fuelCapacity)
-                        .toString()
-                        .padStart(2, ' ')}
+                      <div className="flex items-center gap-2">
+                        <SemaphoreIndicator
+                          value={truck.currentFuel}
+                          maxValue={truck.fuelCapacity}
+                          showAsIndicator={true}
+                          thresholds={{
+                            excellent: 80,
+                            good: 60,
+                            warning: 40,
+                            danger: 20,
+                          }}
+                        />
+                        <span>
+                          {Math.floor(truck.currentFuel)
+                            .toString()
+                            .padStart(2, ' ')}{' '}
+                          /{' '}
+                          {Math.floor(truck.fuelCapacity)
+                            .toString()
+                            .padStart(2, ' ')}
+                        </span>
+                      </div>
                     </TableCell>
                     <TableCell className="px-4 py-2">
-                      {Math.floor(truck.currentCapacity)
-                        .toString()
-                        .padStart(2, ' ')}{' '}
-                      /{' '}
-                      {Math.floor(truck.maxCapacity)
-                        .toString()
-                        .padStart(2, ' ')}
+                      <div className="flex items-center gap-2">
+                        <SemaphoreIndicator
+                          value={truck.currentCapacity}
+                          maxValue={truck.maxCapacity}
+                          showAsIndicator={true}
+                          thresholds={{
+                            excellent: 80,
+                            good: 60,
+                            warning: 40,
+                            danger: 20,
+                          }}
+                        />
+                        <span>
+                          {Math.floor(truck.currentCapacity)
+                            .toString()
+                            .padStart(2, ' ')}{' '}
+                          /{' '}
+                          {Math.floor(truck.maxCapacity)
+                            .toString()
+                            .padStart(2, ' ')}
+                        </span>
+                      </div>
                     </TableCell>
                     <TableCell className="px-4 py-2">
                       {Math.floor(truck.location.x).toString().padStart(2, ' ')}
@@ -114,7 +157,9 @@ export default function Trucks() {
               ) : (
                 <TableRow>
                   <TableCell colSpan={4} className="text-center px-4 py-2">
-                    No hay camiones disponibles
+                    {searchFilter
+                      ? 'No se encontraron camiones'
+                      : 'No hay camiones disponibles'}
                   </TableCell>
                 </TableRow>
               )}

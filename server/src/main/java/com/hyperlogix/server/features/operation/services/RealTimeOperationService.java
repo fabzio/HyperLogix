@@ -45,9 +45,8 @@ public class RealTimeOperationService {
   }
 
   @EventListener(ApplicationReadyEvent.class)
-  @Async
+  @Async("asyncExecutor")
   public void onApplicationReady() {
-    log.info("Application ready event received, initializing real-time simulation...");
     CompletableFuture.runAsync(this::initializeMainSimulationWithRetry);
   }
 
@@ -67,7 +66,6 @@ public class RealTimeOperationService {
             Thread.sleep(RETRY_DELAY_MS);
             continue;
           } else {
-            log.error("Failed to load data after {} attempts, starting simulation with empty data", MAX_RETRY_ATTEMPTS);
           }
         }
 
@@ -86,14 +84,12 @@ public class RealTimeOperationService {
             Thread.sleep(RETRY_DELAY_MS);
           } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
-            log.error("Initialization interrupted");
             return;
           }
         }
       }
     }
 
-    log.error("Failed to initialize real-time simulation after {} attempts", MAX_RETRY_ATTEMPTS);
   }
 
   public void addOrder(Order order) {
@@ -114,12 +110,10 @@ public class RealTimeOperationService {
 
   public void reportTruckBreakdown(String truckId, String reason) {
     if (!simulationInitialized.get()) {
-      log.warn("Simulation not yet initialized, cannot report truck breakdown for {}", truckId);
       return;
     }
 
     simulationService.updateTruckState(MAIN_SESSION_ID, truckId, TruckState.BROKEN_DOWN);
-    log.info("Reported truck {} breakdown: {}", truckId, reason);
   }
 
   public boolean isSimulationInitialized() {
@@ -132,7 +126,6 @@ public class RealTimeOperationService {
     }
 
     simulationService.triggerImmediatePlanification(MAIN_SESSION_ID);
-    log.info("Manual replanification triggered for session: {}", MAIN_SESSION_ID);
   }
 
   private PLGNetwork buildNetworkFromRepositories() {

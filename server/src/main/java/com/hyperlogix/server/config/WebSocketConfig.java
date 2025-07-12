@@ -7,11 +7,12 @@ import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
+import org.springframework.web.socket.config.annotation.WebSocketTransportRegistration;
 import org.springframework.web.socket.server.HandshakeInterceptor;
 import org.springframework.web.socket.server.support.DefaultHandshakeHandler;
 
 @Configuration
-@EnableWebSocketMessageBroker
+// @EnableWebSocketMessageBroker - Disabled in favor of WebSocketConfigEnhanced
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
   @Autowired
   private DefaultHandshakeHandler handshakeHandler;
@@ -32,5 +33,12 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         .addInterceptors(userInterceptor)
         .setHandshakeHandler(handshakeHandler)
         .setAllowedOriginPatterns("*");
+  }
+
+  @Override
+  public void configureWebSocketTransport(@NonNull WebSocketTransportRegistration registration) {
+    registration.setMessageSizeLimit(2 * 1024 * 1024); // 2MB
+    registration.setSendBufferSizeLimit(2 * 1024 * 1024); // 2MB
+    registration.setSendTimeLimit(20000); // 20 seconds
   }
 }

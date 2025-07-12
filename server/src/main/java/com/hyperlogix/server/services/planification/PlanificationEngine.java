@@ -36,7 +36,6 @@ public class PlanificationEngine implements Runnable {
 
   @Override
   public void run() {
-    log.info("Starting planification for network task");
     currentThread = Thread.currentThread();
     isPlanning = true;
 
@@ -73,6 +72,7 @@ public class PlanificationEngine implements Runnable {
           network.getTrucks().size(), calculatingOrdersCount);
 
       OptimizerResult result = optimizer.run(ctx, algorithmDuration);
+
       Routes routes = result.getRoutes();
 
       log.info("Planification completed. Generated routes for {} trucks",
@@ -81,10 +81,8 @@ public class PlanificationEngine implements Runnable {
       sendPlanificationResult(routes);
     } catch (Exception e) {
       if (Thread.currentThread().isInterrupted()) {
-        log.info("Planification execution was interrupted");
         return;
       }
-      log.error("Error during planification", e);
     } finally {
       isPlanning = false;
       currentNodesProcessed = 0;

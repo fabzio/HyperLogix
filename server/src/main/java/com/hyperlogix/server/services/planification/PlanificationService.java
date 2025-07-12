@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
@@ -15,14 +16,22 @@ import org.springframework.stereotype.Service;
 import com.hyperlogix.server.domain.PLGNetwork;
 import com.hyperlogix.server.features.planification.dtos.PlanificationResponseEvent;
 
+import jakarta.annotation.PreDestroy;
+import lombok.extern.slf4j.Slf4j;
+
 @Service
+@Slf4j
 public class PlanificationService {
   @Autowired
   private ApplicationEventPublisher eventPublisher;
   @Autowired
   private SimpMessagingTemplate messaging;
   private final Map<String, PlanificationEngine> planification = new ConcurrentHashMap<>();
-  private final ExecutorService executor = Executors.newCachedThreadPool();
+  private final ExecutorService executor = Executors.newCachedThreadPool(r -> {
+    Thread t = new Thread(r, "PlanificationService-" + System.currentTimeMillis());
+    t.setDaemon(true);
+    return t;
+  });
 
   public void startPlanification(String planificationId, PLGNetwork network, LocalDateTime algorithmTime,
       Duration algorithmDuration) {
@@ -52,5 +61,35 @@ public class PlanificationService {
       return engine.getStatus();
     }
     return new PlanificationStatus(false, 0);
+  }
+
+  /**
+   * Cleanup resources when the service is being destroyed
+   */
+  @PreDestroy
+  public void cleanup() {
+    log.info("Cleaning up PlanificationService resources...");
+    
+    // Stop all running planifications
+    planification.values().forEach(PlanificationEngine::stop);
+    planification.clear();
+    
+    // Shutdown executor service
+    executor.shutdown();
+    try {
+      if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+        log.warn("Executor did not terminate gracefully, forcing shutdown");
+        executor.shutdownNow();
+        if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+          log.error("Executor did not terminate after forced shutdown");
+        }
+      }
+    } catch (InterruptedException e) {
+      log.warn("Interrupted while waiting for executor termination");
+      executor.shutdownNow();
+      Thread.currentThread().interrupt();
+    }
+    
+    log.info("PlanificationService cleanup completed");
   }
 }

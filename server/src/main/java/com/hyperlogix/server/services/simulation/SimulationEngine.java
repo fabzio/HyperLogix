@@ -78,7 +78,6 @@ public class SimulationEngine implements Runnable {
   @Override
   public void run() {
     running.set(true);
-    log.info("=====Simulation started=====");
     log.info("Config K={}, Sa={}, Sc={}, Ta={}",
         simulationConfig.getTimeAcceleration(),
         simulationConfig.getCurrentAlgorithmInterval(),
@@ -97,7 +96,6 @@ public class SimulationEngine implements Runnable {
 
       // Check if all orders are completed
       if (areAllOrdersCompleted()) {
-        log.info("All orders completed. Ending simulation.");
         break;
       }
 
@@ -113,7 +111,6 @@ public class SimulationEngine implements Runnable {
       }
 
       if (simulatedTime.isAfter(nextPlanningTime)) {
-        log.info("Simulated time: {}", simulatedTime);
         int newOrderCount = getOrderBatch(simulatedTime);
 
         // Track order arrivals for rate calculation
@@ -139,7 +136,6 @@ public class SimulationEngine implements Runnable {
       sleep(simulationConfig.getSimulationResolution());
     }
 
-    log.info("=====Simulation ended=====");
   }
 
   private boolean areAllOrdersCompleted() {
@@ -148,7 +144,6 @@ public class SimulationEngine implements Runnable {
   }
 
   public void stop() {
-    log.info("Stopping simulation...");
     running.set(false);
     lock.lock();
     try {
@@ -162,7 +157,6 @@ public class SimulationEngine implements Runnable {
     switch (command.toUpperCase()) {
       case "PAUSE" -> {
         paused.set(true);
-        log.info("Simulation paused");
       }
       case "RESUME" -> {
         paused.set(false);
@@ -172,29 +166,23 @@ public class SimulationEngine implements Runnable {
         } finally {
           lock.unlock();
         }
-        log.info("Simulation resumed");
       }
       case "DESACCELERATE" -> {
         double newAcceleration = Math.max(1.0, simulationConfig.getTimeAcceleration() / 2);
         simulationConfig.setTimeAcceleration(newAcceleration);
-        log.info("Simulation time acceleration set to {:.2f}x", newAcceleration);
       }
       case "ACCELERATE" -> {
         double newAcceleration = simulationConfig.getTimeAcceleration() * 2;
         simulationConfig.setTimeAcceleration(newAcceleration);
-        log.info("Simulation time acceleration set to {:.2f}x", newAcceleration);
       }
     }
   }
 
   private void updateSystemState(Duration timeStep) {
-    log.trace("Updating system state: {}", timeStep);
     if (activeRoutes == null) {
-      log.warn("Active routes are not set, skipping update");
       return;
     }
     if (activeRoutes.getStops().isEmpty() || activeRoutes.getPaths().isEmpty()) {
-      log.warn("No active routes or stops available, skipping update");
       return;
     }
 
@@ -287,7 +275,7 @@ public class SimulationEngine implements Runnable {
     int glpToRefill = Math.min(glpToFull, availableCapacity);
 
     if (glpToRefill > 0) {
-      station.reserveCapacity(simulatedTime, glpToRefill);
+      station.reserveCapacity(simulatedTime, glpToRefill, truck.getId(), null);
       truck.setCurrentCapacity(truck.getCurrentCapacity() + glpToRefill);
       log.info("Truck {} refilled {} GLP at station {}", truck.getId(), glpToRefill, station.getName());
     } else {
@@ -488,8 +476,6 @@ public class SimulationEngine implements Runnable {
     Duration newInterval = simulationConfig.getCurrentAlgorithmInterval();
 
     if (!previousInterval.equals(newInterval)) {
-      log.info("Algorithm interval adjusted from {} to {} based on order arrival rate: {:.2f} orders/hour",
-          previousInterval, newInterval, orderArrivalRate);
     }
   }
 
@@ -501,11 +487,9 @@ public class SimulationEngine implements Runnable {
     if (hasCalculatingOrders) {
       lastPlanificationStart = LocalDateTime.now();
       totalPlanificationRequests++;
-      log.info("Requesting planification from {}", sessionId);
       eventPublisher.publishEvent(
           new PlanificationRequestEvent(sessionId, plgNetwork, simulatedTime, simulationConfig.getAlgorithmTime()));
     } else {
-      log.debug("No orders in CALCULATING status, skipping planification request");
     }
   }
 
@@ -518,7 +502,6 @@ public class SimulationEngine implements Runnable {
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       running.set(false);
-      log.error("Simulation interrupted", e);
     } finally {
       lock.unlock();
     }
@@ -533,13 +516,22 @@ public class SimulationEngine implements Runnable {
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       running.set(false);
-      log.warn("Simulation paused wait interrupted");
     } finally {
       lock.unlock();
     }
   }
 
   public void onPlanificationResult(Routes routes) {
+    if (routes == null || routes.getStops().isEmpty()) {
+      List<Order> calculatingOrders = orderRepository.stream()
+          .filter(order -> order.getStatus() == OrderStatus.CALCULATING)
+          .toList();
+      calculatingOrders.forEach(order -> {
+        order.setStatus(OrderStatus.PENDING);
+      });
+      return;
+    }
+
     synchronized (routesLock) {
       this.activeRoutes = routes;
       // Reset stop indices when new routes are received
@@ -550,9 +542,6 @@ public class SimulationEngine implements Runnable {
           routes.getStops().values().stream().mapToInt(List::size).sum(),
           routes.getPaths().values().stream().mapToInt(List::size).sum());
 
-      // Update truck status based on route assignments
-      int idleTrucks = 0;
-      int activeTrucks = 0;
 
       for (Truck truck : plgNetwork.getTrucks()) {
         if (truck.getStatus() == TruckState.MAINTENANCE || truck.getStatus() == TruckState.BROKEN_DOWN) {
@@ -562,11 +551,9 @@ public class SimulationEngine implements Runnable {
         List<Stop> assignedStops = routes.getStops().getOrDefault(truck.getId(), List.of());
         if (assignedStops.size() <= 1) {
           truck.setStatus(TruckState.IDLE);
-          idleTrucks++;
           log.debug("Truck {} set to IDLE - no assigned routes", truck.getId());
         } else {
           truck.setStatus(TruckState.ACTIVE);
-          activeTrucks++;
 
           // Log the route details for debugging
           StringBuilder routeInfo = new StringBuilder();
@@ -580,7 +567,6 @@ public class SimulationEngine implements Runnable {
         }
       }
 
-      log.info("Route assignment complete: {} active trucks, {} idle trucks", activeTrucks, idleTrucks);
     }
 
     // Track planification time
@@ -589,6 +575,7 @@ public class SimulationEngine implements Runnable {
       totalPlanificationTime = totalPlanificationTime.plus(planificationDuration);
     }
 
+    // Only change status for CALCULATING orders to IN_PROGRESS
     List<Order> calculatingOrders = orderRepository.stream()
         .filter(order -> order.getStatus() == OrderStatus.CALCULATING)
         .toList();

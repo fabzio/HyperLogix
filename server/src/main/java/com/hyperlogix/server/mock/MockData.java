@@ -289,10 +289,9 @@ public class MockData {
             new Point(12, 8)));
 
     List<Station> stations = List.of(
-        new Station("S1", "Central", new Point(12, 8), Integer.MAX_VALUE, true, new HashMap<>()), // Adjusted
-        new Station("S2", "Intermedio Norte", new Point(42, 42), 160, false, new HashMap<>()), // Adjusted
-        new Station("S3", "Intermedio Este", new Point(63, 3), 160, false,
-            new HashMap<>()));
+        new Station("S1", "Central", new Point(12, 8), Integer.MAX_VALUE, true, new HashMap<>(), new ArrayList<>()), // Adjusted
+        new Station("S2", "Intermedio Norte", new Point(42, 42), 160, false, new HashMap<>(), new ArrayList<>()), // Adjusted
+        new Station("S3", "Intermedio Este", new Point(63, 3), 160, false, new HashMap<>(), new ArrayList<>()));
 
     List<Order> orders = List.of();
     List<Incident> incidents = List.of();
@@ -317,3 +316,4 @@ public class MockData {
     return new PLGNetwork(trucks, stations, orders, incidents, roadblocks);
   }
 }
+

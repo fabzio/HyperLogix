@@ -15,14 +15,18 @@ import Trucks from './Trucks'
 
 export default function AsideTab() {
   const [openTab, setOpenTab] = useState<string>()
-  const { orderId, truckId } = useSearch({ from: '/_auth/simulacion' })
+  const { orderId, truckId, stationId } = useSearch({
+    from: '/_auth/simulacion',
+  })
   useEffect(() => {
     if (orderId) {
       setOpenTab('orders')
     } else if (truckId) {
       setOpenTab('truck')
+    } else if (stationId) {
+      setOpenTab('stations')
     }
-  }, [orderId, truckId])
+  }, [orderId, truckId, stationId])
   return (
     <Tabs
       value={openTab}

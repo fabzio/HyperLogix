@@ -15,8 +15,8 @@ export const env = createEnv({
   client: {
     VITE_COMMIT_HASH: z.string().min(1).optional(),
     VITE_APP_TITLE: z.string().min(1).optional(),
-    VITE_API: z.string().min(1),
-    VITE_WS_HOST: z.string().min(1),
+    VITE_API: z.string().min(1).default('/api/v1'),
+    VITE_WS_HOST: z.string().min(1).default('localhost:8080')
   },
 
   /**

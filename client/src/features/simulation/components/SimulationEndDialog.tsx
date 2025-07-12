@@ -24,17 +24,16 @@ export default function SimulationEndDialog({ open, onClose, reason }: Props) {
     simulationStartTime,
     simulationEndTime,
     finalPlgNetwork,
+    metrics, // Add current metrics as fallback
   } = useSimulationStore()
   const { username } = useSessionStore()
   const [isGenerating, setIsGenerating] = useState(false)
 
   const handleDownloadReport = async () => {
-    if (
-      !finalMetrics ||
-      !simulationStartTime ||
-      !simulationEndTime ||
-      !username
-    ) {
+    // Use finalMetrics if available, otherwise use current metrics
+    const metricsToUse = finalMetrics || metrics
+
+    if (!metricsToUse || !simulationStartTime || !username) {
       console.error('Missing data for report generation')
       return
     }
@@ -42,9 +41,9 @@ export default function SimulationEndDialog({ open, onClose, reason }: Props) {
     setIsGenerating(true)
     try {
       await downloadSimulationReport({
-        metrics: finalMetrics,
+        metrics: metricsToUse,
         startTime: simulationStartTime,
-        endTime: simulationEndTime,
+        endTime: simulationEndTime || new Date().toISOString(), // Use current time if no end time
         username,
         plgNetwork: finalPlgNetwork || undefined,
       })
@@ -55,8 +54,9 @@ export default function SimulationEndDialog({ open, onClose, reason }: Props) {
     }
   }
 
+  // Update condition to only require metrics, start time, and username
   const canGenerateReport =
-    finalMetrics && simulationStartTime && simulationEndTime && username
+    (finalMetrics || metrics) && simulationStartTime && username
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -67,14 +67,9 @@ export default function SimulationEndDialog({ open, onClose, reason }: Props) {
             Simulación finalizada
           </DialogTitle>
           <DialogDescription>
-            {reason === 'manual' ? (
-              <p>Visualizador finalizado manualmente con éxito</p>
-            ) : (
-              <p>
-                Visualizador finalizado porque todos los pedidos fueron
-                completados.
-              </p>
-            )}
+            {reason === 'manual'
+              ? 'Visualizador finalizado manualmente con éxito'
+              : 'Visualizador finalizado porque todos los pedidos fueron completados.'}
           </DialogDescription>
         </DialogHeader>
 

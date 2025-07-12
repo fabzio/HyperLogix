@@ -1,3 +1,6 @@
+import { SearchFilter } from '@/components/SearchFilter'
+import { SemaphoreIndicator } from '@/components/SemaphoreIndicator'
+import { StatusFilter } from '@/components/StatusFilter'
 import Typography from '@/components/typography'
 import {
   Pagination,
@@ -26,12 +29,30 @@ export default function Orders() {
   const navigate = useNavigate({ from: '/simulacion' })
   const [page, setPage] = useState(1)
   const [pageSize] = useState(10)
-  const orders =
+  const [searchFilter, setSearchFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
+
+  const allOrders =
     plgNetwork?.orders.filter((order) => {
       if (!truckId) return true
       const stops = routes?.stops[truckId] || []
       return stops.some((stop) => stop.node.id === order.id)
     }) || []
+
+  const filteredOrders = allOrders.filter((order) => {
+    // Filter by search text
+    const matchesSearch =
+      order.id.toLowerCase().includes(searchFilter.toLowerCase()) ||
+      order.clientId?.toLowerCase().includes(searchFilter.toLowerCase())
+
+    // Filter by status
+    const matchesStatus =
+      statusFilter === 'all' || order.status === statusFilter
+
+    return matchesSearch && matchesStatus
+  })
+
+  const orders = filteredOrders
   const startIndex = (page - 1) * pageSize
   const endIndex = startIndex + pageSize
   const paginatedOrders = orders.slice(startIndex, endIndex)
@@ -42,15 +63,20 @@ export default function Orders() {
     }
   }
   const paginationNumbers = generatePaginationNumbers(page, totalPages)
-  if (!plgNetwork || !routes || !simulationTime) {
-    return <div>Cargando...</div>
-  }
 
   return (
     <article>
       <Typography variant="h3">Pedidos</Typography>
       {!orderId ? (
         <>
+          <div className="mb-4 space-y-3">
+            <SearchFilter
+              placeholder="Buscar por ID de pedido o cliente..."
+              value={searchFilter}
+              onChange={setSearchFilter}
+            />
+            <StatusFilter value={statusFilter} onChange={setStatusFilter} />
+          </div>
           <Table>
             <TableHeader>
               <TableRow>
@@ -72,7 +98,7 @@ export default function Orders() {
               {orders.length > 0 ? (
                 paginatedOrders.map((order) => {
                   const maxDate = new Date(order.maxDeliveryDate)
-                  const simulationDate = new Date(simulationTime)
+                  const simulationDate = new Date(simulationTime || new Date())
                   const remainingTime = Math.max(
                     Math.ceil(
                       (maxDate.getTime() - simulationDate.getTime()) /
@@ -101,15 +127,46 @@ export default function Orders() {
                         {order.status === 'COMPLETED' && 'Completado'}
                       </TableCell>
                       <TableCell className="px-4 py-2">
-                        {order.deliveredGLP.toString().padStart(2, ' ')}/
-                        {order.requestedGLP.toString().padStart(2, ' ')}
+                        <div className="flex items-center gap-2">
+                          <SemaphoreIndicator
+                            value={order.deliveredGLP}
+                            maxValue={order.requestedGLP}
+                            showAsIndicator={true}
+                            thresholds={{
+                              excellent: 100,
+                              good: 80,
+                              warning: 60,
+                              danger: 40,
+                            }}
+                          />
+                          <span>
+                            {order.deliveredGLP.toString().padStart(2, ' ')}/
+                            {order.requestedGLP.toString().padStart(2, ' ')}
+                          </span>
+                        </div>
                       </TableCell>
                       <TableCell className="px-4 py-2">
-                        {order.status === 'COMPLETED'
-                          ? 'A tiempo'
-                          : remainingTime > 0
-                            ? `${remainingTime} horas`
-                            : 'Retrasado'}
+                        {order.status === 'COMPLETED' ? (
+                          'A tiempo'
+                        ) : remainingTime > 0 ? (
+                          <div className="flex items-center gap-2">
+                            <SemaphoreIndicator
+                              value={remainingTime}
+                              maxValue={72} // Assuming 72 hours is the maximum reasonable time
+                              showAsIndicator={true}
+                              inverse={true}
+                              thresholds={{
+                                excellent: 80,
+                                good: 60,
+                                warning: 40,
+                                danger: 20,
+                              }}
+                            />
+                            <span>{remainingTime} horas</span>
+                          </div>
+                        ) : (
+                          'Retrasado'
+                        )}
                       </TableCell>
                     </TableRow>
                   )
@@ -117,7 +174,9 @@ export default function Orders() {
               ) : (
                 <TableRow>
                   <TableCell colSpan={4} className="text-center">
-                    No hay órdenes disponibles
+                    {searchFilter || statusFilter !== 'all'
+                      ? 'No se encontraron pedidos con los filtros aplicados'
+                      : 'No hay pedidos disponibles'}
                   </TableCell>
                 </TableRow>
               )}

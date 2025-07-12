@@ -20,7 +20,6 @@ public class RealTimeOperationConfig {
 
   @EventListener(ApplicationReadyEvent.class)
   public void onApplicationReady() {
-    log.info("Application is ready, initializing real-time operation system...");
     // The @PostConstruct in RealTimeOperationService will handle initialization
   }
 }

@@ -3,7 +3,6 @@ package com.hyperlogix.server.optimizer.AntColony;
 import com.hyperlogix.server.config.Constants;
 import com.hyperlogix.server.domain.*;
 import com.hyperlogix.server.optimizer.Graph;
-import com.hyperlogix.server.util.AStar;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -61,7 +60,8 @@ public class Ant {
       if (bestTruck == null) {
         System.out.println("Logistic collapse, no more trucks available");
         // Process the current routes with A* before returning
-        Routes roughSolution = new Routes(routes, paths, tourCost.values().stream().mapToDouble(Double::doubleValue).sum());
+        Routes roughSolution = new Routes(routes, paths,
+            tourCost.values().stream().mapToDouble(Double::doubleValue).sum());
         return graph.processRoutesWithAStar(roughSolution, graph.getAlgorithmStartDate());
       }
 
@@ -73,7 +73,7 @@ public class Ant {
       }
       moveToNode(bestTruck, currentNode, nextNode);
     }
-    
+
     // Process the final routes with A* to get exact paths and timing
     Routes roughSolution = new Routes(routes, paths, tourCost.values().stream().mapToDouble(Double::doubleValue).sum());
     return graph.processRoutesWithAStar(roughSolution, graph.getAlgorithmStartDate());
@@ -84,7 +84,8 @@ public class Ant {
     List<Double> truckScores = new ArrayList<>();
 
     for (Truck truck : network.getTrucks()) {
-      if (truck.getStatus() == TruckState.MAINTENANCE || truck.getStatus() == TruckState.BROKEN_DOWN) {
+      if (truck.getStatus() == TruckState.MAINTENANCE || truck.getStatus() == TruckState.BROKEN_DOWN
+          || truck.getStatus() == TruckState.ACTIVE) {
         continue;
       }
 
@@ -150,7 +151,7 @@ public class Ant {
     // Status bonus - prefer IDLE trucks to better distribute work
     double statusBonus = switch (truck.getStatus()) {
       case IDLE -> 2.0;
-      case ACTIVE -> 1.0;
+      case ACTIVE -> 0.5;
       default -> 0.1;
     };
 
@@ -314,7 +315,7 @@ public class Ant {
           .findFirst().orElse(null);
       assert station != null;
       int glpToRefill = Math.min(glpToFull, station.getAvailableCapacity(nextNode.getArrivalTime()));
-      station.reserveCapacity(nextNode.getArrivalTime(), glpToRefill);
+      station.reserveCapacity(nextNode.getArrivalTime(), glpToRefill, truck.getId(), null);
       truck.setCurrentCapacity(truck.getCurrentCapacity() + glpToRefill);
       truck.setCurrentFuel(truck.getMaxCapacity());
     } else if (nextNode.getNode().getType() == NodeType.DELIVERY) {
