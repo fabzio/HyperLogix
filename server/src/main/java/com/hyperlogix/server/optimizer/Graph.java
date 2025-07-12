@@ -60,7 +60,7 @@ public class Graph implements Cloneable {
     List<Node> allNodes = new java.util.ArrayList<>(ordersNode);
     allNodes.addAll(stationsNodes);
     Map<Node, Map<Node, Path>> newAdjacencyMap = new HashMap<>();
-    
+
     for (int i = 0; i < allNodes.size(); i++) {
       Node origin = allNodes.get(i);
       for (int j = i + 1; j < allNodes.size(); j++) {
@@ -68,7 +68,7 @@ public class Graph implements Cloneable {
 
         newAdjacencyMap.putIfAbsent(origin, new HashMap<>());
         newAdjacencyMap.putIfAbsent(destination, new HashMap<>());
-        
+
         // Use Manhattan distance instead of A*
         int manhattanDistance = calculateManhattanDistance(origin.getLocation(), destination.getLocation());
         // Create a simple path with just start and end points for distance calculation
@@ -79,7 +79,7 @@ public class Graph implements Cloneable {
         newAdjacencyMap.get(destination).put(origin, path);
       }
     }
-    
+
     this.adjacencyMapCache = newAdjacencyMap;
     this.lastAdjacencyMapUpdateTime = currentTime;
     this.lastActiveRoadblocks = new HashSet<>(); // Reset since we're not using roadblocks for adjacency
@@ -91,7 +91,8 @@ public class Graph implements Cloneable {
   }
 
   /**
-   * Process the final routes using A* pathfinding to get exact paths and arrival times
+   * Process the final routes using A* pathfinding to get exact paths and arrival
+   * times
    */
   public Routes processRoutesWithAStar(Routes routes, LocalDateTime algorithmStartTime) {
     Map<String, List<Stop>> processedRoutes = new HashMap<>();
@@ -101,7 +102,7 @@ public class Graph implements Cloneable {
     for (Map.Entry<String, List<Stop>> entry : routes.getStops().entrySet()) {
       String truckId = entry.getKey();
       List<Stop> originalRoute = entry.getValue();
-      
+
       if (originalRoute.isEmpty()) {
         processedRoutes.put(truckId, new ArrayList<>());
         processedPaths.put(truckId, new ArrayList<>());
@@ -110,57 +111,63 @@ public class Graph implements Cloneable {
 
       List<Stop> processedRoute = new ArrayList<>();
       List<Path> processedPathList = new ArrayList<>();
-      
+
       // Add the first stop (truck's starting location)
       Stop currentStop = originalRoute.get(0);
       currentStop.setArrivalTime(algorithmStartTime);
       processedRoute.add(currentStop);
-      
+
       // Process each subsequent stop with A* pathfinding
       for (int i = 1; i < originalRoute.size(); i++) {
         Stop nextStop = originalRoute.get(i);
         Point fromLocation = currentStop.getNode().getLocation();
         Point toLocation = nextStop.getNode().getLocation();
-        
+
         // Use A* to find the actual path considering roadblocks
         List<Point> actualPath = AStar.encontrarRuta(
-            fromLocation, 
-            toLocation, 
-            currentStop.getArrivalTime(), 
-            plgNetwork.getRoadblocks()
-        );
-        
+            fromLocation,
+            toLocation,
+            currentStop.getArrivalTime(),
+            plgNetwork.getRoadblocks());
+
         if (actualPath.isEmpty()) {
           // If A* fails, use direct path as fallback
           actualPath = List.of(fromLocation, toLocation);
         }
-        
-        Path realPath = new Path(actualPath, actualPath.size() * Constants.EDGE_LENGTH);
+
+        // Calculate actual distance as sum of Manhattan distances between consecutive
+        // points
+        int totalDistance = 0;
+        for (int j = 0; j < actualPath.size() - 1; j++) {
+          totalDistance += calculateManhattanDistance(actualPath.get(j), actualPath.get(j + 1));
+        }
+
+        Path realPath = new Path(actualPath, totalDistance);
         processedPathList.add(realPath);
-        
+
         // Calculate actual arrival time based on path length
         Truck truck = plgNetwork.getTrucks().stream()
             .filter(t -> t.getId().equals(truckId))
             .findFirst()
             .orElse(null);
-            
+
         if (truck != null) {
           Duration travelTime = truck.getTimeToDestination(realPath.length());
           LocalDateTime arrivalTime = currentStop.getArrivalTime().plus(travelTime);
           nextStop.setArrivalTime(arrivalTime);
-          
+
           double fuelCost = truck.getFuelConsumption(realPath.length());
           totalCost += fuelCost;
         }
-        
+
         processedRoute.add(nextStop);
         currentStop = nextStop;
       }
-      
+
       processedRoutes.put(truckId, processedRoute);
       processedPaths.put(truckId, processedPathList);
     }
-    
+
     return new Routes(processedRoutes, processedPaths, totalCost);
   }
 

@@ -29,9 +29,7 @@ public class OrderDataLoader implements CommandLineRunner {
   @Override
   public void run(String... args) {
     if (orderRepository.findAll().isEmpty()) {
-      log.info("Starting order data loading process...");
-
-      String dataDir = "src/main/java/com/hyperlogix/server/benchmark/pedidos.20250419/";
+      String dataDir = "src/main/java/com/hyperlogix/server/mock/pedidos.20250419/";
       List<String> orderFilePaths = List.of(
           dataDir + "ventas202501.txt",
           dataDir + "ventas202502.txt",
@@ -56,15 +54,15 @@ public class OrderDataLoader implements CommandLineRunner {
           dataDir + "ventas202612.txt");
 
       List<Order> orders = MockData.loadOrdersFromFiles(orderFilePaths, -1);
-      log.info("Loaded {} orders from files, starting batch save process...", orders.size());
+      log.info("Loaded {} orders from files, starting batch save process...",
+          orders.size());
 
       saveBatches(orders);
 
-      log.info("Order data loading completed successfully!");
     } else {
-      log.info("Orders already exist in database, skipping data loading.");
     }
   }
+
   @Transactional
   private void saveBatches(List<Order> orders) {
     int totalOrders = orders.size();
@@ -75,17 +73,17 @@ public class OrderDataLoader implements CommandLineRunner {
       List<Order> batch = orders.subList(i, endIndex);
 
       int currentBatch = (i / BATCH_SIZE) + 1;
-      log.info("Processing batch {}/{} ({} orders)...", currentBatch, totalBatches, batch.size());
+       log.info("Processing batch {}/{} ({} orders)...", currentBatch, totalBatches,
+       batch.size());
 
       try {
         List<com.hyperlogix.server.features.orders.entity.OrderEntity> entities = batch.stream()
             .map(OrderMapper::mapToEntity).toList();
 
         orderRepository.saveAll(entities);
-        log.info("Successfully saved batch {}/{}", currentBatch, totalBatches);
-
-      } catch (Exception e) {
-        log.error("Failed to save batch {}/{}: {}", currentBatch, totalBatches, e.getMessage());
+               } catch (Exception e) {
+         log.error("Failed to save batch {}/{}: {}", currentBatch, totalBatches,
+         e.getMessage());
         throw new RuntimeException("Batch save failed", e);
       }
     }

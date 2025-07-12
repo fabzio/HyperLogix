@@ -29,9 +29,7 @@ public class RoadblockDataLoader implements CommandLineRunner {
   @Override
   public void run(String... args) {
     if (roadblockRepository.findAll().isEmpty()) {
-      log.info("Starting roadblock data loading process...");
-
-      String dataDir = "src/main/java/com/hyperlogix/server/benchmark/bloqueos.20250419/";
+      String dataDir = "src/main/java/com/hyperlogix/server/mock/bloqueos.20250419/";
       List<String> roadblocksFilePaths = List.of(
           dataDir + "202501.bloqueos.txt",
           dataDir + "202502.bloqueos.txt",
@@ -47,15 +45,15 @@ public class RoadblockDataLoader implements CommandLineRunner {
           dataDir + "202512.bloqueos.txt");
 
       List<Roadblock> roadblocks = MockData.loadRoadlocksFromFiles(roadblocksFilePaths, -1);
-      log.info("Loaded {} roadblocks from files, starting batch save process...", roadblocks.size());
+      log.info("Loaded {} roadblocks from files, starting batch save process...",
+          roadblocks.size());
 
       saveBatches(roadblocks);
 
-      log.info("Roadblock data loading completed successfully!");
     } else {
-      log.info("Roadblocks already exist in database, skipping data loading.");
     }
   }
+
   @Transactional
   private void saveBatches(List<Roadblock> roadblocks) {
     int totalRoadblocks = roadblocks.size();
@@ -66,17 +64,17 @@ public class RoadblockDataLoader implements CommandLineRunner {
       List<Roadblock> batch = roadblocks.subList(i, endIndex);
 
       int currentBatch = (i / BATCH_SIZE) + 1;
-      log.info("Processing batch {}/{} ({} roadblocks)...", currentBatch, totalBatches, batch.size());
+      log.info("Processing batch {}/{} ({} roadblocks)...", currentBatch,
+          totalBatches, batch.size());
 
       try {
         List<com.hyperlogix.server.features.blocks.entity.BlockEntity> entities = batch.stream()
             .map(BlockMapper::mapToEntity).toList();
 
         roadblockRepository.saveAll(entities);
-        log.info("Successfully saved batch {}/{}", currentBatch, totalBatches);
-
       } catch (Exception e) {
-        log.error("Failed to save batch {}/{}: {}", currentBatch, totalBatches, e.getMessage());
+        log.error("Failed to save batch {}/{}: {}", currentBatch, totalBatches,
+            e.getMessage());
         throw new RuntimeException("Batch save failed", e);
       }
     }

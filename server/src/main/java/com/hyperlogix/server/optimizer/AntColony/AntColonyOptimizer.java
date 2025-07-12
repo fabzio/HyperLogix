@@ -93,12 +93,20 @@ public class AntColonyOptimizer implements Optimizer {
     } catch (InterruptedException e) {
       executor.shutdownNow();
       Thread.currentThread().interrupt();
+      // Return best solution found so far, or default if none found
+      if (bestSolution != null) {
+        return new OptimizerResult(bestSolution, bestSolution.getCost());
+      } else {
+        return new OptimizerResult(null, Double.MAX_VALUE);
+      }
     }
 
-    assert bestSolution != null;
-    return new OptimizerResult(
-        bestSolution,
-        bestSolution.getCost());
+    // Remove assert and handle null case gracefully
+    if (bestSolution != null) {
+      return new OptimizerResult(bestSolution, bestSolution.getCost());
+    } else {
+      return new OptimizerResult(null, Double.MAX_VALUE);
+    }
   }
 
   @Override

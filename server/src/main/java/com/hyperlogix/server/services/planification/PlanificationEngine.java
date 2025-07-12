@@ -36,19 +36,44 @@ public class PlanificationEngine implements Runnable {
 
   @Override
   public void run() {
-    log.info("Starting planification for network task");
     currentThread = Thread.currentThread();
     isPlanning = true;
 
-    // Count calculating orders and log details for debugging
+    // Count calculating orders and available trucks
     long calculatingOrdersCount = network.getOrders().stream()
         .filter(order -> order.getStatus() == OrderStatus.CALCULATING)
         .count();
 
+    long availableTrucksCount = network.getTrucks().stream()
+        .filter(truck -> truck.getStatus() != com.hyperlogix.server.domain.TruckState.MAINTENANCE && 
+                        truck.getStatus() != com.hyperlogix.server.domain.TruckState.BROKEN_DOWN)
+        .count();
+
     currentNodesProcessed = (int) calculatingOrdersCount + network.getStations().size();
 
-    log.info("Planification starting with {} total orders, {} calculating orders, {} stations",
-        network.getOrders().size(), calculatingOrdersCount, network.getStations().size());
+    log.info("Planification starting with {} total orders, {} calculating orders, {} stations, {} available trucks",
+        network.getOrders().size(), calculatingOrdersCount, network.getStations().size(), availableTrucksCount);
+
+    // Check if there are available trucks
+    if (availableTrucksCount == 0) {
+      log.warn("No available trucks for planification - all trucks are in maintenance or broken down");
+      // Send empty routes to indicate no planification possible
+      sendPlanificationResult(null);
+      isPlanning = false;
+      currentNodesProcessed = 0;
+      currentThread = null;
+      return;
+    }
+
+    // Check if there are calculating orders
+    if (calculatingOrdersCount == 0) {
+      log.info("No calculating orders found - skipping planification");
+      sendPlanificationResult(null);
+      isPlanning = false;
+      currentNodesProcessed = 0;
+      currentThread = null;
+      return;
+    }
 
     // Log order details for debugging
     network.getOrders().forEach(order -> log.debug("Order {}: status={}, clientId={}, requestedGLP={}",
@@ -73,6 +98,7 @@ public class PlanificationEngine implements Runnable {
           network.getTrucks().size(), calculatingOrdersCount);
 
       OptimizerResult result = optimizer.run(ctx, algorithmDuration);
+
       Routes routes = result.getRoutes();
 
       log.info("Planification completed. Generated routes for {} trucks",
@@ -81,10 +107,8 @@ public class PlanificationEngine implements Runnable {
       sendPlanificationResult(routes);
     } catch (Exception e) {
       if (Thread.currentThread().isInterrupted()) {
-        log.info("Planification execution was interrupted");
         return;
       }
-      log.error("Error during planification", e);
     } finally {
       isPlanning = false;
       currentNodesProcessed = 0;

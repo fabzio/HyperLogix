@@ -42,13 +42,13 @@ public class SimulationService {
           Duration.ofSeconds(3),
           Duration.ofSeconds(5),
           1.0,
-          Duration.ofMillis(100));
+          Duration.ofMillis(300));
     } else {
       config = new SimulationConfig(
           Duration.ofSeconds(3),
           Duration.ofSeconds(5),
           256.0,
-          Duration.ofMillis(100));
+          Duration.ofMillis(300));
     }
     SimulationNotifier notifier = snapshot -> {
       messaging.convertAndSend("/topic/simulation/" + simulationId, snapshot);

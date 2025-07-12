@@ -83,7 +83,6 @@ public class RealTimeSimulationEngine implements Runnable {
   @Override
   public void run() {
     running.set(true);
-    log.info("=====Real-Time Simulation started=====");
     log.info("Config K={}, Sa={}, Sc={}, Ta={}",
         simulationConfig.getTimeAcceleration(),
         simulationConfig.getCurrentAlgorithmInterval(),
@@ -113,7 +112,6 @@ public class RealTimeSimulationEngine implements Runnable {
       }
 
       if (simulatedTime.isAfter(nextPlanningTime)) {
-        log.info("Real-time simulated time: {}", simulatedTime);
         int ordersToProcess = getOrderBatch(simulatedTime);
 
         // Track order arrivals for rate calculation (only count new orders, not
@@ -130,7 +128,6 @@ public class RealTimeSimulationEngine implements Runnable {
         } else if (ordersToProcess > 0) {
           log.debug("Orders to process ({}) but no changes detected, skipping planification", ordersToProcess);
         } else {
-          log.debug("No orders to process, skipping planification request");
         }
 
         nextPlanningTime = nextPlanningTime
@@ -154,7 +151,6 @@ public class RealTimeSimulationEngine implements Runnable {
       sleep(simulationConfig.getSimulationResolution());
     }
 
-    log.info("=====Real-Time Simulation ended=====");
   }
 
   private int getOrderBatch(LocalDateTime currentDateTime) {
@@ -196,7 +192,6 @@ public class RealTimeSimulationEngine implements Runnable {
     }
 
     if (totalOrdersToProcess == 0) {
-      log.debug("No orders to process in real-time simulation at {}", currentDateTime);
     }
 
     return totalOrdersToProcess;
@@ -211,9 +206,7 @@ public class RealTimeSimulationEngine implements Runnable {
 
       if (truck != null) {
         truck.setStatus(newState);
-        log.info("Updated truck {} state to {}", truckId, newState);
       } else {
-        log.warn("Truck {} not found in network", truckId);
       }
     }
   }
@@ -224,7 +217,6 @@ public class RealTimeSimulationEngine implements Runnable {
    */
   public void triggerImmediateUpdate() {
     if (running.get() && plgNetwork != null) {
-      log.debug("Triggering immediate update notification");
 
       SimulationMetrics metrics = calculateMetrics();
       PlanificationStatus planificationStatus = planificationService.getPlanificationStatus(sessionId);
@@ -242,7 +234,6 @@ public class RealTimeSimulationEngine implements Runnable {
    */
   public void triggerImmediatePlanification() {
     if (running.get() && plgNetwork != null) {
-      log.info("Triggering immediate planification due to new order arrival");
 
       // Get current order status before any changes
       List<Order> allOrders = realTimeOrderRepository.getAllOrders();
@@ -255,9 +246,6 @@ public class RealTimeSimulationEngine implements Runnable {
       long initialInProgressCount = allOrders.stream()
           .filter(order -> order.getStatus() == OrderStatus.IN_PROGRESS)
           .count();
-
-      log.info("Before immediate planification - PENDING: {}, CALCULATING: {}, IN_PROGRESS: {}",
-          initialPendingCount, initialCalculatingCount, initialInProgressCount);
 
       // Mark any PENDING orders as CALCULATING to ensure they get processed
       List<Order> pendingOrders = realTimeOrderRepository.getAllOrders().stream()
@@ -289,11 +277,9 @@ public class RealTimeSimulationEngine implements Runnable {
             .filter(order -> order.getStatus() == OrderStatus.CALCULATING)
             .count();
 
-        log.info("Immediate planification triggered with {} calculating orders", finalCalculatingCount);
         requestPlanification();
         triggerImmediateUpdate(); // Also send immediate update
       } else {
-        log.warn("No orders in CALCULATING status after immediate trigger - this may indicate a problem");
       }
     } else {
       log.warn("Cannot trigger immediate planification - running: {}, plgNetwork: {}",
@@ -302,7 +288,6 @@ public class RealTimeSimulationEngine implements Runnable {
   }
 
   public void stop() {
-    log.info("Stopping real-time simulation...");
     running.set(false);
     lock.lock();
     try {
@@ -316,7 +301,6 @@ public class RealTimeSimulationEngine implements Runnable {
     switch (command.toUpperCase()) {
       case "PAUSE" -> {
         paused.set(true);
-        log.info("Real-time simulation paused");
       }
       case "RESUME" -> {
         paused.set(false);
@@ -326,7 +310,6 @@ public class RealTimeSimulationEngine implements Runnable {
         } finally {
           lock.unlock();
         }
-        log.info("Real-time simulation resumed");
       }
     }
   }
@@ -334,13 +317,10 @@ public class RealTimeSimulationEngine implements Runnable {
   // Copy necessary methods from SimulationEngine for real-time operations
   private void updateSystemState(Duration timeStep) {
     // Implementation similar to SimulationEngine but working with real-time orders
-    log.trace("Updating real-time system state: {}", timeStep);
     if (activeRoutes == null) {
-      log.warn("Active routes are not set, skipping update");
       return;
     }
     if (activeRoutes.getStops().isEmpty() || activeRoutes.getPaths().isEmpty()) {
-      log.warn("No active routes or stops available, skipping update");
       return;
     }
 
@@ -592,8 +572,6 @@ public class RealTimeSimulationEngine implements Runnable {
     Duration newInterval = simulationConfig.getCurrentAlgorithmInterval();
 
     if (!previousInterval.equals(newInterval)) {
-      log.info("Algorithm interval adjusted from {} to {} based on order arrival rate: {:.2f} orders/hour",
-          previousInterval, newInterval, orderArrivalRate);
     }
   }
 
@@ -619,8 +597,6 @@ public class RealTimeSimulationEngine implements Runnable {
     if (hasCalculatingOrders) {
       lastPlanificationStart = LocalDateTime.now();
       totalPlanificationRequests++;
-      log.info("Requesting real-time planification from {} with {} calculating orders",
-          sessionId, calculatingOrdersCount);
 
       // Create updated network with current orders for planification
       PLGNetwork networkForPlanification = updatePLGNetworkWithCurrentOrders();
@@ -638,7 +614,6 @@ public class RealTimeSimulationEngine implements Runnable {
           new PlanificationRequestEvent(sessionId, networkForPlanification, simulatedTime,
               simulationConfig.getAlgorithmTime()));
     } else {
-      log.debug("No orders in CALCULATING status, skipping planification request");
     }
   }
 
@@ -651,7 +626,6 @@ public class RealTimeSimulationEngine implements Runnable {
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       running.set(false);
-      log.error("Real-time simulation interrupted", e);
     } finally {
       lock.unlock();
     }
@@ -666,7 +640,6 @@ public class RealTimeSimulationEngine implements Runnable {
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       running.set(false);
-      log.warn("Real-time simulation paused wait interrupted");
     } finally {
       lock.unlock();
     }
@@ -717,7 +690,6 @@ public class RealTimeSimulationEngine implements Runnable {
       realTimeOrderRepository.updateOrderStatus(order.getId(), OrderStatus.IN_PROGRESS);
     });
 
-    log.info("Received updated routes from Planificator for real-time simulation");
   }
 
   public SimulationStatus getStatus() {
@@ -846,6 +818,5 @@ public class RealTimeSimulationEngine implements Runnable {
    */
   public void forceNextReplanification() {
     this.forceReplanification = true;
-    log.info("Next replanification will be forced");
   }
 }
