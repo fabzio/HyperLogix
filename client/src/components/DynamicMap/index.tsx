@@ -38,6 +38,8 @@ interface DynamicMapProps {
   polylines?: MapPolyline[]
   onPolylineHover?: (truckId: string | null) => void
   onPolylineClick?: (truckId: string, polyline: MapPolyline) => void
+  onStationClick?: (stationId: string) => void
+  onOrderClick?: (orderId: string) => void
   hoveredPolylineId?: string | null
 }
 
@@ -53,6 +55,8 @@ export default function DynamicMap({
   polylines = [],
   onPolylineHover,
   onPolylineClick,
+  onStationClick,
+  onOrderClick,
   hoveredPolylineId,
 }: DynamicMapProps) {
   const { theme } = useTheme()
@@ -201,6 +205,7 @@ export default function DynamicMap({
                     station={station}
                     cx={cx}
                     cy={cy}
+                    onClick={onStationClick}
                   />
                 )
               })}
@@ -208,7 +213,13 @@ export default function DynamicMap({
               {orders.map((order) => {
                 const [cx, cy] = transformLocation(order.location)
                 return (
-                  <OrderMarker key={order.id} order={order} cx={cx} cy={cy} />
+                  <OrderMarker
+                    key={order.id}
+                    order={order}
+                    cx={cx}
+                    cy={cy}
+                    onClick={onOrderClick}
+                  />
                 )
               })}
 

@@ -477,21 +477,6 @@ export default function Run() {
                     'Iniciar simulación'
                   )}
                 </Button>
-                {!isCollapseMode && (
-                  <Button
-                    type="submit"
-                    variant="secondary"
-                    className="w-full"
-                    disabled={isPending}
-                    onClick={() => form.setValue('executionMode', 'real')}
-                  >
-                    {isPending ? (
-                      <Loader2 className="animate-spin" />
-                    ) : (
-                      'Ver en tiempo real'
-                    )}
-                  </Button>
-                )}
               </div>
             )}
           </div>

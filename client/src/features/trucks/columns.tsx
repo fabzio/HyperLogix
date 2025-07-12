@@ -1,4 +1,5 @@
 import type { Truck } from '@/api'
+import { SemaphoreIndicator } from '@/components/SemaphoreIndicator'
 import Typography from '@/components/typography'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
@@ -53,20 +54,56 @@ export const truckColumns: ColumnDef<Partial<Truck>>[] = [
   {
     accessorKey: 'maxCapacity',
     header: 'Capacidad de GLP (m³)',
-    cell: ({ row }) => (
-      <Typography variant="muted" className="font-semibold">
-        {row.original.maxCapacity}
-      </Typography>
-    ),
+    cell: ({ row }) => {
+      const maxCapacity = row.original.maxCapacity
+      const currentCapacity = row.original.currentCapacity || 0
+
+      return (
+        <div className="flex items-center gap-2">
+          <SemaphoreIndicator
+            value={currentCapacity}
+            maxValue={maxCapacity || 100}
+            showAsIndicator={true}
+            thresholds={{
+              excellent: 80,
+              good: 60,
+              warning: 40,
+              danger: 20,
+            }}
+          />
+          <Typography variant="muted" className="font-semibold">
+            {maxCapacity}
+          </Typography>
+        </div>
+      )
+    },
   },
   {
     accessorKey: 'fuelCapacity',
     header: 'Capacidad de combustible (gal)',
-    cell: ({ row }) => (
-      <Typography variant="muted" className="font-semibold">
-        {row.original.fuelCapacity}
-      </Typography>
-    ),
+    cell: ({ row }) => {
+      const fuelCapacity = row.original.fuelCapacity
+      const currentFuel = row.original.currentFuel || 0
+
+      return (
+        <div className="flex items-center gap-2">
+          <SemaphoreIndicator
+            value={currentFuel}
+            maxValue={fuelCapacity || 100}
+            showAsIndicator={true}
+            thresholds={{
+              excellent: 80,
+              good: 60,
+              warning: 40,
+              danger: 20,
+            }}
+          />
+          <Typography variant="muted" className="font-semibold">
+            {fuelCapacity}
+          </Typography>
+        </div>
+      )
+    },
   },
 ]
 
