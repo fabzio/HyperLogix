@@ -401,7 +401,7 @@ public class RealTimeSimulationEngine implements Runnable {
     int glpToRefill = Math.min(glpToFull, availableCapacity);
 
     if (glpToRefill > 0) {
-      station.reserveCapacity(simulatedTime, glpToRefill);
+      station.reserveCapacity(simulatedTime, glpToRefill, truck.getId(), null);
       truck.setCurrentCapacity(truck.getCurrentCapacity() + glpToRefill);
       log.info("Truck {} refilled {} GLP at station {}", truck.getId(), glpToRefill, station.getName());
     } else {

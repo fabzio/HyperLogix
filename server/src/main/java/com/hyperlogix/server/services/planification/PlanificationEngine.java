@@ -39,41 +39,15 @@ public class PlanificationEngine implements Runnable {
     currentThread = Thread.currentThread();
     isPlanning = true;
 
-    // Count calculating orders and available trucks
+    // Count calculating orders and log details for debugging
     long calculatingOrdersCount = network.getOrders().stream()
         .filter(order -> order.getStatus() == OrderStatus.CALCULATING)
         .count();
 
-    long availableTrucksCount = network.getTrucks().stream()
-        .filter(truck -> truck.getStatus() != com.hyperlogix.server.domain.TruckState.MAINTENANCE && 
-                        truck.getStatus() != com.hyperlogix.server.domain.TruckState.BROKEN_DOWN)
-        .count();
-
     currentNodesProcessed = (int) calculatingOrdersCount + network.getStations().size();
 
-    log.info("Planification starting with {} total orders, {} calculating orders, {} stations, {} available trucks",
-        network.getOrders().size(), calculatingOrdersCount, network.getStations().size(), availableTrucksCount);
-
-    // Check if there are available trucks
-    if (availableTrucksCount == 0) {
-      log.warn("No available trucks for planification - all trucks are in maintenance or broken down");
-      // Send empty routes to indicate no planification possible
-      sendPlanificationResult(null);
-      isPlanning = false;
-      currentNodesProcessed = 0;
-      currentThread = null;
-      return;
-    }
-
-    // Check if there are calculating orders
-    if (calculatingOrdersCount == 0) {
-      log.info("No calculating orders found - skipping planification");
-      sendPlanificationResult(null);
-      isPlanning = false;
-      currentNodesProcessed = 0;
-      currentThread = null;
-      return;
-    }
+    log.info("Planification starting with {} total orders, {} calculating orders, {} stations",
+        network.getOrders().size(), calculatingOrdersCount, network.getStations().size());
 
     // Log order details for debugging
     network.getOrders().forEach(order -> log.debug("Order {}: status={}, clientId={}, requestedGLP={}",

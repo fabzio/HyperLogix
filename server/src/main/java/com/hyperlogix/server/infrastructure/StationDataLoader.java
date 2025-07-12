@@ -22,10 +22,11 @@ public class StationDataLoader implements CommandLineRunner {
   public void run(String... args) {
     if (stationRepository.findAll().isEmpty()) {
       List<Station> stations = new ArrayList<>(
-          List.of(new Station("S1", "Central", new Point(12, 8), Integer.MAX_VALUE, true, new HashMap<>()), // Adjusted
-              new Station("S2", "Intermedio Norte", new Point(42, 42), 160, false, new HashMap<>()), // Adjusted
+          List.of(
+              new Station("S1", "Central", new Point(12, 8), Integer.MAX_VALUE, true, new HashMap<>(), new ArrayList<>()), // Adjusted
+              new Station("S2", "Intermedio Norte", new Point(42, 42), 160, false, new HashMap<>(), new ArrayList<>()), // Adjusted
               new Station("S3", "Intermedio Este", new Point(63, 3), 160, false,
-                  new HashMap<>())));
+                  new HashMap<>(), new ArrayList<>())));
       stationRepository.saveAll(stations.stream()
           .map(StationMapper::mapToEntity).toList());
     }
