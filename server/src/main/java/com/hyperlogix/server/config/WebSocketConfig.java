@@ -12,7 +12,7 @@ import org.springframework.web.socket.server.HandshakeInterceptor;
 import org.springframework.web.socket.server.support.DefaultHandshakeHandler;
 
 @Configuration
-@EnableWebSocketMessageBroker
+// @EnableWebSocketMessageBroker - Disabled in favor of WebSocketConfigEnhanced
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
   @Autowired
   private DefaultHandshakeHandler handshakeHandler;

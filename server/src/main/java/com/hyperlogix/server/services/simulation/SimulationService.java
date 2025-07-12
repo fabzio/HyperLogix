@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import com.hyperlogix.server.domain.Order;
 import com.hyperlogix.server.domain.PLGNetwork;
@@ -18,13 +19,21 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import jakarta.annotation.PreDestroy;
+import lombok.extern.slf4j.Slf4j;
+
 @Service
+@Slf4j
 public class SimulationService {
   private final ApplicationEventPublisher eventPublisher;
   private final SimpMessagingTemplate messaging;
   private final Map<String, SimulationEngine> simulation = new ConcurrentHashMap<>();
   private final Map<String, RealTimeSimulationEngine> realTimeSimulation = new ConcurrentHashMap<>();
-  private final ExecutorService executor = Executors.newCachedThreadPool();
+  private final ExecutorService executor = Executors.newCachedThreadPool(r -> {
+    Thread t = new Thread(r, "SimulationService-" + System.currentTimeMillis());
+    t.setDaemon(true);
+    return t;
+  });
 
   @Autowired
   private PlanificationService planificationService;
@@ -158,5 +167,39 @@ public class SimulationService {
     if (engine != null) {
       engine.triggerImmediatePlanification();
     }
+  }
+
+  /**
+   * Cleanup resources when the service is being destroyed
+   */
+  @PreDestroy
+  public void cleanup() {
+    log.info("Cleaning up SimulationService resources...");
+    
+    // Stop all running simulations
+    simulation.values().forEach(SimulationEngine::stop);
+    realTimeSimulation.values().forEach(RealTimeSimulationEngine::stop);
+    
+    // Clear the maps
+    simulation.clear();
+    realTimeSimulation.clear();
+    
+    // Shutdown executor service
+    executor.shutdown();
+    try {
+      if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+        log.warn("Executor did not terminate gracefully, forcing shutdown");
+        executor.shutdownNow();
+        if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+          log.error("Executor did not terminate after forced shutdown");
+        }
+      }
+    } catch (InterruptedException e) {
+      log.warn("Interrupted while waiting for executor termination");
+      executor.shutdownNow();
+      Thread.currentThread().interrupt();
+    }
+    
+    log.info("SimulationService cleanup completed");
   }
 }

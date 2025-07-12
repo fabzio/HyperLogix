@@ -45,7 +45,7 @@ public class RealTimeOperationService {
   }
 
   @EventListener(ApplicationReadyEvent.class)
-  @Async
+  @Async("asyncExecutor")
   public void onApplicationReady() {
     CompletableFuture.runAsync(this::initializeMainSimulationWithRetry);
   }

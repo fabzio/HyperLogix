@@ -47,7 +47,7 @@ public class RealTimeSimulationEngine implements Runnable {
   private final Condition condition = lock.newCondition();
   private final Map<String, Integer> truckCurrentStopIndex = new ConcurrentHashMap<>();
 
-  // Metrics tracking fields
+  // Metrics tracking fields with periodic cleanup
   private final Map<String, Double> truckFuelConsumed = new ConcurrentHashMap<>();
   private final Map<String, Double> truckDistanceTraveled = new ConcurrentHashMap<>();
   private final Map<String, Integer> truckDeliveryCount = new ConcurrentHashMap<>();
@@ -57,10 +57,12 @@ public class RealTimeSimulationEngine implements Runnable {
   private Duration totalPlanificationTime = Duration.ZERO;
   private LocalDateTime lastPlanificationStart;
 
-  // Order arrival rate tracking
+  // Order arrival rate tracking with automatic cleanup
   private final Map<LocalDateTime, Integer> orderArrivalHistory = new ConcurrentHashMap<>();
   private LocalDateTime lastOrderRateCheck = null;
+  private LocalDateTime lastMetricsCleanup = null;
   private static final Duration ORDER_RATE_CHECK_WINDOW = Duration.ofMinutes(10);
+  private static final Duration METRICS_CLEANUP_INTERVAL = Duration.ofMinutes(30);
 
   // Order change tracking to prevent unnecessary replanification
   private String lastOrdersSnapshot = "";
@@ -93,6 +95,7 @@ public class RealTimeSimulationEngine implements Runnable {
     simulatedTime = LocalDateTime.now();
     nextPlanningTime = simulatedTime;
     lastOrderRateCheck = simulatedTime;
+    lastMetricsCleanup = simulatedTime;
 
     while (running.get()) {
       waitIfPaused();
@@ -109,6 +112,12 @@ public class RealTimeSimulationEngine implements Runnable {
       if (simulatedTime.isAfter(lastOrderRateCheck.plus(ORDER_RATE_CHECK_WINDOW))) {
         adjustAlgorithmIntervalBasedOnOrderRate();
         lastOrderRateCheck = simulatedTime;
+      }
+
+      // Periodic cleanup of metrics to prevent memory buildup
+      if (simulatedTime.isAfter(lastMetricsCleanup.plus(METRICS_CLEANUP_INTERVAL))) {
+        cleanupOldMetrics();
+        lastMetricsCleanup = simulatedTime;
       }
 
       if (simulatedTime.isAfter(nextPlanningTime)) {
@@ -235,18 +244,6 @@ public class RealTimeSimulationEngine implements Runnable {
   public void triggerImmediatePlanification() {
     if (running.get() && plgNetwork != null) {
 
-      // Get current order status before any changes
-      List<Order> allOrders = realTimeOrderRepository.getAllOrders();
-      long initialPendingCount = allOrders.stream()
-          .filter(order -> order.getStatus() == OrderStatus.PENDING)
-          .count();
-      long initialCalculatingCount = allOrders.stream()
-          .filter(order -> order.getStatus() == OrderStatus.CALCULATING)
-          .count();
-      long initialInProgressCount = allOrders.stream()
-          .filter(order -> order.getStatus() == OrderStatus.IN_PROGRESS)
-          .count();
-
       // Mark any PENDING orders as CALCULATING to ensure they get processed
       List<Order> pendingOrders = realTimeOrderRepository.getAllOrders().stream()
           .filter(order -> order.getStatus() == OrderStatus.PENDING)
@@ -273,10 +270,6 @@ public class RealTimeSimulationEngine implements Runnable {
           .anyMatch(order -> order.getStatus() == OrderStatus.CALCULATING);
 
       if (hasCalculatingOrders) {
-        long finalCalculatingCount = realTimeOrderRepository.getAllOrders().stream()
-            .filter(order -> order.getStatus() == OrderStatus.CALCULATING)
-            .count();
-
         requestPlanification();
         triggerImmediateUpdate(); // Also send immediate update
       } else {
@@ -818,5 +811,30 @@ public class RealTimeSimulationEngine implements Runnable {
    */
   public void forceNextReplanification() {
     this.forceReplanification = true;
+  }
+
+  /**
+   * Clean up old metrics to prevent memory buildup
+   */
+  private void cleanupOldMetrics() {
+    // Clean up completed orders from orderStartTimes
+    List<String> completedOrderIds = realTimeOrderRepository.getAllOrders().stream()
+        .filter(order -> order.getStatus() == OrderStatus.COMPLETED)
+        .map(Order::getId)
+        .toList();
+    
+    completedOrderIds.forEach(orderStartTimes::remove);
+    
+    // Clean up customer delivery times - keep only most recent 1000 entries
+    if (customerDeliveryTimes.size() > 1000) {
+      customerDeliveryTimes.clear();
+    }
+    
+    // Clean up order arrival history older than 1 hour
+    LocalDateTime arrivalCutoff = simulatedTime.minusHours(1);
+    orderArrivalHistory.entrySet().removeIf(entry -> entry.getKey().isBefore(arrivalCutoff));
+    
+    log.debug("Cleaned up old metrics - orderStartTimes: {}, customerDeliveryTimes: {}, orderArrivalHistory: {}", 
+        orderStartTimes.size(), customerDeliveryTimes.size(), orderArrivalHistory.size());
   }
 }

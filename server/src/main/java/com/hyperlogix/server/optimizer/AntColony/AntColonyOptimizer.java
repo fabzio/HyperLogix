@@ -34,74 +34,78 @@ public class AntColonyOptimizer implements Optimizer {
 
     Routes bestSolution = null;
     int numThreads = Math.min(ants.size(), Runtime.getRuntime().availableProcessors());
-    ExecutorService executor = Executors.newFixedThreadPool(numThreads);
+    ExecutorService executor = Executors.newFixedThreadPool(numThreads, r -> {
+      Thread t = new Thread(r, "AntColony-" + System.currentTimeMillis());
+      t.setDaemon(true);
+      return t;
+    });
 
     long startTime = System.currentTimeMillis();
     long maxDurationMillis = maxDuration.toMillis();
 
-    for (int i = 0; i < antColonyConfig.NUM_ITERATIONS(); i++) {
-      long elapsedTime = System.currentTimeMillis() - startTime;
-      if (elapsedTime >= maxDurationMillis) {
-        System.out.println("Optimization terminated due to time limit. Completed " + i + " iterations.");
-        break;
-      }
-
-      ants.forEach(Ant::resetState);
-      List<Routes> solutions = Collections.synchronizedList(new ArrayList<>());
-      List<Future<Routes>> futures = new ArrayList<>();
-
-      for (Ant ant : ants) {
-        Callable<Routes> task = () -> {
-          Routes routes = ant.findSolution();
-          return routes;
-        };
-        futures.add(executor.submit(task));
-      }
-
-      for (Future<Routes> future : futures) {
-        try {
-          solutions.add(future.get());
-        } catch (InterruptedException | ExecutionException e) {
-          Thread.currentThread().interrupt();
-          System.err.println("Error retrieving ant solution: " + e.getMessage());
-          e.printStackTrace();
-        }
-      }
-
-      List<Routes> sortedSolutions = new ArrayList<>(solutions);
-      sortedSolutions.sort((r1, r2) -> Double.compare(r1.getCost(), r2.getCost()));
-
-      if (!sortedSolutions.isEmpty()) {
-        if (bestSolution == null || sortedSolutions.get(0).getCost() < bestSolution.getCost()) {
-          bestSolution = sortedSolutions.get(0);
-        }
-        graph.updatePheromoneMap(sortedSolutions, antColonyConfig);
-      }
-
-      if (notifier != null) {
-        notifier.notify(new OptimizerResult(
-            bestSolution,
-            bestSolution != null ? bestSolution.getCost() : Double.MAX_VALUE));
-      }
-    }
-    executor.shutdown();
     try {
-      if (!executor.awaitTermination(maxDurationMillis - (System.currentTimeMillis() - startTime),
-          TimeUnit.MILLISECONDS)) {
-        executor.shutdownNow();
+      for (int i = 0; i < antColonyConfig.NUM_ITERATIONS(); i++) {
+        long elapsedTime = System.currentTimeMillis() - startTime;
+        if (elapsedTime >= maxDurationMillis) {
+          System.out.println("Optimization terminated due to time limit. Completed " + i + " iterations.");
+          break;
+        }
+
+        ants.forEach(Ant::resetState);
+        List<Routes> solutions = Collections.synchronizedList(new ArrayList<>());
+        List<Future<Routes>> futures = new ArrayList<>();
+
+        for (Ant ant : ants) {
+          Callable<Routes> task = () -> {
+            Routes routes = ant.findSolution();
+            return routes;
+          };
+          futures.add(executor.submit(task));
+        }
+
+        for (Future<Routes> future : futures) {
+          try {
+            solutions.add(future.get());
+          } catch (InterruptedException | ExecutionException e) {
+            Thread.currentThread().interrupt();
+            System.err.println("Error retrieving ant solution: " + e.getMessage());
+            e.printStackTrace();
+          }
+        }
+
+        List<Routes> sortedSolutions = new ArrayList<>(solutions);
+        sortedSolutions.sort((r1, r2) -> Double.compare(r1.getCost(), r2.getCost()));
+
+        if (!sortedSolutions.isEmpty()) {
+          if (bestSolution == null || sortedSolutions.get(0).getCost() < bestSolution.getCost()) {
+            bestSolution = sortedSolutions.get(0);
+          }
+          graph.updatePheromoneMap(sortedSolutions, antColonyConfig);
+        }
+
+        if (notifier != null) {
+          notifier.notify(new OptimizerResult(
+              bestSolution,
+              bestSolution != null ? bestSolution.getCost() : Double.MAX_VALUE));
+        }
       }
-    } catch (InterruptedException e) {
-      executor.shutdownNow();
-      Thread.currentThread().interrupt();
-      // Return best solution found so far, or default if none found
-      if (bestSolution != null) {
-        return new OptimizerResult(bestSolution, bestSolution.getCost());
-      } else {
-        return new OptimizerResult(null, Double.MAX_VALUE);
+    } finally {
+      // Ensure executor is properly shut down
+      executor.shutdown();
+      try {
+        if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+          executor.shutdownNow();
+          if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+            System.err.println("AntColonyOptimizer: Executor did not terminate after forced shutdown");
+          }
+        }
+      } catch (InterruptedException e) {
+        executor.shutdownNow();
+        Thread.currentThread().interrupt();
       }
     }
 
-    // Remove assert and handle null case gracefully
+    // Return best solution found
     if (bestSolution != null) {
       return new OptimizerResult(bestSolution, bestSolution.getCost());
     } else {
