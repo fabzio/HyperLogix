@@ -4,6 +4,7 @@ import com.hyperlogix.server.config.Constants;
 import com.hyperlogix.server.domain.*;
 import com.hyperlogix.server.services.planification.PlanificationService;
 import com.hyperlogix.server.services.planification.PlanificationStatus;
+import com.hyperlogix.server.services.incident.IncidentManagement;
 
 import lombok.Setter;
 
@@ -22,6 +23,8 @@ import java.util.concurrent.locks.ReentrantLock;
 import com.hyperlogix.server.features.planification.dtos.PlanificationRequestEvent;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.Map;
+import java.util.ArrayList;
+
 
 public class SimulationEngine implements Runnable {
   private static final Logger log = LoggerFactory.getLogger(SimulationEngine.class);
@@ -31,7 +34,9 @@ public class SimulationEngine implements Runnable {
   private final String sessionId;
   private final SimulationConfig simulationConfig;
   private final SimulationNotifier simulationNotifier;
-  private final List<Order> orderRepository;
+  private final List<Order> orderRepository;  
+
+
 
   @Setter
   private PLGNetwork plgNetwork;
@@ -54,12 +59,14 @@ public class SimulationEngine implements Runnable {
   private final Map<String, LocalDateTime> orderStartTimes = new ConcurrentHashMap<>();
   private int totalPlanificationRequests = 0;
   private Duration totalPlanificationTime = Duration.ZERO;
-  private LocalDateTime lastPlanificationStart;
-
-  // Order arrival rate tracking
+  private IncidentManagement incidentManager = null;
+  private LocalDateTime lastPlanificationStart;  // Order arrival rate tracking
   private final Map<LocalDateTime, Integer> orderArrivalHistory = new ConcurrentHashMap<>();
   private LocalDateTime lastOrderRateCheck = null;
   private static final Duration ORDER_RATE_CHECK_WINDOW = Duration.ofMinutes(10);
+
+  // Mapa para guardar las órdenes DELAYED que deben ser prioridad para cada camión
+  private final Map<String, List<String>> truckPriorityOrders = new ConcurrentHashMap<>();
 
   public SimulationEngine(String sessionId,
       SimulationConfig simulationConfig,
@@ -83,11 +90,14 @@ public class SimulationEngine implements Runnable {
         simulationConfig.getCurrentAlgorithmInterval(),
         simulationConfig.getConsumptionInterval(),
         simulationConfig.getAlgorithmTime());
-
-    simulatedTime = orderRepository.getFirst().getDate().plus(Duration.ofNanos(1));
+        simulatedTime = orderRepository.getFirst().getDate().plus(Duration.ofNanos(1));
     nextPlanningTime = simulatedTime;
     lastOrderRateCheck = simulatedTime;
 
+    // Initialize incident manager now that plgNetwork is available
+    incidentManager = new IncidentManagement(plgNetwork.getIncidents());
+
+    boolean incidentsOrganized = false;
     while (running.get()) {
       waitIfPaused();
 
@@ -119,6 +129,9 @@ public class SimulationEngine implements Runnable {
         }
 
         requestPlanification();
+        if (!incidentsOrganized && activeRoutes != null) {
+            incidentsOrganized = true;
+        }
         nextPlanningTime = nextPlanningTime
             .plus(simulationConfig.getConsumptionInterval());
         log.info("Next planning time: {} (interval: {})", nextPlanningTime,
@@ -184,14 +197,27 @@ public class SimulationEngine implements Runnable {
     }
     if (activeRoutes.getStops().isEmpty() || activeRoutes.getPaths().isEmpty()) {
       return;
-    }
-
-    synchronized (routesLock) {
+    }    synchronized (routesLock) {
       for (Truck truck : plgNetwork.getTrucks()) {
-        if (truck.getStatus() == TruckState.MAINTENANCE || truck.getStatus() == TruckState.BROKEN_DOWN) {
-          continue;
+        // Handle trucks that are completely broken down (TYPE_2/TYPE_3 incidents)
+        if (truck.getStatus() == TruckState.BROKEN_DOWN) {
+          continue; // These trucks need workshop repair, skip all processing
         }
 
+        // Handle trucks in maintenance (TYPE_1 incidents) - they stay in standby
+        if (truck.getStatus() == TruckState.MAINTENANCE) {
+          boolean recovered = incidentManager.handleMaintenanceDelay(truck, simulatedTime);
+          if (!recovered) {
+            // Truck is still in maintenance, skip movement but keep route assigned
+            log.trace("Truck {} in maintenance standby - route preserved", truck.getId());
+            continue;
+          }
+          // If recovered, continue with normal processing below
+          changeOrdersState(truck.getId(), OrderStatus.IN_PROGRESS);
+          log.info("Truck {} recovered from maintenance, resuming route", truck.getId());
+        }
+
+        // Get assigned route for this truck
         List<Stop> stops = activeRoutes.getStops().getOrDefault(truck.getId(), List.of());
         if (stops.size() <= 1) {
           log.trace("Truck {} has no assigned stops", truck.getId());
@@ -281,6 +307,11 @@ public class SimulationEngine implements Runnable {
     } else {
       log.warn("No GLP available at station {} for truck {}", station.getName(), truck.getId());
     }
+    
+    if(truck.getStatus()== TruckState.RETURNING_TO_BASE){
+      truck.setStatus(TruckState.IDLE);
+      log.info("Truck {} returned to base and is now IDLE", truck.getId());
+    }
   }
 
   private void handleDeliveryArrival(Truck truck, Stop stop) {
@@ -318,7 +349,6 @@ public class SimulationEngine implements Runnable {
 
       // Check if order is completed
       if (order.getDeliveredGLP() >= order.getRequestedGLP()) {
-        order.setStatus(OrderStatus.COMPLETED);
 
         // Calculate delivery time
         LocalDateTime startTime = orderStartTimes.get(order.getId());
@@ -328,20 +358,49 @@ public class SimulationEngine implements Runnable {
         }
 
         log.info("Order {} completed", order.getId());
+        order.setStatus(OrderStatus.COMPLETED);
       }
     } else {
       log.warn("Truck {} has no capacity to deliver to order {}", truck.getId(), order.getId());
     }
+
+    // Debug: Escribir estado de todas las órdenes después de cada entrega
+    try (java.io.FileWriter fw = new java.io.FileWriter("debug_deliveries_sim.txt", true)) {
+      fw.write("--- Estado de órdenes tras entrega ---\n");
+      for (Order o : orderRepository) {
+        fw.write("Order: " + o.getId()
+          + ", Requested: " + o.getRequestedGLP()
+          + ", Delivered: " + o.getDeliveredGLP()
+          + ", Assigned: " + o.getAssignedGLP() + "\n");
+      }
+      fw.write("------------------------------\n");
+    } catch (Exception e) { }
+
+    if(truck.getCurrentCapacity() == 0){
+      truck.setStatus(TruckState.RETURNING_TO_BASE);
+      // Limpiar rutas y paths pendientes, dejando solo la última parada alcanzada
+      List<Stop> currentRoute = activeRoutes.getStops().get(truck.getId());
+      if (currentRoute != null && currentRoute.size() > 0) {
+        Stop lastStop = currentRoute.get(Math.max(0, truckCurrentStopIndex.getOrDefault(truck.getId(), 0)));
+        activeRoutes.getStops().put(truck.getId(), new ArrayList<>(List.of(lastStop)));
+      }
+      List<Path> currentPaths = activeRoutes.getPaths().get(truck.getId());
+      if (currentPaths != null) {
+        activeRoutes.getPaths().put(truck.getId(), new ArrayList<>());
+      }
+      // Cambiar estado de las órdenes pendientes a CALCULATING
+      changeOrdersState(truck.getId(), OrderStatus.CALCULATING);
+      log.info("Truck {} set to RETURNING_TO_BASE, cleared pending routes and set orders to CALCULATING", truck.getId());
+    }
   }
 
-  private void updateTruckLocationDuringTravel(Truck truck, List<Stop> stops, List<Path> paths, int pathIndex) {
-    if (pathIndex < 0 || pathIndex >= paths.size() || pathIndex >= stops.size() - 1) {
-      return; // Invalid path index or no more paths to travel
+  private void updateTruckLocationDuringTravel(Truck truck, List<Stop> stops, List<Path> paths, int currentStopIndex) {
+    if (currentStopIndex >= stops.size() - 1 || currentStopIndex >= paths.size()) {
+      return; // No more paths to travel
     }
 
-    Stop fromStop = stops.get(pathIndex);
-    Stop toStop = stops.get(pathIndex + 1);
-    Path currentPath = paths.get(pathIndex);
+    Stop fromStop = stops.get(currentStopIndex);
+    Path currentPath = paths.get(currentStopIndex);
 
     // Calculate time elapsed since leaving the fromStop
     Duration timeElapsed = Duration.between(fromStop.getArrivalTime(), simulatedTime);
@@ -381,15 +440,41 @@ public class SimulationEngine implements Runnable {
     truck.setCurrentFuel(newFuelLevel);
 
     // Interpolate position along the path
-    Point interpolatedPosition = interpolateAlongPath(currentPath.points(), progress);
-
-    // Update truck location
+    Point interpolatedPosition = interpolateAlongPath(currentPath.points(), progress);    // Update truck location
     truck.setLocation(interpolatedPosition);
 
-    log.debug("Truck {} traveling from stop {} to stop {} - position: ({}, {}) - progress: {:.2f}%, fuel: {:.2f}gal",
-        truck.getId(), fromStop.getNode().getId(), toStop.getNode().getId(),
-        interpolatedPosition.x(), interpolatedPosition.y(), progress * 100, newFuelLevel);
+    // Check for incidents between 5% and 35% progress of current path
+    if (progress >= 0.05 && progress <= 0.35) {
+      if(incidentManager.checkAndHandleIncident(truck, simulatedTime)) 
+        changeOrdersState(truck.getId(), OrderStatus.DELAYED);
+    }
+    log.trace("Truck {} at position ({}, {}) - progress: {:.2f}%, fuel: {:.2f}gal",
+      truck.getId(), interpolatedPosition.x(), interpolatedPosition.y(), progress * 100, newFuelLevel);
   }
+
+
+  private void changeOrdersState(String truckId, OrderStatus newStatus){
+      // Cambiar estado A todas las órdenes asignadas actualmente a este camión
+      List<Stop> assignedStops = activeRoutes.getStops().getOrDefault(truckId, List.of());
+      List<String> delayedOrderIds = new ArrayList<>();
+      for (Stop stop : assignedStops) {
+        if (stop.getNode().getType() == NodeType.DELIVERY) {
+          Order order = orderRepository.stream()
+            .filter(o -> o.getId().equals(stop.getNode().getId()))
+            .findFirst().orElse(null);
+          if (order != null) {
+            order.setStatus(newStatus);
+            if (newStatus == OrderStatus.DELAYED) {
+              delayedOrderIds.add(order.getId());
+            }
+          }
+        }
+      }
+        // Las órdenes deben ser prioridad para este camión en la próxima planificación
+        // (El planificador debe consultar truckPriorityOrders para forzar la asignación)
+  }
+  
+
 
   private Point interpolateAlongPath(List<Point> pathPoints, double progress) {
     if (pathPoints.isEmpty()) {
@@ -480,7 +565,6 @@ public class SimulationEngine implements Runnable {
   }
 
   private void requestPlanification() {
-    // Only request planification if there are orders being calculated
     boolean hasCalculatingOrders = orderRepository.stream()
         .anyMatch(order -> order.getStatus() == OrderStatus.CALCULATING);
 
