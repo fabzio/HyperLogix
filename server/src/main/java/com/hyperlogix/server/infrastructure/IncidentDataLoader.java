@@ -29,28 +29,48 @@ import lombok.extern.slf4j.Slf4j;
 @Profile("!prod")
 @Slf4j
 @DependsOn("truckDataLoader") // Ensure trucks are loaded first
-public class IncidentDataLoader implements CommandLineRunner {
+public class IncidentDataLoader implements CommandLineRunner, org.springframework.core.Ordered {
 
     // Fixed batch size for processing
     private static final int BATCH_SIZE = 100;
-      // Pattern for parsing incident data: Turn_TruckCode_IncidentType
-    private static final Pattern INCIDENT_PATTERN = Pattern.compile("(T[1-3])_(T[ABCD][0-9]{1,2})_(TI[1-3])");
+    
+    // Set execution order to run after TruckDataLoader (higher number = later execution)
+    private static final int EXECUTION_ORDER = 100;// Pattern for parsing incident data: Turn_TruckCode_IncidentType
+    // Truck codes format: TA01, TB02, TC03, TD04, etc. (WITH T prefix)
+    private static final Pattern INCIDENT_PATTERN = Pattern.compile("(T[1-3])_(T[ABCD]\\d{2})_(TI[1-3])");
 
     @Autowired
     private IncidentRepository incidentRepository;
     
     @Autowired
     private TruckRepository truckRepository;
-
+    
+    /**
+     * Set execution order to run after TruckDataLoader
+     * Lower values have higher priority (execute first)
+     * Higher values have lower priority (execute later)
+     */
+    @Override
+    public int getOrder() {
+        return EXECUTION_ORDER;
+    }
+    
     @Override
     public void run(String... args) {
         // Set the TruckRepositoryHolder
         if (TruckRepositoryHolder.truckRepository == null) {
             new TruckRepositoryHolder(truckRepository);
         }
-        
-        if (incidentRepository.findAll().isEmpty()) {
+          if (incidentRepository.findAll().isEmpty()) {
             log.info("Starting incident data loading process from averias.txt...");
+            
+            // CRITICAL: Ensure trucks are loaded first with multiple verification strategies
+            if (!waitForTrucksToBeLoaded()) {
+                log.error("Failed to load incidents: Trucks are not available after waiting.");
+                return;
+            }
+            
+            log.info("Trucks successfully loaded, proceeding with incident loading...");
             
             String filePath = "src/main/resources/data/averias.txt";
             List<Incident> incidents = loadIncidentsFromFile(filePath);
@@ -70,6 +90,48 @@ public class IncidentDataLoader implements CommandLineRunner {
         }
     }
     
+    /**
+     * Wait for trucks to be loaded by TruckDataLoader with multiple verification strategies
+     * @return true if trucks are available, false if timeout reached
+     */
+    private boolean waitForTrucksToBeLoaded() {
+        final int MAX_ATTEMPTS = 20;
+        final int WAIT_INTERVAL_MS = 250;
+        
+        for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+            List<TruckEntity> allTrucks = truckRepository.findAll();
+            
+            if (!allTrucks.isEmpty()) {
+                log.info("Found {} trucks in database after {} attempts", allTrucks.size(), attempt);
+                
+                // Log sample truck codes for verification
+                if (allTrucks.size() > 0) {
+                    log.info("Sample truck codes: {}", 
+                            allTrucks.stream()
+                                    .limit(5)
+                                    .map(TruckEntity::getCode)
+                                    .toList());
+                }
+                return true;
+            }
+            
+            log.warn("No trucks found in database (attempt {}/{}), waiting {}ms for TruckDataLoader to complete...", 
+                     attempt, MAX_ATTEMPTS, WAIT_INTERVAL_MS);
+            
+            try {
+                Thread.sleep(WAIT_INTERVAL_MS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.error("Thread interrupted while waiting for trucks to load", e);
+                return false;
+            }
+        }
+        
+        log.error("Timeout: No trucks found in database after {} attempts over {} seconds", 
+                  MAX_ATTEMPTS, (MAX_ATTEMPTS * WAIT_INTERVAL_MS) / 1000);
+        return false;
+    }
+    
     private List<Incident> loadIncidentsFromFile(String filePath) {
         List<Incident> incidents = new ArrayList<>();
         int filteredCount = 0;
@@ -81,19 +143,33 @@ public class IncidentDataLoader implements CommandLineRunner {
                 if (line.isEmpty()) {
                     continue;
                 }
+                  Matcher matcher = INCIDENT_PATTERN.matcher(line);
+                log.debug("Processing line: '{}', pattern matches: {}", line, matcher.matches());
                 
-                Matcher matcher = INCIDENT_PATTERN.matcher(line);
+                // Reset matcher after checking
+                matcher = INCIDENT_PATTERN.matcher(line);
                 if (matcher.matches()) {                    String turn = matcher.group(1);
                     String truckCode = matcher.group(2);
                     String incidentType = matcher.group(3);
                     
+                    log.info("Parsed incident: turn={}, truckCode={}, incidentType={} from line '{}'", 
+                            turn, truckCode, incidentType, line);
+                    
                     // Validate that the truck exists in the database
                     TruckEntity truck = truckRepository.findByCode(truckCode);
                     if (truck == null) {
-                        log.warn("Skipping incident for non-existent truck: {}", truckCode);
+                        List<String> availableTrucks = truckRepository.findAll().stream()
+                                .map(t -> t.getCode())
+                                .limit(10)
+                                .toList();
+                        log.warn("Skipping incident for non-existent truck: '{}'. Available trucks: {}", 
+                                truckCode, availableTrucks);
+                        log.warn("Expected truck code format: TA01, TB02, TC03, TD04, etc.");
                         filteredCount++;
                         continue;
                     }
+                    
+                    log.debug("Found truck in database: {}", truck.getCode());
                     
                     Incident incident = new Incident();
                     incident.setId(UUID.randomUUID().toString());
@@ -101,10 +177,9 @@ public class IncidentDataLoader implements CommandLineRunner {
                     incident.setType(incidentType);
                     incident.setTruckCode(truckCode);
                     incident.setDaysSinceIncident(0); // Initialize to 0
-                    
-                    incidents.add(incident);
-                } else {
-                    log.warn("Skipping malformed line in {}: {}", filePath, line);
+                      incidents.add(incident);
+                } else {                    log.warn("Skipping malformed line in {}: '{}'. Expected format: T1_TA01_TI1", filePath, line);
+                    log.warn("Pattern expected: (T[1-3])_(T[ABCD]\\d{{2}})_(TI[1-3])");
                 }
             }
             
@@ -140,7 +215,6 @@ public class IncidentDataLoader implements CommandLineRunner {
             } catch (Exception e) {
                 log.error("Failed to save batch {}/{}: {}", currentBatch, totalBatches, e.getMessage());
                 throw new RuntimeException("Batch save failed", e);
-            }
-        }
+            }        }
     }
 }

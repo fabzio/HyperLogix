@@ -36,5 +36,7 @@ public class Incident {
      */
     private String truckCode;
 
+    private Point location;
+
     public int daysSinceIncident = 0;
 }

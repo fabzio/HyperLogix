@@ -15,9 +15,21 @@ import java.util.List;
 
 @Component
 @Profile("!prod") // Solo en desarrollo
-public class TruckDataLoader implements CommandLineRunner {
+public class TruckDataLoader implements CommandLineRunner, org.springframework.core.Ordered {
+  
+  // Set execution order to run before IncidentDataLoader (lower number = higher priority)
+  private static final int EXECUTION_ORDER = 50;
+  
   @Autowired
   private TruckRepository truckRepository;
+
+  /**
+   * Set execution order to run before IncidentDataLoader
+   */
+  @Override
+  public int getOrder() {
+    return EXECUTION_ORDER;
+  }
 
   @Override
   public void run(String... args) {
