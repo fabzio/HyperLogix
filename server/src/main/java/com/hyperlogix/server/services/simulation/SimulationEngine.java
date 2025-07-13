@@ -65,8 +65,6 @@ public class SimulationEngine implements Runnable {
   private LocalDateTime lastOrderRateCheck = null;
   private static final Duration ORDER_RATE_CHECK_WINDOW = Duration.ofMinutes(10);
 
-  // Mapa para guardar las órdenes DELAYED que deben ser prioridad para cada camión
-  private final Map<String, List<String>> truckPriorityOrders = new ConcurrentHashMap<>();
 
   public SimulationEngine(String sessionId,
       SimulationConfig simulationConfig,
@@ -306,6 +304,11 @@ public class SimulationEngine implements Runnable {
       log.info("Truck {} refilled {} GLP at station {}", truck.getId(), glpToRefill, station.getName());
     } else {
       log.warn("No GLP available at station {} for truck {}", station.getName(), truck.getId());
+    }
+    
+    if(truck.getStatus()== TruckState.RETURNING_TO_BASE){
+      truck.setStatus(TruckState.IDLE);
+      log.info("Truck {} returned to base and is now IDLE", truck.getId());
     }
     
     if(truck.getStatus()== TruckState.RETURNING_TO_BASE){

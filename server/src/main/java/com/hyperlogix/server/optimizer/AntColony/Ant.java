@@ -43,6 +43,7 @@ public class Ant {
   public Routes findSolution() {
     for (Truck truck : network.getTrucks()) {
 
+
       Stop firstNode = new Stop(
           new Node(truck.getCode(), truck.getType().toString(), NodeType.LOCATION, truck.getLocation().integerPoint()),
           graph.getAlgorithmStartDate());
@@ -219,6 +220,7 @@ public class Ant {
             .findFirst().orElse(null);
         assert order != null;
         
+        
         if ((currentNode.getArrivalTime().plus(timeToDestination).isAfter(order.getMaxDeliveryDate())))
           continue;
         // ||
@@ -333,8 +335,11 @@ public class Ant {
 
       if (order.getAssignedGLP() + glpToDeliver == order.getRequestedGLP()) {
         order.setAssignedGLP(order.getRequestedGLP());
+      if (order.getAssignedGLP() + glpToDeliver == order.getRequestedGLP()) {
+        order.setAssignedGLP(order.getRequestedGLP());
         nodesLeft.remove(nextNode.getNode());
       } else
+        order.setAssignedGLP(order.getAssignedGLP() + glpToDeliver);
         order.setAssignedGLP(order.getAssignedGLP() + glpToDeliver);
       truck.setCurrentCapacity(truck.getCurrentCapacity() - glpToDeliver);
       truck.setCurrentFuel(truck.getCurrentFuel() - fuelConsumption);
@@ -344,6 +349,7 @@ public class Ant {
     this.tourCost.put(truck.getId(), this.tourCost.get(truck.getId()) + fuelConsumption);
 
   }
+}
 
 public void resetState() {
 
@@ -360,6 +366,8 @@ public void resetState() {
         .collect(Collectors.toMap(Truck::getId, truck -> 0.0));
     this.firstPath = new HashMap<>();
 
+
   }
 }
+
 
