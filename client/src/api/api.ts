@@ -379,6 +379,37 @@ export interface RegisterOrderRequest {
 /**
  * 
  * @export
+ * @interface Reservation
+ */
+export interface Reservation {
+    /**
+     * 
+     * @type {string}
+     * @memberof Reservation
+     */
+    'dateTime'?: string;
+    /**
+     * 
+     * @type {number}
+     * @memberof Reservation
+     */
+    'amount'?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof Reservation
+     */
+    'vehicleId'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof Reservation
+     */
+    'orderId'?: string;
+}
+/**
+ * 
+ * @export
  * @interface SimulationCommandRequest
  */
 export interface SimulationCommandRequest {
@@ -506,6 +537,12 @@ export interface Station {
      * @memberof Station
      */
     'availableCapacityPerDate'?: { [key: string]: number; };
+    /**
+     * 
+     * @type {Array<Reservation>}
+     * @memberof Station
+     */
+    'reservationHistory'?: Array<Reservation>;
 }
 /**
  * 

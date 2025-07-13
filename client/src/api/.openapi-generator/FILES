@@ -14,6 +14,7 @@ docs/Pageable.md
 docs/PageableObject.md
 docs/Point.md
 docs/RegisterOrderRequest.md
+docs/Reservation.md
 docs/SimulationCommandRequest.md
 docs/SimulationControllerApi.md
 docs/SimulationStatus.md

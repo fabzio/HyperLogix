@@ -11,6 +11,7 @@ Name | Type | Description | Notes
 **maxCapacity** | **number** |  | [optional] [default to undefined]
 **mainStation** | **boolean** |  | [optional] [default to undefined]
 **availableCapacityPerDate** | **{ [key: string]: number; }** |  | [optional] [default to undefined]
+**reservationHistory** | [**Array&lt;Reservation&gt;**](Reservation.md) |  | [optional] [default to undefined]
 
 ## Example
 
@@ -24,6 +25,7 @@ const instance: Station = {
     maxCapacity,
     mainStation,
     availableCapacityPerDate,
+    reservationHistory,
 };
 ```
 

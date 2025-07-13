@@ -4,9 +4,21 @@ import { useRouter } from '@tanstack/react-router'
 
 export default function SearchInput() {
   const router = useRouter()
-  const routeId = router.state.location.pathname as
-    | '/_auth/trucks'
-    | '/_auth/stations'
+
+  // Get the current pathname and handle route matching more safely
+  const pathname = router.state.location.pathname
+
+  // Extract the route ID more safely, handling both full paths and relative paths
+  const getRouteId = (path: string): '/_auth/trucks' | '/_auth/stations' => {
+    if (path.includes('/trucks')) {
+      return '/_auth/trucks'
+    }if (path.includes('/stations')) {
+      return '/_auth/stations'
+    }
+    return '/_auth/trucks'
+  }
+
+  const routeId = getRouteId(pathname)
   const { filters, setFilters } = useFilters(routeId)
 
   const searchValue =
