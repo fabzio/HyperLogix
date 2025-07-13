@@ -217,7 +217,6 @@ public class SimulationEngine implements Runnable {
           log.info("Truck {} recovered from maintenance, resuming route", truck.getId());
         }
 
-        // Get assigned route for this truck
         List<Stop> stops = activeRoutes.getStops().getOrDefault(truck.getId(), List.of());
         if (stops.size() <= 1) {
           log.trace("Truck {} has no assigned stops", truck.getId());
