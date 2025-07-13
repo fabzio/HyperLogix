@@ -5,4 +5,5 @@ public enum TruckState {
   IDLE,
   ACTIVE,
   BROKEN_DOWN,
+  RETURNING_TO_BASE,
 }

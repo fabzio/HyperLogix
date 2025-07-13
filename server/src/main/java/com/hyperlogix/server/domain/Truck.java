@@ -50,11 +50,14 @@ public class Truck implements Cloneable { // Implement Cloneable
   /**
    * Capacidad actual de combustible en galones.
    */
-  private double currentFuel;
-  /**
+  private double currentFuel;  /**
    * Próxima fecha de mantenimiento.
    */
   private LocalDateTime nextMaintenance;
+  /**
+   * Hora de inicio del mantenimiento actual (para incidentes TYPE_1).
+   */
+  private LocalDateTime maintenanceStartTime;
   /**
    * Ubicación del camión en el mapa.
    */
