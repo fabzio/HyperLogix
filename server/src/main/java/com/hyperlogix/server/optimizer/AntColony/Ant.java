@@ -30,7 +30,7 @@ public class Ant {
   private Map<String, Duration> tourTime;
   private Map<String, Double> tourCost;
   private Map<Node, Path> firstPath;
-  
+
   public Ant(PLGNetwork network, Graph graph, AntColonyConfig antColonyConfig) {
     this.originalNetwork = network.clone();
     this.graph = graph;
@@ -39,9 +39,10 @@ public class Ant {
     network.getTrucksCapacity();
     resetState();
   }
+
   public Routes findSolution() {
     for (Truck truck : network.getTrucks()) {
-      // Create the first node representing the truck's starting location
+
       Stop firstNode = new Stop(
           new Node(truck.getCode(), truck.getType().toString(), NodeType.LOCATION, truck.getLocation().integerPoint()),
           graph.getAlgorithmStartDate());
@@ -53,7 +54,6 @@ public class Ant {
       Stop nextNode = availableNodes.get(new Random().nextInt(availableNodes.size()));
       moveToNode(truck, firstNode, nextNode);
     }
-
     while (!nodesLeft.stream().filter(node -> node.getType() == NodeType.DELIVERY).toList().isEmpty()) {
       // Select best truck instead of iterating in fixed order
       Truck bestTruck = selectBestTruck();
@@ -71,7 +71,6 @@ public class Ant {
         // Mark truck as temporarily unavailable by setting a flag or continue
         continue;
       }
-      moveToNode(bestTruck, currentNode, nextNode);
     }
 
     // Process the final routes with A* to get exact paths and timing
@@ -181,9 +180,15 @@ public class Ant {
     if (truck.getStatus() == TruckState.MAINTENANCE || truck.getStatus() == TruckState.BROKEN_DOWN) {
       return List.of();
     }
+
+    boolean returningToBase = truck.getStatus() == TruckState.RETURNING_TO_BASE;
+
     for (Node node : nodesLeft) {
       if (node.getId().equals(currentNode.getNode().getId()))
         continue;
+      if (returningToBase && node.getType() != NodeType.STATION)
+        continue;
+        
       int distance;
       if (currentNode.getNode().getType() == NodeType.LOCATION) {
         // Use Manhattan distance instead of A*
@@ -213,6 +218,7 @@ public class Ant {
         Order order = network.getOrders().stream().filter(o -> o.getId().equals(node.getId()))
             .findFirst().orElse(null);
         assert order != null;
+        
         if ((currentNode.getArrivalTime().plus(timeToDestination).isAfter(order.getMaxDeliveryDate())))
           continue;
         // ||
@@ -290,6 +296,7 @@ public class Ant {
     }
     return availableNodes.getLast();
   }
+
   private void moveToNode(Truck truck, Stop currentNode, Stop nextNode) {
     Path path;
     if (currentNode.getNode().getType() == NodeType.LOCATION) {
@@ -297,8 +304,6 @@ public class Ant {
     } else {
       path = adjacencyMap.get(currentNode.getNode()).get(nextNode.getNode());
     }
-    
-    // Normal movement logic when no incident or incident doesn't affect movement
     this.paths.get(truck.getId())
         .add(path.points().getFirst() == currentNode.getNode().getLocation() ? path : path.reverse());
     int distance = path.length();
@@ -323,13 +328,14 @@ public class Ant {
       Order order = network.getOrders().stream().filter(o -> o.getId().equals(nextNode.getNode().getId()))
           .findFirst().orElse(null);
       assert order != null;
-      int glpToDeliver = Math.min(truck.getCurrentCapacity(), order.getRequestedGLP() - order.getDeliveredGLP());
 
-      if (order.getDeliveredGLP() + glpToDeliver == order.getRequestedGLP()) {
-        order.setDeliveredGLP(order.getRequestedGLP());
+      int glpToDeliver = Math.min(truck.getCurrentCapacity(), order.getRequestedGLP() - order.getAssignedGLP());
+
+      if (order.getAssignedGLP() + glpToDeliver == order.getRequestedGLP()) {
+        order.setAssignedGLP(order.getRequestedGLP());
         nodesLeft.remove(nextNode.getNode());
       } else
-        order.setDeliveredGLP(order.getDeliveredGLP() + glpToDeliver);
+        order.setAssignedGLP(order.getAssignedGLP() + glpToDeliver);
       truck.setCurrentCapacity(truck.getCurrentCapacity() - glpToDeliver);
       truck.setCurrentFuel(truck.getCurrentFuel() - fuelConsumption);
       truck.setLocation(nextNode.getNode().getLocation());
@@ -338,7 +344,9 @@ public class Ant {
     this.tourCost.put(truck.getId(), this.tourCost.get(truck.getId()) + fuelConsumption);
 
   }
-  public void resetState() {
+
+public void resetState() {
+
     this.network = originalNetwork.clone();
     this.adjacencyMap = graph.createAdjacencyMap(graph.getAlgorithmStartDate());
     this.nodesLeft = new ArrayList<>(adjacencyMap.keySet().stream().toList());
@@ -351,6 +359,7 @@ public class Ant {
     this.tourCost = network.getTrucks().stream()
         .collect(Collectors.toMap(Truck::getId, truck -> 0.0));
     this.firstPath = new HashMap<>();
-  }
 
+  }
 }
+

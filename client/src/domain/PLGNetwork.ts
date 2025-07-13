@@ -6,7 +6,7 @@ import type { Point } from '../api'
 interface Incident {
   id: string
   truckCode: string
-  turn: string 
+  turn: string
   type: string
 }
 

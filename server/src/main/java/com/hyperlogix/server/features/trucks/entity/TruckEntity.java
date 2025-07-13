@@ -46,6 +46,8 @@ public class TruckEntity {
   private double currentFuel;
 
   private LocalDateTime nextMaintenance;
+  
+  private LocalDateTime maintenanceStartTime;
 
   @Embedded
   private Point location;
