@@ -21,7 +21,6 @@ const truckTypeColors: Record<string, string> = {
 
 export default function Simulation() {
   const [polylineHover, setPolylineHover] = useState<string | null>(null)
-
   const { truckId } = useSearch({ from: '/_auth/simulacion' })
   const navigate = useNavigate({ from: '/simulacion' })
 
@@ -139,7 +138,7 @@ export default function Simulation() {
                   order.date <= simulationTime,
               ) || []
             }
-            polylines={
+            /*polylines={
               poliLines.filter(
                 (line) =>
                   line.type !== 'roadblock' ||
@@ -149,6 +148,23 @@ export default function Simulation() {
                     new Date(line.startTime) <= new Date(simulationTime) &&
                     new Date(line.endTime) >= new Date(simulationTime)),
               ) || []
+            }*/
+            polylines={
+              poliLines.filter((line) => {
+                if (line.type === 'path') return true
+                if (
+                  line.type === 'roadblock' &&
+                  line.startTime &&
+                  line.endTime &&
+                  simulationTime
+                ) {
+                  return (
+                    new Date(line.startTime) <= new Date(simulationTime) &&
+                    new Date(line.endTime) >= new Date(simulationTime)
+                  )
+                }
+                return false
+              }) || []
             }
             hoveredPolylineId={polylineHover}
             onPolylineHover={(lineId) => {
@@ -166,6 +182,15 @@ export default function Simulation() {
             onPolylineClick={(lineId) => {
               const isRoadblock = lineId?.startsWith('roadblock-')
               if (isRoadblock) {
+                const roadblockId = Number(lineId.split('-')[1])
+                const roadblock = network?.roadblocks?.[roadblockId]
+                if (roadblock?.start) {
+                  navigate({
+                    search: {
+                      roadblockStart: roadblock.start,
+                    },
+                  })
+                }
                 setPolylineHover(null)
                 return
               }
