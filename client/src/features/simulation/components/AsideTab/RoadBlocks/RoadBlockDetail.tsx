@@ -18,7 +18,7 @@ export function RoadblockDetail() {
   const endDate = new Date(roadblock.end)
 
   return (
-    <div className="w-80 h-full border-l border-zinc-800 bg-zinc-900 text-white p-4 flex flex-col gap-4">
+    <div className="w-80 h-full border-l  p-4 flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold">Bloqueo de ruta</h2>
         <button
