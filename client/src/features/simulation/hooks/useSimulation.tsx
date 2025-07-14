@@ -51,7 +51,18 @@ export const useStartSimulation = () => {
 }
 
 export const useWatchSimulation = () => {
-  const { plgNetwork, simulationTime, setState, routes } = useSimulationStore()
+  const { plgNetwork, simulationTime, routes } = useSimulationStore()
+
+  return {
+    plgNetwork,
+    simulationTime,
+    routes,
+  }
+}
+
+// Nuevo hook específico para la suscripción WebSocket
+export const useSimulationWebSocket = () => {
+  const { setState } = useSimulationStore()
   const { username } = useSessionStore()
   const { subscribe, unsubscribe, connected, client } = useWebSocketStore()
 
@@ -75,12 +86,6 @@ export const useWatchSimulation = () => {
       unsubscribe(`/topic/simulation/${username}`)
     }
   }, [subscribe, unsubscribe, connected, client, username, handleMessage])
-
-  return {
-    plgNetwork,
-    simulationTime,
-    routes,
-  }
 }
 
 export const useStatusSimulation = () => {
