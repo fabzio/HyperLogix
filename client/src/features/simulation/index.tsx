@@ -9,6 +9,7 @@ import SimulationEndDialog from './components/SimulationEndDialog'
 import SimulationHeader from './components/SimulationHeader'
 import {
   useSimulationEndDialog,
+  useSimulationWebSocket,
   useStatusSimulation,
   useWatchSimulation,
 } from './hooks/useSimulation'
@@ -23,6 +24,9 @@ export default function Simulation() {
   const [polylineHover, setPolylineHover] = useState<string | null>(null)
   const { truckId } = useSearch({ from: '/_auth/simulacion' })
   const navigate = useNavigate({ from: '/simulacion' })
+
+  // Centralizar la suscripción WebSocket aquí
+  useSimulationWebSocket()
 
   const { plgNetwork: network, simulationTime, routes } = useWatchSimulation()
   const { data: status } = useStatusSimulation()
