@@ -3,7 +3,7 @@ import { Tabs, TabsContent } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 import { useSearch } from '@tanstack/react-router'
 import { BarChart2, Brain, Fuel, Play, Receipt, Truck } from 'lucide-react'
-import { Info } from 'lucide-react'
+import { Info, TrafficCone } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import Leyenda from './Leyenda'
 import Metrics from './Metrics'
@@ -12,10 +12,11 @@ import Planification from './Planification'
 import Run from './Run'
 import Stations from './Stations'
 import Trucks from './Trucks'
+import RoadBlocks from './RoadBlocks'
 
 export default function AsideTab() {
   const [openTab, setOpenTab] = useState<string>()
-  const { orderId, truckId, stationId } = useSearch({
+  const { orderId, truckId, stationId, roadblockStart } = useSearch({
     from: '/_auth/simulacion',
   })
   useEffect(() => {
@@ -25,8 +26,10 @@ export default function AsideTab() {
       setOpenTab('truck')
     } else if (stationId) {
       setOpenTab('stations')
+    } else if (roadblockStart) {
+      setOpenTab('RoadBlocks')
     }
-  }, [orderId, truckId, stationId])
+  }, [orderId, truckId, stationId, roadblockStart])
   return (
     <Tabs
       value={openTab}
@@ -78,6 +81,12 @@ const TABS = [
   { key: 'orders', icon: <Receipt />, label: 'Pedidos', component: Orders },
   { key: 'stations', icon: <Fuel />, label: 'Estaciones', component: Stations },
   { key: 'leyenda', icon: <Info />, label: 'Leyenda', component: Leyenda },
+  {
+    key: 'RoadBlocks',
+    icon: <TrafficCone />,
+    label: 'RoadBlocks',
+    component: RoadBlocks,
+  },
   {
     key: 'planification',
     icon: <Brain />,

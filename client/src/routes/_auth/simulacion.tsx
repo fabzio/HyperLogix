@@ -8,6 +8,7 @@ export const Route = createFileRoute('/_auth/simulacion')({
       truckId?: number
       orderId?: string
       stationId?: string
+      roadblockStart?: string
     },
   loader: async ({ context: { queryClient } }) =>
     await queryClient.ensureQueryData({
