@@ -12,7 +12,8 @@ export default function SearchInput() {
   const getRouteId = (path: string): '/_auth/trucks' | '/_auth/stations' => {
     if (path.includes('/trucks')) {
       return '/_auth/trucks'
-    }if (path.includes('/stations')) {
+    }
+    if (path.includes('/stations')) {
       return '/_auth/stations'
     }
     return '/_auth/trucks'
