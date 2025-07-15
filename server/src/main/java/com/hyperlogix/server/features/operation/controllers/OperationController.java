@@ -34,6 +34,7 @@ public class OperationController {
         request.getDate(),
         request.getLocation(),
         request.getRequestedGLP(),
+        0, // assignedGLP starts at 0
         0, // deliveredGLP starts at 0
         request.getDeliveryLimit(),
         com.hyperlogix.server.domain.OrderStatus.PENDING);
