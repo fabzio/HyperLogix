@@ -2,6 +2,7 @@ package com.hyperlogix.server.services.planification;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -13,6 +14,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
+import com.hyperlogix.server.domain.CompletedIncident;
 import com.hyperlogix.server.domain.PLGNetwork;
 import com.hyperlogix.server.features.planification.dtos.PlanificationResponseEvent;
 
@@ -34,14 +36,15 @@ public class PlanificationService {
   });
 
   public void startPlanification(String planificationId, PLGNetwork network, LocalDateTime algorithmTime,
-      Duration algorithmDuration) {
-    PlanificationNotifier notifier = routes -> {
-      PlanificationResponseEvent responseEvent = new PlanificationResponseEvent(planificationId, routes);
-      messaging.convertAndSend("/topic/planification/response",
+      Duration algorithmDuration, List<CompletedIncident> completedIncidents) {
+    PlanificationNotifier notifier = notification -> {
+      PlanificationResponseEvent responseEvent = new PlanificationResponseEvent(planificationId, notification.getRoutes(),
+          notification.getIncidents());
+    messaging.convertAndSend("/topic/planification/response",
           responseEvent);
       eventPublisher.publishEvent(responseEvent);
     };
-    PlanificationEngine engine = new PlanificationEngine(network, notifier, algorithmTime, algorithmDuration);
+    PlanificationEngine engine = new PlanificationEngine(network, notifier, algorithmTime, algorithmDuration, completedIncidents);
     stopPlanification(planificationId);
     planification.put(planificationId, engine);
     executor.execute(engine);

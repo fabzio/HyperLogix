@@ -39,4 +39,14 @@ public class PLGNetwork implements Cloneable {
       throw new AssertionError(); // Can't happen
     }
   }
+
+  public Truck getTruckById(String truckId) {
+        if (getTrucks() == null) return null;
+        for (Truck truck : getTrucks()) {
+            if (truck != null && truckId != null && truckId.equals(truck.getId())) {
+                return truck;
+            }
+        }
+        return null;
+    }
 }

@@ -4,14 +4,12 @@ import java.util.List;
 
 import com.hyperlogix.server.domain.Incident;
 import com.hyperlogix.server.domain.Routes;
-
-import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.AllArgsConstructor;
 
 @Data
 @AllArgsConstructor
-public class PlanificationResponseEvent {
-  private String sessionId;
-  private Routes routes;
-  private List<Incident> newIncidents;
+public class PlanificationResultNotification {
+    private Routes routes;
+    private List<Incident> incidents;
 }

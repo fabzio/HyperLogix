@@ -1,29 +1,45 @@
 package com.hyperlogix.server.services.simulation;
 
-import com.hyperlogix.server.config.Constants;
-import com.hyperlogix.server.domain.*;
-import com.hyperlogix.server.services.planification.PlanificationService;
-import com.hyperlogix.server.services.planification.PlanificationStatus;
-import com.hyperlogix.server.services.incident.IncidentManagement;
-
-import lombok.Setter;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.context.ApplicationEventPublisher;
-
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
+
+import com.hyperlogix.server.config.Constants;
+import com.hyperlogix.server.domain.ActiveIncident;
+import com.hyperlogix.server.domain.CompletedIncident;
+import com.hyperlogix.server.domain.Incident;
+import com.hyperlogix.server.domain.IncidentType;
+import com.hyperlogix.server.domain.NodeType;
+import com.hyperlogix.server.domain.Order;
+import com.hyperlogix.server.domain.OrderStatus;
+import com.hyperlogix.server.domain.PLGNetwork;
+import com.hyperlogix.server.domain.Path;
+import com.hyperlogix.server.domain.Point;
+import com.hyperlogix.server.domain.Routes;
+import com.hyperlogix.server.domain.Station;
+import com.hyperlogix.server.domain.Stop;
+import com.hyperlogix.server.domain.Truck;
+import com.hyperlogix.server.domain.TruckState;
 import com.hyperlogix.server.features.planification.dtos.PlanificationRequestEvent;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.Map;
-import java.util.ArrayList;
+import com.hyperlogix.server.services.incident.IncidentManagement;
+import com.hyperlogix.server.services.planification.PlanificationService;
+import com.hyperlogix.server.services.planification.PlanificationStatus;
+
+import lombok.Setter;
 
 
 public class SimulationEngine implements Runnable {
@@ -59,8 +75,13 @@ public class SimulationEngine implements Runnable {
   private final Map<String, LocalDateTime> orderStartTimes = new ConcurrentHashMap<>();
   private int totalPlanificationRequests = 0;
   private Duration totalPlanificationTime = Duration.ZERO;
+
+  // Incident management
   private IncidentManagement incidentManager = null;
+  private final Map<String, ActiveIncident> activeIncidents = new ConcurrentHashMap<>();
+  private final List<CompletedIncident> completedIncidents = new ArrayList<>();
   private LocalDateTime lastPlanificationStart;  // Order arrival rate tracking
+
   private final Map<LocalDateTime, Integer> orderArrivalHistory = new ConcurrentHashMap<>();
   private LocalDateTime lastOrderRateCheck = null;
   private static final Duration ORDER_RATE_CHECK_WINDOW = Duration.ofMinutes(10);
@@ -135,6 +156,9 @@ public class SimulationEngine implements Runnable {
         log.info("Next planning time: {} (interval: {})", nextPlanningTime,
             simulationConfig.getCurrentAlgorithmInterval());
       }
+
+      processIncidents();
+
       updateSystemState(timeStep);
 
       // Calculate metrics and notify with snapshot
@@ -147,6 +171,36 @@ public class SimulationEngine implements Runnable {
       sleep(simulationConfig.getSimulationResolution());
     }
 
+  }
+
+  private void processIncidents() {
+    if (incidentManager == null || plgNetwork == null) return;
+
+    // Procesar todos los incidentes a través del IncidentManager
+    incidentManager.processIncidents(plgNetwork, simulatedTime);
+  }
+
+  
+  private String getCurrentTurn(LocalDateTime time) {
+    int hour = time.getHour() % 24;
+    if (hour >= 0 && hour < 8) {
+      return "T1";
+    } else if (hour >= 8 && hour < 16) {
+      return "T2";
+    } else {
+      return "T3";
+    }
+  }
+
+  private String getIncidentTypeFromTruckStatus(TruckState status) {
+    switch (status) {
+      case MAINTENANCE:
+        return "TYPE_1";
+      case BROKEN_DOWN:
+        return "TYPE_2"; // Could be TYPE_2 or TYPE_3, would need additional logic
+      default:
+        return "TYPE_1";
+    }
   }
 
   private boolean areAllOrdersCompleted() {
@@ -568,17 +622,20 @@ public class SimulationEngine implements Runnable {
   }
 
   private void requestPlanification() {
-    boolean hasCalculatingOrders = orderRepository.stream()
-        .anyMatch(order -> order.getStatus() == OrderStatus.CALCULATING);
-
-    if (hasCalculatingOrders) {
-      lastPlanificationStart = LocalDateTime.now();
-      totalPlanificationRequests++;
-      eventPublisher.publishEvent(
-          new PlanificationRequestEvent(sessionId, plgNetwork, simulatedTime, simulationConfig.getAlgorithmTime()));
-    } else {
-    }
-  }
+    List<CompletedIncident> completedIncidents = getCompletedIncidents();
+    
+    PlanificationRequestEvent request = new PlanificationRequestEvent(
+        sessionId, 
+        plgNetwork, 
+        simulatedTime, 
+        simulationConfig.getAlgorithmTime(),
+        completedIncidents
+    );
+    
+    eventPublisher.publishEvent(request);
+    log.info("Planification requested for session {} with {} completed incidents", 
+        sessionId, completedIncidents.size());
+}
 
   private void sleep(Duration duration) {
     lock.lock();
@@ -608,70 +665,227 @@ public class SimulationEngine implements Runnable {
     }
   }
 
-  public void onPlanificationResult(Routes routes) {
+  public void onPlanificationResult(Routes routes, List<Incident> newIncidents) {
     if (routes == null || routes.getStops().isEmpty()) {
-      List<Order> calculatingOrders = orderRepository.stream()
-          .filter(order -> order.getStatus() == OrderStatus.CALCULATING)
-          .toList();
-      calculatingOrders.forEach(order -> {
-        order.setStatus(OrderStatus.PENDING);
-      });
-      return;
+        List<Order> calculatingOrders = orderRepository.stream()
+            .filter(order -> order.getStatus() == OrderStatus.CALCULATING)
+            .toList();
+        calculatingOrders.forEach(order -> {
+            order.setStatus(OrderStatus.PENDING);
+        });
+        return;
     }
 
     synchronized (routesLock) {
-      this.activeRoutes = routes;
-      // Reset stop indices when new routes are received
-      truckCurrentStopIndex.clear();
+        this.activeRoutes = routes;
+        truckCurrentStopIndex.clear();
 
-      log.info("Received routes for {} trucks, {} total stops, {} total paths",
-          routes.getStops().size(),
-          routes.getStops().values().stream().mapToInt(List::size).sum(),
-          routes.getPaths().values().stream().mapToInt(List::size).sum());
+        log.info("Received routes for {} trucks, {} total stops, {} total paths",
+            routes.getStops().size(),
+            routes.getStops().values().stream().mapToInt(List::size).sum(),
+            routes.getPaths().values().stream().mapToInt(List::size).sum());
 
+        // Agregar nuevos incidentes al manager
+        scheduleNewIncidents(newIncidents);
+        
+        // Actualizar estados de camiones considerando incidentes activos
+        updateTruckStatesWithRoutes(routes);
+    }
+}
 
-      for (Truck truck : plgNetwork.getTrucks()) {
-        if (truck.getStatus() == TruckState.MAINTENANCE || truck.getStatus() == TruckState.BROKEN_DOWN) {
-          continue; // Don't change status for trucks in maintenance or broken down
+  private void scheduleNewIncidents(List<Incident> newIncidents) {
+    if (newIncidents == null || newIncidents.isEmpty()) return;
+
+    // Agregar incidentes al network y al manager
+    if (plgNetwork != null) {
+        plgNetwork.getIncidents().addAll(newIncidents);
+        
+        if (incidentManager != null) {
+            incidentManager.addNewIncidents(newIncidents);
+        }
+    }
+    
+    log.info("Scheduled {} new incidents", newIncidents.size());
+}
+
+  private void updateTruckStatesWithRoutes(Routes routes) {
+    for (Truck truck : plgNetwork.getTrucks()) {
+        // Verificar si el camión tiene un incidente activo
+        ActiveIncident activeIncident = incidentManager.getActiveIncidentForTruck(truck.getId());
+        
+        if (activeIncident != null) {
+            // Camión afectado por incidente - mantener estado actual
+            log.debug("Truck {} has active incident {} - maintaining current state: {}", 
+                truck.getId(), activeIncident.getId(), truck.getStatus());
+            continue;
         }
 
+        // Lógica normal de asignación de rutas
         List<Stop> assignedStops = routes.getStops().getOrDefault(truck.getId(), List.of());
+        
         if (assignedStops.size() <= 1) {
-          truck.setStatus(TruckState.IDLE);
-          log.debug("Truck {} set to IDLE - no assigned routes", truck.getId());
+            truck.setStatus(TruckState.IDLE);
+            log.debug("Truck {} set to IDLE - no assigned routes", truck.getId());
         } else {
-          truck.setStatus(TruckState.ACTIVE);
+            // Solo cambiar a ACTIVE si no está en mantenimiento o averiado
+            if (truck.getStatus() != TruckState.MAINTENANCE && 
+                truck.getStatus() != TruckState.BROKEN_DOWN) {
+                truck.setStatus(TruckState.ACTIVE);
+                
+                // Log route details
+                StringBuilder routeInfo = new StringBuilder();
+                for (int i = 1; i < assignedStops.size(); i++) {
+                    Stop stop = assignedStops.get(i);
+                    routeInfo.append(stop.getNode().getType()).append(":").append(stop.getNode().getId());
+                    if (i < assignedStops.size() - 1)
+                        routeInfo.append(" -> ");
+                }
+                log.info("Truck {} set to ACTIVE - route: {}", truck.getId(), routeInfo.toString());
+            }
+        }
+    }
+}
 
-          // Log the route details for debugging
-          StringBuilder routeInfo = new StringBuilder();
-          for (int i = 1; i < assignedStops.size(); i++) { // Skip first stop (starting location)
-            Stop stop = assignedStops.get(i);
-            routeInfo.append(stop.getNode().getType()).append(":").append(stop.getNode().getId());
-            if (i < assignedStops.size() - 1)
-              routeInfo.append(" -> ");
-          }
-          log.info("Truck {} set to ACTIVE - route: {}", truck.getId(), routeInfo.toString());
+// Método para obtener incidentes completados para la planificación
+public List<CompletedIncident> getCompletedIncidents() {
+    if (incidentManager == null) return new ArrayList<>();
+    return incidentManager.getCompletedIncidents();
+}
+
+// Método para obtener métricas de incidentes
+public IncidentMetrics getIncidentMetrics() {
+    if (incidentManager == null) {
+        return new IncidentMetrics(0, 0, 0);
+    }
+    
+    return new IncidentMetrics(
+        incidentManager.getActiveIncidents().size(),
+        incidentManager.getCompletedIncidents().size(),
+        incidentManager.getPendingIncidents().size()
+    );
+}
+
+// Clase para métricas de incidentes
+public static class IncidentMetrics {
+    private final int activeIncidents;
+    private final int completedIncidents;
+    private final int pendingIncidents;
+    
+    public IncidentMetrics(int activeIncidents, int completedIncidents, int pendingIncidents) {
+        this.activeIncidents = activeIncidents;
+        this.completedIncidents = completedIncidents;
+        this.pendingIncidents = pendingIncidents;
+    }
+    
+    // Getters
+    public int getActiveIncidents() { return activeIncidents; }
+    public int getCompletedIncidents() { return completedIncidents; }
+    public int getPendingIncidents() { return pendingIncidents; }
+}
+/*
+  private void processActiveIncidents() {
+    Iterator<Map.Entry<String, ActiveIncident>> iterator = activeIncidents.entrySet().iterator();
+    
+    while (iterator.hasNext()) {
+      Map.Entry<String, ActiveIncident> entry = iterator.next();
+      String truckId = entry.getKey();
+      ActiveIncident incident = entry.getValue();
+      
+      // Check if immobilization period has ended
+      if (incident.isImmobilizationEnded(simulatedTime)) {
+        Truck truck = plgNetwork.getTruckById(truckId);
+        
+        if (IncidentType.TI1.name().equals(incident.getType())) {
+          // Type 1: Return to route after immobilization
+          truck.setStatus(TruckState.ACTIVE);
+          log.info("Truck {} immobilization ended, returning to route", truckId);
+          
+          // Move to completed incidents
+          completedIncidents.add(new CompletedIncident(incident, simulatedTime));
+          iterator.remove();
+        } else {
+          // Type 2 and 3: Move to workshop
+          truck.setStatus(TruckState.MAINTENANCE);
+          incident.setWorkshopStartTime(simulatedTime);
+          log.info("Truck {} moved to workshop for {} hours", truckId, 
+              incident.getWorkshopDuration().toHours());
         }
       }
+      
+      // Check if workshop period has ended
+      if (incident.isWorkshopEnded(simulatedTime)) {
+        Truck truck = plgNetwork.getTruckById(truckId);
+        truck.setStatus(TruckState.IDLE);
+        log.info("Truck {} workshop period ended, available for new routes", truckId);
+        
+        // Move to completed incidents
+        completedIncidents.add(new CompletedIncident(incident, simulatedTime));
+        iterator.remove();
+      }
+    }
+  }
+*/
 
+// Method to trigger incidents during simulation (called when truck reaches incident node)
+public void triggerIncident(String truckId, String nodeId, IncidentType type) {
+  Truck truck = plgNetwork.getTruckById(truckId);
+  if (truck == null) {
+    log.warn("Cannot trigger incident - truck {} not found", truckId);
+    return;
     }
 
-    // Track planification time
-    if (lastPlanificationStart != null) {
-      Duration planificationDuration = Duration.between(lastPlanificationStart, LocalDateTime.now());
-      totalPlanificationTime = totalPlanificationTime.plus(planificationDuration);
+    ActiveIncident incident = new ActiveIncident(
+        UUID.randomUUID().toString(), // id
+        truckId,                      // truckId
+        getCurrentTurn(simulatedTime),// turn
+        type.name(),                  // type as String
+        plgNetwork.getTruckById(truckId).getLocation(), // location
+        simulatedTime                 // startTime
+    );
+    
+    activeIncidents.put(truckId, incident);
+    truck.setStatus(TruckState.BROKEN_DOWN);
+    
+    log.info("Incident triggered for truck {} at node {} - type {}, immobilized for {} hours",
+        truckId, nodeId, type, incident.getImmobilizationDuration().toHours());
+    
+    // Publish incident event for UI notification
+    //eventPublisher.publishEvent(new IncidentTriggeredEvent(
+        //sessionId, truckId, nodeId, type, simulatedTime));
+  }
+
+  // Method for manual incident registration (operations and 7-day simulation)
+  public void registerIncident(String truckId, IncidentType type) {
+    Truck truck = plgNetwork.getTruckById(truckId);
+    if (truck == null) {
+      log.warn("Cannot register incident - truck {} not found", truckId);
+      return;
     }
 
-    // Only change status for CALCULATING orders to IN_PROGRESS
-    List<Order> calculatingOrders = orderRepository.stream()
-        .filter(order -> order.getStatus() == OrderStatus.CALCULATING)
-        .toList();
+    // Find current node of the truck
+    String currentNodeId = getCurrentNodeOfTruck(truckId);
+    if (currentNodeId == null) {
+      log.warn("Cannot register incident - current node of truck {} not found", truckId);
+      return;
+    }
 
-    calculatingOrders.forEach(order -> {
-      order.setStatus(OrderStatus.IN_PROGRESS);
-    });
+    triggerIncident(truckId, currentNodeId, type);
+  }
 
-    log.info("Received updated routes from Planificator");
+  private String getCurrentNodeOfTruck(String truckId) {
+    if (activeRoutes == null) return null;
+    
+    List<Stop> truckStops = activeRoutes.getStops().get(truckId);
+    if (truckStops == null || truckStops.isEmpty()) return null;
+    
+    Integer currentStopIndex = truckCurrentStopIndex.get(truckId);
+    if (currentStopIndex == null) return null;
+    
+    if (currentStopIndex < truckStops.size()) {
+      return truckStops.get(currentStopIndex).getNode().getId();
+    }
+    
+    return null;
   }
 
   public SimulationStatus getStatus() {

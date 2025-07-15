@@ -1,8 +1,8 @@
 package com.hyperlogix.server.services.planification;
 
-import com.hyperlogix.server.domain.Routes;
+import com.hyperlogix.server.features.planification.dtos.PlanificationResultNotification;
 
 @FunctionalInterface
 public interface PlanificationNotifier {
-  void notify(Routes routes);
+  void notify(PlanificationResultNotification planificationResultNotification);
 }

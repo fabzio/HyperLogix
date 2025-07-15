@@ -605,7 +605,7 @@ public class RealTimeSimulationEngine implements Runnable {
 
       eventPublisher.publishEvent(
           new PlanificationRequestEvent(sessionId, networkForPlanification, simulatedTime,
-              simulationConfig.getAlgorithmTime()));
+              simulationConfig.getAlgorithmTime(), null));
     } else {
     }
   }

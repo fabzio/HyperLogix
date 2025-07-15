@@ -9,6 +9,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import com.hyperlogix.server.domain.Incident;
 import com.hyperlogix.server.domain.Order;
 import com.hyperlogix.server.domain.PLGNetwork;
 import com.hyperlogix.server.domain.Routes;
@@ -48,8 +49,8 @@ public class SimulationService {
 
     if ("real".equals(mode)) {
       config = new SimulationConfig(
-          Duration.ofSeconds(3),
-          Duration.ofSeconds(5),
+          Duration.ofSeconds(6),
+          Duration.ofSeconds(30),
           1.0,
           Duration.ofMillis(300));
     } else {
@@ -92,11 +93,11 @@ public class SimulationService {
     }
   }
 
-  public void sendPlanification(String simulationId, Routes route) {
+  public void sendPlanification(String simulationId, Routes route, List<Incident> newIncidents) {
     System.out.println("Sending planification " + simulationId + " for simulation: " + route);
     SimulationEngine engine = simulation.get(simulationId);
     if (engine != null) {
-      engine.onPlanificationResult(route);
+      engine.onPlanificationResult(route, newIncidents);
     }
 
     RealTimeSimulationEngine realTimeEngine = realTimeSimulation.get(simulationId);
