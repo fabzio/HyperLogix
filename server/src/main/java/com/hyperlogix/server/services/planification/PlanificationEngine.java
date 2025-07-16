@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 
 import com.hyperlogix.server.domain.OrderStatus;
 import com.hyperlogix.server.domain.PLGNetwork;
@@ -22,16 +23,26 @@ public class PlanificationEngine implements Runnable {
   private final PLGNetwork network;
   private final LocalDateTime algorithmTime;
   private final Duration algorithmDuration;
+  private final ApplicationEventPublisher eventPublisher;
+  private final String sessionId;
   private volatile Thread currentThread;
   private volatile boolean isPlanning = false;
   private volatile int currentNodesProcessed = 0;
 
   public PlanificationEngine(PLGNetwork network, PlanificationNotifier notifier, LocalDateTime algorithmTime,
-      Duration algorithmDuration) {
+      Duration algorithmDuration, ApplicationEventPublisher eventPublisher, String sessionId) {
     this.notifier = notifier;
     this.network = network;
     this.algorithmTime = algorithmTime;
     this.algorithmDuration = algorithmDuration;
+    this.eventPublisher = eventPublisher;
+    this.sessionId = sessionId;
+  }
+
+  // Constructor sin eventos para compatibilidad hacia atrás
+  public PlanificationEngine(PLGNetwork network, PlanificationNotifier notifier, LocalDateTime algorithmTime,
+      Duration algorithmDuration) {
+    this(network, notifier, algorithmTime, algorithmDuration, null, null);
   }
 
   @Override
@@ -62,7 +73,13 @@ public class PlanificationEngine implements Runnable {
           0.5,
           100.0,
           1.0);
-      Optimizer optimizer = new AntColonyOptimizer(config);
+      AntColonyOptimizer optimizer = new AntColonyOptimizer(config);
+
+      // Configurar el event publisher y session ID si están disponibles
+      if (eventPublisher != null && sessionId != null) {
+        optimizer.setEventPublisher(eventPublisher);
+        optimizer.setSessionId(sessionId);
+      }
 
       OptimizerContext ctx = new OptimizerContext(
           network,

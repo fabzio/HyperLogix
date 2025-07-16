@@ -15,7 +15,7 @@ import { downloadSimulationReport } from './SimulationReportPDF'
 interface Props {
   open: boolean
   onClose: () => void
-  reason: 'completed' | 'manual' | null
+  reason: 'completed' | 'manual' | 'collapse' | null
 }
 
 export default function SimulationEndDialog({ open, onClose, reason }: Props) {
@@ -25,6 +25,7 @@ export default function SimulationEndDialog({ open, onClose, reason }: Props) {
     simulationEndTime,
     finalPlgNetwork,
     metrics, // Add current metrics as fallback
+    collapseInfo,
   } = useSimulationStore()
   const { username } = useSessionStore()
   const [isGenerating, setIsGenerating] = useState(false)
@@ -58,19 +59,49 @@ export default function SimulationEndDialog({ open, onClose, reason }: Props) {
   const canGenerateReport =
     (finalMetrics || metrics) && simulationStartTime && username
 
+  const getDialogContent = () => {
+    switch (reason) {
+      case 'collapse':
+        return {
+          title: 'Simulación detenida por colapso',
+          description: collapseInfo
+            ? `Se detectó un colapso logístico: ${collapseInfo.description}`
+            : 'Se detectó un colapso logístico y la simulación fue detenida automáticamente.',
+          icon: '⚠️',
+        }
+      case 'manual':
+        return {
+          title: 'Simulación finalizada',
+          description: 'Visualizador finalizado manualmente con éxito',
+          icon: '📋',
+        }
+      case 'completed':
+        return {
+          title: 'Simulación completada',
+          description:
+            'Visualizador finalizado porque todos los pedidos fueron completados.',
+          icon: '✅',
+        }
+      default:
+        return {
+          title: 'Simulación finalizada',
+          description: 'La simulación ha terminado.',
+          icon: '📋',
+        }
+    }
+  }
+
+  const dialogContent = getDialogContent()
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            Simulación finalizada
+            <span className="text-xl">{dialogContent.icon}</span>
+            {dialogContent.title}
           </DialogTitle>
-          <DialogDescription>
-            {reason === 'manual'
-              ? 'Visualizador finalizado manualmente con éxito'
-              : 'Visualizador finalizado porque todos los pedidos fueron completados.'}
-          </DialogDescription>
+          <DialogDescription>{dialogContent.description}</DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-3 mt-4">

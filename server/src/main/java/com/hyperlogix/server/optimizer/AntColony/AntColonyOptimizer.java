@@ -7,6 +7,8 @@ import com.hyperlogix.server.optimizer.Optimizer;
 import com.hyperlogix.server.optimizer.OptimizerContext;
 import com.hyperlogix.server.optimizer.OptimizerResult;
 
+import org.springframework.context.ApplicationEventPublisher;
+
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -17,9 +19,19 @@ public class AntColonyOptimizer implements Optimizer {
   private AntColonyConfig antColonyConfig;
   private Graph graph;
   private List<Ant> ants;
+  private ApplicationEventPublisher eventPublisher;
+  private String sessionId;
 
   public AntColonyOptimizer(AntColonyConfig antColonyConfig) {
     this.antColonyConfig = antColonyConfig;
+  }
+
+  public void setEventPublisher(ApplicationEventPublisher eventPublisher) {
+    this.eventPublisher = eventPublisher;
+  }
+
+  public void setSessionId(String sessionId) {
+    this.sessionId = sessionId;
   }
 
   @Override
@@ -29,6 +41,9 @@ public class AntColonyOptimizer implements Optimizer {
     ants = new ArrayList<>();
     for (int i = 0; i < antColonyConfig.NUM_ANTS(); i++) {
       Ant ant = new Ant(ctx.plgNetwork, graph, antColonyConfig);
+      // Configurar el evento publisher y sessionId para cada hormiga
+      ant.setEventPublisher(eventPublisher);
+      ant.setSessionId(sessionId);
       ants.add(ant);
     }
 

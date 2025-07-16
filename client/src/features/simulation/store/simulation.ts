@@ -33,6 +33,8 @@ export interface SimulationStore {
   finalPlgNetwork: PLGNetwork | null
   simulationStartTime: string | null
   simulationEndTime: string | null
+  collapseDetected: boolean
+  collapseInfo: { type: string; description: string } | null
 
   setState: (state: Partial<SimulationStore> | null) => void
   saveFinalMetrics: (
@@ -40,6 +42,10 @@ export interface SimulationStore {
     endTime: string,
     plgNetwork?: PLGNetwork,
   ) => void
+  setCollapseDetected: (collapseInfo: {
+    type: string
+    description: string
+  }) => void
 }
 
 export const useSimulationStore = create<SimulationStore>((set) => ({
@@ -52,6 +58,8 @@ export const useSimulationStore = create<SimulationStore>((set) => ({
   finalPlgNetwork: null,
   simulationStartTime: null,
   simulationEndTime: null,
+  collapseDetected: false,
+  collapseInfo: null,
   setState: (state) => set((prev) => ({ ...prev, ...state })),
   saveFinalMetrics: (metrics, endTime, plgNetwork) =>
     set((prev) => ({
@@ -59,5 +67,10 @@ export const useSimulationStore = create<SimulationStore>((set) => ({
       finalMetrics: metrics,
       simulationEndTime: endTime,
       finalPlgNetwork: plgNetwork || prev.plgNetwork,
+    })),
+  setCollapseDetected: (collapseInfo) =>
+    set(() => ({
+      collapseDetected: true,
+      collapseInfo,
     })),
 }))
