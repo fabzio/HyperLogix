@@ -45,6 +45,8 @@ public class SimulationEngine implements Runnable {
   private LocalDateTime nextPlanningTime;
   private LocalDateTime simulatedTime;
 
+  private List<Incident> incidentRepository = new ArrayList<>();
+
   private final AtomicBoolean running = new AtomicBoolean(false);
   private final AtomicBoolean paused = new AtomicBoolean(false);
   private final Lock lock = new ReentrantLock();
@@ -445,8 +447,22 @@ public class SimulationEngine implements Runnable {
 
     // Check for incidents between 5% and 35% progress of current path
     if (progress >= 0.05 && progress <= 0.35) {
-      if(incidentManager.checkAndHandleIncident(truck, simulatedTime)) 
+      Incident detectedIncident = incidentManager.checkAndHandleIncident(truck, simulatedTime);
+      if(detectedIncident != null){
         changeOrdersState(truck.getId(), OrderStatus.DELAYED);
+        incidentRepository.add(detectedIncident);
+        log.info("Incident added to repository. Total incidents: {}. Details: ID={}, TruckCode={}, Type={}, Turn={}, Location=({}, {}), TruckPosition=({}, {})", 
+                 incidentRepository.size(), 
+                 detectedIncident.getId(), 
+                 detectedIncident.getTruckCode(), 
+                 detectedIncident.getType(), 
+                 detectedIncident.getTurn(),
+                 detectedIncident.getLocation().x(), 
+                 detectedIncident.getLocation().y(),
+                 truck.getLocation().x(),
+                 truck.getLocation().y());
+      }
+
     }
     log.trace("Truck {} at position ({}, {}) - progress: {:.2f}%, fuel: {:.2f}gal",
       truck.getId(), interpolatedPosition.x(), interpolatedPosition.y(), progress * 100, newFuelLevel);

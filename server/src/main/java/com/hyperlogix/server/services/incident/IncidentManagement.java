@@ -50,8 +50,9 @@ public class IncidentManagement {
 
       /**
    * Verifica si debe ocurrir un incidente para el camión en el progreso actual del path
+   * @return El incidente detectado y manejado, o null si no se detectó ningún incidente
    */
-  public boolean checkAndHandleIncident(Truck truck, LocalDateTime simulatedTime) {
+  public Incident checkAndHandleIncident(Truck truck, LocalDateTime simulatedTime) {
 
     String currentTurn = getCurrentTurn(simulatedTime);
     
@@ -61,6 +62,7 @@ public class IncidentManagement {
       if (incident.getTruckCode().equals(truck.getCode()) && 
           incident.getTurn().equals(currentTurn)) {
         targetIncident = incident;
+        targetIncident.setDaysSinceIncident(0);
         break;
       }
     }
@@ -79,13 +81,13 @@ public class IncidentManagement {
         incidents.remove(targetIncident);
         
         log.info("Incident removed from plgNetwork to prevent repetition");
-        return true; // Retorna true si se manejó un incidente
+        return targetIncident; // Retorna el incidente que se manejó
       } else {
         log.debug("Incident available for truck {} but probability check failed (rolled {:.3f}, needed <= 0.300)", 
                   truck.getCode(), probabilityRoll);
       }
     }
-    return false; // Retorna false si no ses manejó un incidente
+    return null; // Retorna null si no se manejó un incidente
   }
 
     /**
