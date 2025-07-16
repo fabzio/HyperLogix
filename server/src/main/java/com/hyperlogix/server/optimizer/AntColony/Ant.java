@@ -3,9 +3,11 @@ package com.hyperlogix.server.optimizer.AntColony;
 import com.hyperlogix.server.config.Constants;
 import com.hyperlogix.server.domain.*;
 import com.hyperlogix.server.optimizer.Graph;
+import com.hyperlogix.server.features.planification.dtos.LogisticCollapseEvent;
 
 import lombok.Getter;
 import lombok.Setter;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -30,6 +32,8 @@ public class Ant {
   private Map<String, Duration> tourTime;
   private Map<String, Double> tourCost;
   private Map<Node, Path> firstPath;
+  private ApplicationEventPublisher eventPublisher;
+  private String sessionId;
 
   public Ant(PLGNetwork network, Graph graph, AntColonyConfig antColonyConfig) {
     this.originalNetwork = network.clone();
@@ -38,6 +42,14 @@ public class Ant {
 
     network.getTrucksCapacity();
     resetState();
+  }
+
+  public void setEventPublisher(ApplicationEventPublisher eventPublisher) {
+    this.eventPublisher = eventPublisher;
+  }
+
+  public void setSessionId(String sessionId) {
+    this.sessionId = sessionId;
   }
 
   public Routes findSolution() {
@@ -59,6 +71,20 @@ public class Ant {
       Truck bestTruck = selectBestTruck();
       if (bestTruck == null) {
         System.out.println("Logistic collapse, no more trucks available");
+
+        // Publicar evento de colapso logístico
+        if (eventPublisher != null && sessionId != null) {
+          LogisticCollapseEvent collapseEvent = new LogisticCollapseEvent(
+            sessionId,
+            "RESOURCE_SHORTAGE",
+            "No hay más camiones disponibles para completar las entregas pendientes",
+            LocalDateTime.now(),
+            0.9,
+            "Flota de vehículos"
+          );
+          eventPublisher.publishEvent(collapseEvent);
+        }
+
         // Process the current routes with A* before returning
         Routes roughSolution = new Routes(routes, paths,
             tourCost.values().stream().mapToDouble(Double::doubleValue).sum());

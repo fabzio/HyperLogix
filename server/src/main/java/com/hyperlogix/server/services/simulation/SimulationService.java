@@ -202,4 +202,21 @@ public class SimulationService {
     
     log.info("SimulationService cleanup completed");
   }
+
+  public void sendLogisticCollapseAlert(String simulationId, String collapseType, String description,
+                                       double severityLevel, String affectedArea) {
+    System.out.println("Sending logistic collapse alert for simulation: " + simulationId);
+
+    // Create collapse alert message
+    var collapseAlert = new java.util.HashMap<String, Object>();
+    collapseAlert.put("type", "logistic_collapse");
+    collapseAlert.put("collapseType", collapseType);
+    collapseAlert.put("description", description);
+    collapseAlert.put("severityLevel", severityLevel);
+    collapseAlert.put("affectedArea", affectedArea);
+    collapseAlert.put("timestamp", java.time.LocalDateTime.now());
+
+    // Send alert to client via WebSocket
+    messaging.convertAndSend("/topic/simulation/" + simulationId + "/alerts", collapseAlert);
+  }
 }
