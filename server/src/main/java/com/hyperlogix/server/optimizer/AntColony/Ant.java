@@ -42,7 +42,6 @@ public class Ant {
 
   public Routes findSolution() {
     for (Truck truck : network.getTrucks()) {
-
       Stop firstNode = new Stop(
           new Node(truck.getCode(), truck.getType().toString(), NodeType.LOCATION, truck.getLocation().integerPoint()),
           graph.getAlgorithmStartDate());
@@ -218,7 +217,6 @@ public class Ant {
         Order order = network.getOrders().stream().filter(o -> o.getId().equals(node.getId()))
             .findFirst().orElse(null);
         assert order != null;
-        
         if ((currentNode.getArrivalTime().plus(timeToDestination).isAfter(order.getMaxDeliveryDate())))
           continue;
         // ||
@@ -344,6 +342,7 @@ public class Ant {
     this.tourCost.put(truck.getId(), this.tourCost.get(truck.getId()) + fuelConsumption);
 
   }
+
 
 public void resetState() {
 

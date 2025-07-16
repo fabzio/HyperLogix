@@ -67,8 +67,6 @@ public class SimulationEngine implements Runnable {
   private LocalDateTime lastOrderRateCheck = null;
   private static final Duration ORDER_RATE_CHECK_WINDOW = Duration.ofMinutes(10);
 
-  // Mapa para guardar las órdenes DELAYED que deben ser prioridad para cada camión
-  private final Map<String, List<String>> truckPriorityOrders = new ConcurrentHashMap<>();
 
   public SimulationEngine(String sessionId,
       SimulationConfig simulationConfig,
