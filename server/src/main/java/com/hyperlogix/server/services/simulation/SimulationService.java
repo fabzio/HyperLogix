@@ -65,7 +65,10 @@ public class SimulationService {
     List<Order> orderslist = new ArrayList<>(network.getOrders());
     stopSimulation(simulationId);
     SimulationEngine engine = new SimulationEngine(simulationId, config, notifier, orderslist,
-        eventPublisher, planificationService);
+        eventPublisher, planificationService,() ->{
+      System.out.println("Removing");
+      simulation.remove(simulationId);
+    });
     engine.setPlgNetwork(network);
     simulation.put(simulationId, engine);
     executor.execute(engine);

@@ -137,6 +137,8 @@ public class RealTimeSimulationEngine implements Runnable {
         } else if (ordersToProcess > 0) {
           log.debug("Orders to process ({}) but no changes detected, skipping planification", ordersToProcess);
         } else {
+          // No orders to process - check if we should clear active routes
+          checkAndClearRoutesIfNoActiveOrders();
         }
 
         nextPlanningTime = nextPlanningTime
@@ -362,6 +364,78 @@ public class RealTimeSimulationEngine implements Runnable {
           updateTruckLocationDuringTravel(truck, stops, paths, currentStopIndex - 1);
         }
       }
+      
+      // Check if all trucks have completed their routes and clear active routes if needed
+      checkAndClearCompletedRoutes();
+    }
+  }
+
+  /**
+   * Checks if all trucks have completed their assigned routes and clears active routes if so.
+   * This prevents stale route data from being displayed when all deliveries are done.
+   */
+  private void checkAndClearCompletedRoutes() {
+    if (activeRoutes == null || activeRoutes.getStops().isEmpty()) {
+      return;
+    }
+
+    // Check if all trucks have completed their routes
+    boolean allTrucksCompleted = true;
+    for (Truck truck : plgNetwork.getTrucks()) {
+      if (truck.getStatus() == TruckState.MAINTENANCE || truck.getStatus() == TruckState.BROKEN_DOWN) {
+        continue; // Skip trucks that are not operational
+      }
+
+      List<Stop> stops = activeRoutes.getStops().getOrDefault(truck.getId(), List.of());
+      if (stops.size() <= 1) {
+        continue; // No real route for this truck
+      }
+
+      int currentStopIndex = truckCurrentStopIndex.getOrDefault(truck.getId(), 0);
+      if (currentStopIndex < stops.size()) {
+        allTrucksCompleted = false;
+        break;
+      }
+    }
+
+    // If all trucks have completed their routes, clear the active routes
+    if (allTrucksCompleted) {
+      log.info("All trucks have completed their routes - clearing active routes");
+      synchronized (routesLock) {
+        this.activeRoutes = null;
+        truckCurrentStopIndex.clear();
+      }
+    }
+  }
+
+  /**
+   * Checks if there are no active orders and clears routes if appropriate.
+   * This helps clean up stale route data when no orders are being processed.
+   */
+  private void checkAndClearRoutesIfNoActiveOrders() {
+    if (activeRoutes == null) {
+      return;
+    }
+
+    // Check if there are any active orders (PENDING, CALCULATING, or IN_PROGRESS)
+    boolean hasActiveOrders = realTimeOrderRepository.getAllOrders().stream()
+        .anyMatch(order -> order.getStatus() == OrderStatus.PENDING ||
+                          order.getStatus() == OrderStatus.CALCULATING ||
+                          order.getStatus() == OrderStatus.IN_PROGRESS);
+
+    if (!hasActiveOrders) {
+      log.info("No active orders remaining - clearing active routes");
+      synchronized (routesLock) {
+        this.activeRoutes = null;
+        truckCurrentStopIndex.clear();
+      }
+      
+      // Set all operational trucks to IDLE
+      for (Truck truck : plgNetwork.getTrucks()) {
+        if (truck.getStatus() == TruckState.ACTIVE) {
+          truck.setStatus(TruckState.IDLE);
+        }
+      }
     }
   }
 
@@ -565,6 +639,8 @@ public class RealTimeSimulationEngine implements Runnable {
     Duration newInterval = simulationConfig.getCurrentAlgorithmInterval();
 
     if (!previousInterval.equals(newInterval)) {
+      log.info("Algorithm interval adjusted from {} to {} based on order arrival rate: {:.2f} orders/hour",
+          previousInterval, newInterval, orderArrivalRate);
     }
   }
 
@@ -607,6 +683,7 @@ public class RealTimeSimulationEngine implements Runnable {
           new PlanificationRequestEvent(sessionId, networkForPlanification, simulatedTime,
               simulationConfig.getAlgorithmTime()));
     } else {
+      log.debug("No planification requested - no orders in CALCULATING state");
     }
   }
 
@@ -639,6 +716,24 @@ public class RealTimeSimulationEngine implements Runnable {
   }
 
   public void onPlanificationResult(Routes routes) {
+    if (routes == null || routes.getStops().isEmpty()) {
+      synchronized (routesLock) {
+        this.activeRoutes = null;
+        truckCurrentStopIndex.clear();
+      }
+
+      List<Order> calculatingOrders = realTimeOrderRepository.getAllOrders().stream()
+          .filter(order -> order.getStatus() == OrderStatus.CALCULATING)
+          .toList();
+      calculatingOrders.forEach(order -> {
+        realTimeOrderRepository.updateOrderStatus(order.getId(), OrderStatus.PENDING);
+      });
+
+      log.info("No routes received from planification - cleared active routes and reset {} orders to PENDING",
+          calculatingOrders.size());
+      return;
+    }
+
     synchronized (routesLock) {
       this.activeRoutes = routes;
       // Reset stop indices when new routes are received
@@ -822,19 +917,19 @@ public class RealTimeSimulationEngine implements Runnable {
         .filter(order -> order.getStatus() == OrderStatus.COMPLETED)
         .map(Order::getId)
         .toList();
-    
+
     completedOrderIds.forEach(orderStartTimes::remove);
-    
+
     // Clean up customer delivery times - keep only most recent 1000 entries
     if (customerDeliveryTimes.size() > 1000) {
       customerDeliveryTimes.clear();
     }
-    
+
     // Clean up order arrival history older than 1 hour
     LocalDateTime arrivalCutoff = simulatedTime.minusHours(1);
     orderArrivalHistory.entrySet().removeIf(entry -> entry.getKey().isBefore(arrivalCutoff));
-    
-    log.debug("Cleaned up old metrics - orderStartTimes: {}, customerDeliveryTimes: {}, orderArrivalHistory: {}", 
+
+    log.debug("Cleaned up old metrics - orderStartTimes: {}, customerDeliveryTimes: {}, orderArrivalHistory: {}",
         orderStartTimes.size(), customerDeliveryTimes.size(), orderArrivalHistory.size());
   }
 }

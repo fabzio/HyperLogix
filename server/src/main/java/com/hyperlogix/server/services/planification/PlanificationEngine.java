@@ -25,24 +25,26 @@ public class PlanificationEngine implements Runnable {
   private final Duration algorithmDuration;
   private final ApplicationEventPublisher eventPublisher;
   private final String sessionId;
+  private final Runnable onComplete;
   private volatile Thread currentThread;
   private volatile boolean isPlanning = false;
   private volatile int currentNodesProcessed = 0;
 
   public PlanificationEngine(PLGNetwork network, PlanificationNotifier notifier, LocalDateTime algorithmTime,
-      Duration algorithmDuration, ApplicationEventPublisher eventPublisher, String sessionId) {
+      Duration algorithmDuration, ApplicationEventPublisher eventPublisher, String sessionId, Runnable onComplete) {
     this.notifier = notifier;
     this.network = network;
     this.algorithmTime = algorithmTime;
     this.algorithmDuration = algorithmDuration;
     this.eventPublisher = eventPublisher;
     this.sessionId = sessionId;
+    this.onComplete = onComplete;
   }
 
   // Constructor sin eventos para compatibilidad hacia atrás
   public PlanificationEngine(PLGNetwork network, PlanificationNotifier notifier, LocalDateTime algorithmTime,
       Duration algorithmDuration) {
-    this(network, notifier, algorithmTime, algorithmDuration, null, null);
+    this(network, notifier, algorithmTime, algorithmDuration, null, null,null);
   }
 
   @Override
@@ -104,6 +106,9 @@ public class PlanificationEngine implements Runnable {
       isPlanning = false;
       currentNodesProcessed = 0;
       currentThread = null;
+      if (onComplete != null) {
+        onComplete.run();
+      }
     }
   }
 

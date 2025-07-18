@@ -132,8 +132,12 @@ export function MapModal({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
-        <DialogHeader>
+      <DialogContent
+        id="hola"
+        className="!max-w-full h-[100vh] w-[720px]"
+        style={{ width: '100vw', maxWidth: '100vw' }}
+      >
+        <DialogHeader className="h-fit">
           <DialogTitle className="flex items-center gap-2">
             <Maximize2 className="h-5 w-5" />
             Mapa en Tiempo Real
@@ -144,12 +148,11 @@ export function MapModal({
             )}
           </DialogTitle>
         </DialogHeader>
-        <div className="w-full flex justify-center">
+        <div className="h-[93vh] !max-w-full w-full flex">
           <div
-            className="w-full max-w-4xl"
+            className="w-full max-w-full"
             style={{
-              aspectRatio: '70/50', // Maintain map grid proportions
-              maxHeight: '70vh',
+              aspectRatio: '70/50',
             }}
           >
             <DynamicMap
@@ -161,9 +164,7 @@ export function MapModal({
               stations={network.stations || []}
               orders={
                 network.orders.filter(
-                  (order) =>
-                    order.status !== 'COMPLETED' &&
-                    (!simulationTime || order.date <= simulationTime),
+                  (order) => order.status !== 'COMPLETED',
                 ) || []
               }
               polylines={polylines.filter(

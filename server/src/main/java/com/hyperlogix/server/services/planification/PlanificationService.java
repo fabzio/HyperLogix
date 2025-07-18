@@ -44,7 +44,10 @@ public class PlanificationService {
 
     // Usar el nuevo constructor que incluye eventPublisher y sessionId
     PlanificationEngine engine = new PlanificationEngine(network, notifier, algorithmTime, algorithmDuration,
-                                                         eventPublisher, planificationId);
+                                                         eventPublisher, planificationId,()->{
+      System.out.println("Removing");
+      planification.remove(planificationId);
+    });
     stopPlanification(planificationId);
     planification.put(planificationId, engine);
     executor.execute(engine);
