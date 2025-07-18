@@ -364,15 +364,18 @@ public class RealTimeSimulationEngine implements Runnable {
           updateTruckLocationDuringTravel(truck, stops, paths, currentStopIndex - 1);
         }
       }
-      
-      // Check if all trucks have completed their routes and clear active routes if needed
+
+      // Check if all trucks have completed their routes and clear active routes if
+      // needed
       checkAndClearCompletedRoutes();
     }
   }
 
   /**
-   * Checks if all trucks have completed their assigned routes and clears active routes if so.
-   * This prevents stale route data from being displayed when all deliveries are done.
+   * Checks if all trucks have completed their assigned routes and clears active
+   * routes if so.
+   * This prevents stale route data from being displayed when all deliveries are
+   * done.
    */
   private void checkAndClearCompletedRoutes() {
     if (activeRoutes == null || activeRoutes.getStops().isEmpty()) {
@@ -420,8 +423,8 @@ public class RealTimeSimulationEngine implements Runnable {
     // Check if there are any active orders (PENDING, CALCULATING, or IN_PROGRESS)
     boolean hasActiveOrders = realTimeOrderRepository.getAllOrders().stream()
         .anyMatch(order -> order.getStatus() == OrderStatus.PENDING ||
-                          order.getStatus() == OrderStatus.CALCULATING ||
-                          order.getStatus() == OrderStatus.IN_PROGRESS);
+            order.getStatus() == OrderStatus.CALCULATING ||
+            order.getStatus() == OrderStatus.IN_PROGRESS);
 
     if (!hasActiveOrders) {
       log.info("No active orders remaining - clearing active routes");
@@ -429,7 +432,7 @@ public class RealTimeSimulationEngine implements Runnable {
         this.activeRoutes = null;
         truckCurrentStopIndex.clear();
       }
-      
+
       // Set all operational trucks to IDLE
       for (Truck truck : plgNetwork.getTrucks()) {
         if (truck.getStatus() == TruckState.ACTIVE) {

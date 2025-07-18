@@ -18,10 +18,11 @@ import {
 	FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useCreateStation } from "@/features/stations/hooks/useStationMutations";
+import type { Station } from "@/domain/Station";
+import { useUpdateStation } from "@/features/stations/hooks/useStationMutations";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Plus } from "lucide-react";
-import { useState } from "react";
+import { Edit, Plus } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -41,38 +42,59 @@ const formSchema = z.object({
 
 type StationFormData = z.infer<typeof formSchema>;
 
-export default function AddStationDialog() {
+interface EditStationDialogProps {
+	station: Station;
+	children?: React.ReactNode;
+}
+
+export default function EditStationDialog({
+	station,
+	children,
+}: EditStationDialogProps) {
 	const [open, setOpen] = useState(false);
-	const { mutate: createStation, isPending } = useCreateStation();
+	const { mutate: updateStation, isPending } = useUpdateStation();
 
 	const form = useForm<StationFormData>({
 		resolver: zodResolver(formSchema),
 		defaultValues: {
-			name: "",
-			maxCapacity: 160,
-			mainStation: false,
-			locationX: 0,
-			locationY: 0,
+			name: station.name,
+			maxCapacity: station.mainStation ? undefined : station.maxCapacity,
+			mainStation: station.mainStation,
+			locationX: station.location?.x || 0,
+			locationY: station.location?.y || 0,
 		},
 	});
 
+	// Reset form when station changes
+	useEffect(() => {
+		form.reset({
+			name: station.name,
+			maxCapacity: station.mainStation ? undefined : station.maxCapacity,
+			mainStation: station.mainStation,
+			locationX: station.location?.x || 0,
+			locationY: station.location?.y || 0,
+		});
+	}, [station, form]);
+
 	const onSubmit = (data: StationFormData) => {
-		createStation(
+		updateStation(
 			{
-				name: data.name,
-				maxCapacity: data.mainStation
-					? Number.MAX_SAFE_INTEGER
-					: data.maxCapacity || 160,
-				mainStation: data.mainStation,
-				location: { x: data.locationX, y: data.locationY },
-				id: "",
-				availableCapacityPerDate: {},
-				reservationHistory: [],
+				id: station.id,
+				station: {
+					name: data.name,
+					maxCapacity: data.mainStation
+						? Number.MAX_SAFE_INTEGER
+						: data.maxCapacity || 160,
+					mainStation: data.mainStation,
+					location: { x: data.locationX, y: data.locationY },
+					id: station.id,
+					availableCapacityPerDate: station.availableCapacityPerDate || {},
+					reservationHistory: station.reservationHistory || [],
+				},
 			},
 			{
 				onSuccess: () => {
 					setOpen(false);
-					form.reset();
 				},
 			},
 		);
@@ -100,16 +122,18 @@ export default function AddStationDialog() {
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
 			<DialogTrigger asChild>
-				<Button>
-					<Plus className="h-4 w-4 mr-2" />
-					Agregar Estación
-				</Button>
+				{children || (
+					<Button variant="outline" size="sm">
+						<Edit className="h-4 w-4 mr-2" />
+						Editar
+					</Button>
+				)}
 			</DialogTrigger>
 			<DialogContent className="max-w-lg">
 				<DialogHeader>
-					<DialogTitle>Agregar Estación</DialogTitle>
+					<DialogTitle>Editar Estación</DialogTitle>
 					<DialogDescription>
-						Complete los datos de la estación. Los campos marcados con * son
+						Modifique los datos de la estación. Los campos marcados con * son
 						obligatorios.
 					</DialogDescription>
 				</DialogHeader>
@@ -250,7 +274,7 @@ export default function AddStationDialog() {
 								Cancelar
 							</Button>
 							<Button type="submit" disabled={isPending}>
-								{isPending ? "Creando..." : "Crear Estación"}
+								{isPending ? "Actualizando..." : "Actualizar Estación"}
 							</Button>
 						</DialogFooter>
 					</form>
