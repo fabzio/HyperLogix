@@ -493,6 +493,7 @@ public class Ant {
   }
 }
 
+
 public void resetState() {
 
     this.network = originalNetwork.clone();
