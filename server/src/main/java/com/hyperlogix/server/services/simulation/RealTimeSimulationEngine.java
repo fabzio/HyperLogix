@@ -15,7 +15,9 @@ import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Condition;
@@ -29,6 +31,7 @@ public class RealTimeSimulationEngine implements Runnable {
 
   private final ApplicationEventPublisher eventPublisher;
   private final PlanificationService planificationService;
+  private final BlockadeProcessor blockadeProcessor;
   private final String sessionId;
   private final SimulationConfig simulationConfig;
   private final SimulationNotifier simulationNotifier;
@@ -46,6 +49,11 @@ public class RealTimeSimulationEngine implements Runnable {
   private final Lock lock = new ReentrantLock();
   private final Condition condition = lock.newCondition();
   private final Map<String, Integer> truckCurrentStopIndex = new ConcurrentHashMap<>();
+
+  // Blockade tracking
+  private List<Roadblock> lastActiveBlockades = List.of();
+  private LocalDateTime lastBlockadeCheck = null;
+  private static final Duration BLOCKADE_CHECK_INTERVAL = Duration.ofMinutes(5);
 
   // Metrics tracking fields with periodic cleanup
   private final Map<String, Double> truckFuelConsumed = new ConcurrentHashMap<>();
@@ -73,13 +81,15 @@ public class RealTimeSimulationEngine implements Runnable {
       SimulationNotifier simulationNotifier,
       RealTimeOrderRepository realTimeOrderRepository,
       ApplicationEventPublisher eventPublisher,
-      PlanificationService planificationService) {
+      PlanificationService planificationService,
+      BlockadeProcessor blockadeProcessor) {
     this.sessionId = sessionId;
     this.simulationConfig = simulationConfig;
     this.simulationNotifier = simulationNotifier;
     this.realTimeOrderRepository = realTimeOrderRepository;
     this.eventPublisher = eventPublisher;
     this.planificationService = planificationService;
+    this.blockadeProcessor = blockadeProcessor;
   }
 
   @Override
@@ -130,13 +140,22 @@ public class RealTimeSimulationEngine implements Runnable {
           orderArrivalHistory.put(simulatedTime, newPendingOrders.size());
         }
 
-        // Request planification only if orders have changed or there are new orders to
-        // process
+        // Check for dynamic blockade changes
+        boolean blockadeChanged = checkForBlockadeChanges();
+
+        // Request planification only if orders have changed, there are new orders to
+        // process, or blockades have changed
         if (ordersToProcess > 0 && hasOrdersChanged()) {
+          requestPlanification();
+        } else if (blockadeChanged) {
+          log.info("Blockade changes detected, requesting replanification");
+          forceReplanification = true;
           requestPlanification();
         } else if (ordersToProcess > 0) {
           log.debug("Orders to process ({}) but no changes detected, skipping planification", ordersToProcess);
         } else {
+          // No orders to process - check if we should clear active routes
+          checkAndClearRoutesIfNoActiveOrders();
         }
 
         nextPlanningTime = nextPlanningTime
@@ -157,7 +176,16 @@ public class RealTimeSimulationEngine implements Runnable {
           .notifySnapshot(
               new SimulationSnapshot(LocalDateTime.now(), simulatedTime, updatedNetwork, activeRoutes, metrics,
                   planificationStatus));
-      sleep(simulationConfig.getSimulationResolution());
+
+      // Calculate sleep duration based on acceleration - higher acceleration means
+      // shorter sleep
+      Duration sleepDuration = Duration.ofMillis(
+          (long) (simulationConfig.getSimulationResolution().toMillis() / simulationConfig.getTimeAcceleration()));
+
+      log.debug("Simulation loop: acceleration={}, timeStep={}ms, sleepDuration={}ms",
+          simulationConfig.getTimeAcceleration(), timeStep.toMillis(), sleepDuration.toMillis());
+
+      sleep(sleepDuration);
     }
 
   }
@@ -182,21 +210,24 @@ public class RealTimeSimulationEngine implements Runnable {
             order.getId(), order.getDate());
       });
 
-      // Only when there are new orders, reconsider IN_PROGRESS orders for
-      // optimization
+      // When there are new orders, reconsider ALL IN_PROGRESS orders for
+      // optimization to ensure they can be re-routed if needed
       List<Order> inProgressOrders = realTimeOrderRepository.getAllOrders().stream()
           .filter(order -> order.getStatus() == OrderStatus.IN_PROGRESS)
           .toList();
 
       if (!inProgressOrders.isEmpty()) {
-        log.info("Reconsidering {} IN_PROGRESS orders for optimization due to new orders", inProgressOrders.size());
+        log.info("Reconsidering {} IN_PROGRESS orders for optimization due to {} new orders",
+            inProgressOrders.size(), newOrders.size());
 
         inProgressOrders.forEach(order -> {
           realTimeOrderRepository.updateOrderStatus(order.getId(), OrderStatus.CALCULATING);
-          log.info("Order {} set back to CALCULATING for reconsideration", order.getId());
+          log.info("Order {} (IN_PROGRESS -> CALCULATING) will be reconsidered for re-routing", order.getId());
         });
 
         totalOrdersToProcess += inProgressOrders.size();
+        log.info("Total orders for planification: {} new + {} reconsidered = {}",
+            newOrders.size(), inProgressOrders.size(), totalOrdersToProcess);
       }
     }
 
@@ -217,6 +248,7 @@ public class RealTimeSimulationEngine implements Runnable {
         truck.setStatus(newState);
       } else {
       }
+      triggerImmediatePlanification();
     }
   }
 
@@ -291,11 +323,15 @@ public class RealTimeSimulationEngine implements Runnable {
   }
 
   public void handleCommand(String command) {
+    log.info("Real-time simulation {} received command: {}", sessionId, command);
     switch (command.toUpperCase()) {
       case "PAUSE" -> {
+        log.info("Real-time simulation {} executing PAUSE command", sessionId);
         paused.set(true);
+        log.info("Real-time simulation {} paused successfully", sessionId);
       }
       case "RESUME" -> {
+        log.info("Real-time simulation {} executing RESUME command", sessionId);
         paused.set(false);
         lock.lock();
         try {
@@ -303,6 +339,26 @@ public class RealTimeSimulationEngine implements Runnable {
         } finally {
           lock.unlock();
         }
+        log.info("Real-time simulation {} resumed successfully", sessionId);
+      }
+      case "DESACCELERATE" -> {
+        double currentAcceleration = simulationConfig.getTimeAcceleration();
+        double newAcceleration = Math.max(0.5, currentAcceleration / 2);
+        log.info("Real-time simulation {} executing DESACCELERATE command: {} -> {}", sessionId, currentAcceleration,
+            newAcceleration);
+        simulationConfig.setTimeAcceleration(newAcceleration);
+        log.info("Real-time simulation {} decelerated to {}x", sessionId, newAcceleration);
+      }
+      case "ACCELERATE" -> {
+        double currentAcceleration = simulationConfig.getTimeAcceleration();
+        double newAcceleration = Math.min(32.0, currentAcceleration * 2);
+        log.info("Real-time simulation {} executing ACCELERATE command: {} -> {}", sessionId, currentAcceleration,
+            newAcceleration);
+        simulationConfig.setTimeAcceleration(newAcceleration);
+        log.info("Real-time simulation {} accelerated to {}x", sessionId, newAcceleration);
+      }
+      default -> {
+        log.warn("Real-time simulation {} received unknown command: {}", sessionId, command);
       }
     }
   }
@@ -360,6 +416,81 @@ public class RealTimeSimulationEngine implements Runnable {
         // Update truck location during travel
         if (currentStopIndex < stops.size()) {
           updateTruckLocationDuringTravel(truck, stops, paths, currentStopIndex - 1);
+        }
+      }
+
+      // Check if all trucks have completed their routes and clear active routes if
+      // needed
+      checkAndClearCompletedRoutes();
+    }
+  }
+
+  /**
+   * Checks if all trucks have completed their assigned routes and clears active
+   * routes if so.
+   * This prevents stale route data from being displayed when all deliveries are
+   * done.
+   */
+  private void checkAndClearCompletedRoutes() {
+    if (activeRoutes == null || activeRoutes.getStops().isEmpty()) {
+      return;
+    }
+
+    // Check if all trucks have completed their routes
+    boolean allTrucksCompleted = true;
+    for (Truck truck : plgNetwork.getTrucks()) {
+      if (truck.getStatus() == TruckState.MAINTENANCE || truck.getStatus() == TruckState.BROKEN_DOWN) {
+        continue; // Skip trucks that are not operational
+      }
+
+      List<Stop> stops = activeRoutes.getStops().getOrDefault(truck.getId(), List.of());
+      if (stops.size() <= 1) {
+        continue; // No real route for this truck
+      }
+
+      int currentStopIndex = truckCurrentStopIndex.getOrDefault(truck.getId(), 0);
+      if (currentStopIndex < stops.size()) {
+        allTrucksCompleted = false;
+        break;
+      }
+    }
+
+    // If all trucks have completed their routes, clear the active routes
+    if (allTrucksCompleted) {
+      log.info("All trucks have completed their routes - clearing active routes");
+      synchronized (routesLock) {
+        this.activeRoutes = null;
+        truckCurrentStopIndex.clear();
+      }
+    }
+  }
+
+  /**
+   * Checks if there are no active orders and clears routes if appropriate.
+   * This helps clean up stale route data when no orders are being processed.
+   */
+  private void checkAndClearRoutesIfNoActiveOrders() {
+    if (activeRoutes == null) {
+      return;
+    }
+
+    // Check if there are any active orders (PENDING, CALCULATING, or IN_PROGRESS)
+    boolean hasActiveOrders = realTimeOrderRepository.getAllOrders().stream()
+        .anyMatch(order -> order.getStatus() == OrderStatus.PENDING ||
+            order.getStatus() == OrderStatus.CALCULATING ||
+            order.getStatus() == OrderStatus.IN_PROGRESS);
+
+    if (!hasActiveOrders) {
+      log.info("No active orders remaining - clearing active routes");
+      synchronized (routesLock) {
+        this.activeRoutes = null;
+        truckCurrentStopIndex.clear();
+      }
+
+      // Set all operational trucks to IDLE
+      for (Truck truck : plgNetwork.getTrucks()) {
+        if (truck.getStatus() == TruckState.ACTIVE) {
+          truck.setStatus(TruckState.IDLE);
         }
       }
     }
@@ -565,6 +696,8 @@ public class RealTimeSimulationEngine implements Runnable {
     Duration newInterval = simulationConfig.getCurrentAlgorithmInterval();
 
     if (!previousInterval.equals(newInterval)) {
+      log.info("Algorithm interval adjusted from {} to {} based on order arrival rate: {:.2f} orders/hour",
+          previousInterval, newInterval, orderArrivalRate);
     }
   }
 
@@ -607,6 +740,7 @@ public class RealTimeSimulationEngine implements Runnable {
           new PlanificationRequestEvent(sessionId, networkForPlanification, simulatedTime,
               simulationConfig.getAlgorithmTime()));
     } else {
+      log.debug("No planification requested - no orders in CALCULATING state");
     }
   }
 
@@ -639,6 +773,24 @@ public class RealTimeSimulationEngine implements Runnable {
   }
 
   public void onPlanificationResult(Routes routes) {
+    if (routes == null || routes.getStops().isEmpty()) {
+      synchronized (routesLock) {
+        this.activeRoutes = null;
+        truckCurrentStopIndex.clear();
+      }
+
+      List<Order> calculatingOrders = realTimeOrderRepository.getAllOrders().stream()
+          .filter(order -> order.getStatus() == OrderStatus.CALCULATING)
+          .toList();
+      calculatingOrders.forEach(order -> {
+        realTimeOrderRepository.updateOrderStatus(order.getId(), OrderStatus.PENDING);
+      });
+
+      log.info("No routes received from planification - cleared active routes and reset {} orders to PENDING",
+          calculatingOrders.size());
+      return;
+    }
+
     synchronized (routesLock) {
       this.activeRoutes = routes;
       // Reset stop indices when new routes are received
@@ -675,13 +827,60 @@ public class RealTimeSimulationEngine implements Runnable {
       totalPlanificationTime = totalPlanificationTime.plus(planificationDuration);
     }
 
+    // Get all order IDs that are part of the active routes
+    Set<String> ordersInRoutes = new HashSet<>();
+    for (List<Stop> stops : routes.getStops().values()) {
+      for (Stop stop : stops) {
+        if (stop.getNode().getType() == NodeType.DELIVERY) {
+          ordersInRoutes.add(stop.getNode().getId());
+        }
+      }
+    }
+
+    // Check for IN_PROGRESS orders that are no longer in routes
+    List<Order> inProgressOrders = realTimeOrderRepository.getAllOrders().stream()
+        .filter(order -> order.getStatus() == OrderStatus.IN_PROGRESS)
+        .toList();
+
+    log.info("Route validation: {} orders in routes, {} orders currently IN_PROGRESS",
+        ordersInRoutes.size(), inProgressOrders.size());
+
+    int resetCount = 0;
+    for (Order order : inProgressOrders) {
+      if (!ordersInRoutes.contains(order.getId())) {
+        realTimeOrderRepository.updateOrderStatus(order.getId(), OrderStatus.PENDING);
+        resetCount++;
+        log.info("Order {} reset to PENDING - no longer in any route", order.getId());
+      } else {
+        log.debug("Order {} remains IN_PROGRESS - found in new routes", order.getId());
+      }
+    }
+
+    if (resetCount > 0) {
+      log.info("Reset {} IN_PROGRESS orders to PENDING because they were not included in new routes", resetCount);
+    }
+
+    // Set CALCULATING orders to IN_PROGRESS
     List<Order> calculatingOrders = realTimeOrderRepository.getAllOrders().stream()
         .filter(order -> order.getStatus() == OrderStatus.CALCULATING)
         .toList();
 
     calculatingOrders.forEach(order -> {
       realTimeOrderRepository.updateOrderStatus(order.getId(), OrderStatus.IN_PROGRESS);
+      log.debug("Order {} set from CALCULATING to IN_PROGRESS", order.getId());
     });
+
+    // Final status summary
+    long finalPendingCount = realTimeOrderRepository.getAllOrders().stream()
+        .filter(order -> order.getStatus() == OrderStatus.PENDING).count();
+    long finalInProgressCount = realTimeOrderRepository.getAllOrders().stream()
+        .filter(order -> order.getStatus() == OrderStatus.IN_PROGRESS).count();
+    long finalCompletedCount = realTimeOrderRepository.getAllOrders().stream()
+        .filter(order -> order.getStatus() == OrderStatus.COMPLETED).count();
+
+    log.info(
+        "Planification result processed: {} CALCULATING->IN_PROGRESS, Final status - PENDING: {}, IN_PROGRESS: {}, COMPLETED: {}",
+        calculatingOrders.size(), finalPendingCount, finalInProgressCount, finalCompletedCount);
 
   }
 
@@ -814,6 +1013,36 @@ public class RealTimeSimulationEngine implements Runnable {
   }
 
   /**
+   * Check if blockades have changed since the last check
+   * 
+   * @return true if blockades have changed, false otherwise
+   */
+  private boolean checkForBlockadeChanges() {
+    // Only check blockades periodically to avoid excessive file I/O
+    if (lastBlockadeCheck != null &&
+        simulatedTime.isBefore(lastBlockadeCheck.plus(BLOCKADE_CHECK_INTERVAL))) {
+      return false;
+    }
+
+    try {
+      List<Roadblock> currentBlockades = blockadeProcessor.getActiveBlockades(simulatedTime);
+      boolean hasChanged = blockadeProcessor.hasActiveBlockadesChanged(simulatedTime, lastActiveBlockades);
+
+      if (hasChanged) {
+        log.info("Blockade changes detected at {}: {} active blockades",
+            simulatedTime, currentBlockades.size());
+        lastActiveBlockades = currentBlockades;
+      }
+
+      lastBlockadeCheck = simulatedTime;
+      return hasChanged;
+    } catch (Exception e) {
+      log.warn("Error checking blockade changes: {}", e.getMessage());
+      return false;
+    }
+  }
+
+  /**
    * Clean up old metrics to prevent memory buildup
    */
   private void cleanupOldMetrics() {
@@ -822,19 +1051,19 @@ public class RealTimeSimulationEngine implements Runnable {
         .filter(order -> order.getStatus() == OrderStatus.COMPLETED)
         .map(Order::getId)
         .toList();
-    
+
     completedOrderIds.forEach(orderStartTimes::remove);
-    
+
     // Clean up customer delivery times - keep only most recent 1000 entries
     if (customerDeliveryTimes.size() > 1000) {
       customerDeliveryTimes.clear();
     }
-    
+
     // Clean up order arrival history older than 1 hour
     LocalDateTime arrivalCutoff = simulatedTime.minusHours(1);
     orderArrivalHistory.entrySet().removeIf(entry -> entry.getKey().isBefore(arrivalCutoff));
-    
-    log.debug("Cleaned up old metrics - orderStartTimes: {}, customerDeliveryTimes: {}, orderArrivalHistory: {}", 
+
+    log.debug("Cleaned up old metrics - orderStartTimes: {}, customerDeliveryTimes: {}, orderArrivalHistory: {}",
         orderStartTimes.size(), customerDeliveryTimes.size(), orderArrivalHistory.size());
   }
 }

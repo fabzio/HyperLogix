@@ -1,8 +1,8 @@
 import { Line, Marker } from 'react-simple-maps'
 import type { MapPolyline } from './index'
 
-const HOVER_STROKE_WIDTH = 1.5
-const HIT_AREA_STROKE_WIDTH = 3
+const HOVER_STROKE_WIDTH = 1.0
+const HIT_AREA_STROKE_WIDTH = 2.5
 
 interface PolylineItemProps {
   polyline: MapPolyline
@@ -30,7 +30,7 @@ const PolylineItem = ({
       const p2 = transformedPolylinePoints[index + 1]
       let strokeColor = polyline.stroke || '#777777'
       let strokeDashArray: string | undefined = undefined
-      let strokeW = polyline.strokeWidth || 0.3
+      let strokeW = polyline.strokeWidth || 0.2
 
       if (isHovered) {
         strokeW = HOVER_STROKE_WIDTH

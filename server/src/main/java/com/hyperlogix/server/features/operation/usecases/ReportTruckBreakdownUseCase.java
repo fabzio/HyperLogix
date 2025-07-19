@@ -1,7 +1,8 @@
 package com.hyperlogix.server.features.operation.usecases;
 
-import com.hyperlogix.server.features.operation.services.RealTimeOperationService;
 import org.springframework.stereotype.Service;
+
+import com.hyperlogix.server.services.simulation.RealTimeOperationService;
 
 @Service
 public class ReportTruckBreakdownUseCase {

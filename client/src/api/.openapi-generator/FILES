@@ -4,6 +4,7 @@ api.ts
 base.ts
 common.ts
 configuration.ts
+docs/LogisticCollapseControllerApi.md
 docs/MainControllerApi.md
 docs/OperationControllerApi.md
 docs/Order.md

@@ -6,6 +6,7 @@ import com.hyperlogix.server.optimizer.Notifier;
 import com.hyperlogix.server.optimizer.Optimizer;
 import com.hyperlogix.server.optimizer.OptimizerContext;
 import com.hyperlogix.server.optimizer.OptimizerResult;
+import com.hyperlogix.server.features.planification.dtos.LogisticCollapseEvent;
 
 import org.springframework.context.ApplicationEventPublisher;
 
@@ -41,9 +42,6 @@ public class AntColonyOptimizer implements Optimizer {
     ants = new ArrayList<>();
     for (int i = 0; i < antColonyConfig.NUM_ANTS(); i++) {
       Ant ant = new Ant(ctx.plgNetwork, graph, antColonyConfig);
-      // Configurar el evento publisher y sessionId para cada hormiga
-      ant.setEventPublisher(eventPublisher);
-      ant.setSessionId(sessionId);
       ants.add(ant);
     }
 
@@ -118,6 +116,20 @@ public class AntColonyOptimizer implements Optimizer {
         executor.shutdownNow();
         Thread.currentThread().interrupt();
       }
+    }
+
+    // Si no se encontró solución válida dentro del tiempo límite, publicar
+    // LogisticCollapse
+    if (bestSolution == null && eventPublisher != null && sessionId != null) {
+      LogisticCollapseEvent collapseEvent = new LogisticCollapseEvent(
+          sessionId,
+          "TIME_LIMIT_EXCEEDED",
+          "No se pudo encontrar una solución válida dentro del tiempo límite de " + maxDuration.toMinutes()
+              + " minutos",
+          java.time.LocalDateTime.now(),
+          0.95,
+          "Algoritmo de optimización");
+      eventPublisher.publishEvent(collapseEvent);
     }
 
     // Return best solution found

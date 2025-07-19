@@ -120,12 +120,6 @@ export interface PageStation {
     'totalPages'?: number;
     /**
      * 
-     * @type {PageableObject}
-     * @memberof PageStation
-     */
-    'pageable'?: PageableObject;
-    /**
-     * 
      * @type {number}
      * @memberof PageStation
      */
@@ -150,6 +144,18 @@ export interface PageStation {
     'sort'?: SortObject;
     /**
      * 
+     * @type {number}
+     * @memberof PageStation
+     */
+    'numberOfElements'?: number;
+    /**
+     * 
+     * @type {PageableObject}
+     * @memberof PageStation
+     */
+    'pageable'?: PageableObject;
+    /**
+     * 
      * @type {boolean}
      * @memberof PageStation
      */
@@ -160,12 +166,6 @@ export interface PageStation {
      * @memberof PageStation
      */
     'last'?: boolean;
-    /**
-     * 
-     * @type {number}
-     * @memberof PageStation
-     */
-    'numberOfElements'?: number;
     /**
      * 
      * @type {boolean}
@@ -193,12 +193,6 @@ export interface PageTruck {
     'totalPages'?: number;
     /**
      * 
-     * @type {PageableObject}
-     * @memberof PageTruck
-     */
-    'pageable'?: PageableObject;
-    /**
-     * 
      * @type {number}
      * @memberof PageTruck
      */
@@ -223,6 +217,18 @@ export interface PageTruck {
     'sort'?: SortObject;
     /**
      * 
+     * @type {number}
+     * @memberof PageTruck
+     */
+    'numberOfElements'?: number;
+    /**
+     * 
+     * @type {PageableObject}
+     * @memberof PageTruck
+     */
+    'pageable'?: PageableObject;
+    /**
+     * 
      * @type {boolean}
      * @memberof PageTruck
      */
@@ -233,12 +239,6 @@ export interface PageTruck {
      * @memberof PageTruck
      */
     'last'?: boolean;
-    /**
-     * 
-     * @type {number}
-     * @memberof PageTruck
-     */
-    'numberOfElements'?: number;
     /**
      * 
      * @type {boolean}
@@ -279,30 +279,6 @@ export interface Pageable {
 export interface PageableObject {
     /**
      * 
-     * @type {boolean}
-     * @memberof PageableObject
-     */
-    'paged'?: boolean;
-    /**
-     * 
-     * @type {number}
-     * @memberof PageableObject
-     */
-    'pageNumber'?: number;
-    /**
-     * 
-     * @type {number}
-     * @memberof PageableObject
-     */
-    'pageSize'?: number;
-    /**
-     * 
-     * @type {boolean}
-     * @memberof PageableObject
-     */
-    'unpaged'?: boolean;
-    /**
-     * 
      * @type {number}
      * @memberof PageableObject
      */
@@ -313,6 +289,30 @@ export interface PageableObject {
      * @memberof PageableObject
      */
     'sort'?: SortObject;
+    /**
+     * 
+     * @type {number}
+     * @memberof PageableObject
+     */
+    'pageSize'?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof PageableObject
+     */
+    'pageNumber'?: number;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof PageableObject
+     */
+    'paged'?: boolean;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof PageableObject
+     */
+    'unpaged'?: boolean;
 }
 /**
  * 
@@ -456,6 +456,12 @@ export interface SortObject {
      * @type {boolean}
      * @memberof SortObject
      */
+    'empty'?: boolean;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof SortObject
+     */
     'sorted'?: boolean;
     /**
      * 
@@ -463,12 +469,6 @@ export interface SortObject {
      * @memberof SortObject
      */
     'unsorted'?: boolean;
-    /**
-     * 
-     * @type {boolean}
-     * @memberof SortObject
-     */
-    'empty'?: boolean;
 }
 /**
  * 
@@ -650,6 +650,211 @@ export interface TruckBreakdownRequest {
 }
 
 /**
+ * LogisticCollapseControllerApi - axios parameter creator
+ * @export
+ */
+export const LogisticCollapseControllerApiAxiosParamCreator = function (configuration?: Configuration) {
+    return {
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getCollapseTypes: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/api/collapse/types`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {string} sessionId 
+         * @param {string} collapseType 
+         * @param {string} description 
+         * @param {number} severityLevel 
+         * @param {string} affectedArea 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        reportCollapse: async (sessionId: string, collapseType: string, description: string, severityLevel: number, affectedArea: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'sessionId' is not null or undefined
+            assertParamExists('reportCollapse', 'sessionId', sessionId)
+            // verify required parameter 'collapseType' is not null or undefined
+            assertParamExists('reportCollapse', 'collapseType', collapseType)
+            // verify required parameter 'description' is not null or undefined
+            assertParamExists('reportCollapse', 'description', description)
+            // verify required parameter 'severityLevel' is not null or undefined
+            assertParamExists('reportCollapse', 'severityLevel', severityLevel)
+            // verify required parameter 'affectedArea' is not null or undefined
+            assertParamExists('reportCollapse', 'affectedArea', affectedArea)
+            const localVarPath = `/api/collapse/report`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            if (sessionId !== undefined) {
+                localVarQueryParameter['sessionId'] = sessionId;
+            }
+
+            if (collapseType !== undefined) {
+                localVarQueryParameter['collapseType'] = collapseType;
+            }
+
+            if (description !== undefined) {
+                localVarQueryParameter['description'] = description;
+            }
+
+            if (severityLevel !== undefined) {
+                localVarQueryParameter['severityLevel'] = severityLevel;
+            }
+
+            if (affectedArea !== undefined) {
+                localVarQueryParameter['affectedArea'] = affectedArea;
+            }
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+    }
+};
+
+/**
+ * LogisticCollapseControllerApi - functional programming interface
+ * @export
+ */
+export const LogisticCollapseControllerApiFp = function(configuration?: Configuration) {
+    const localVarAxiosParamCreator = LogisticCollapseControllerApiAxiosParamCreator(configuration)
+    return {
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getCollapseTypes(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<string>>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getCollapseTypes(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['LogisticCollapseControllerApi.getCollapseTypes']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {string} sessionId 
+         * @param {string} collapseType 
+         * @param {string} description 
+         * @param {number} severityLevel 
+         * @param {string} affectedArea 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async reportCollapse(sessionId: string, collapseType: string, description: string, severityLevel: number, affectedArea: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<string>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.reportCollapse(sessionId, collapseType, description, severityLevel, affectedArea, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['LogisticCollapseControllerApi.reportCollapse']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+    }
+};
+
+/**
+ * LogisticCollapseControllerApi - factory interface
+ * @export
+ */
+export const LogisticCollapseControllerApiFactory = function (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) {
+    const localVarFp = LogisticCollapseControllerApiFp(configuration)
+    return {
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getCollapseTypes(options?: RawAxiosRequestConfig): AxiosPromise<Array<string>> {
+            return localVarFp.getCollapseTypes(options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {string} sessionId 
+         * @param {string} collapseType 
+         * @param {string} description 
+         * @param {number} severityLevel 
+         * @param {string} affectedArea 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        reportCollapse(sessionId: string, collapseType: string, description: string, severityLevel: number, affectedArea: string, options?: RawAxiosRequestConfig): AxiosPromise<string> {
+            return localVarFp.reportCollapse(sessionId, collapseType, description, severityLevel, affectedArea, options).then((request) => request(axios, basePath));
+        },
+    };
+};
+
+/**
+ * LogisticCollapseControllerApi - object-oriented interface
+ * @export
+ * @class LogisticCollapseControllerApi
+ * @extends {BaseAPI}
+ */
+export class LogisticCollapseControllerApi extends BaseAPI {
+    /**
+     * 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof LogisticCollapseControllerApi
+     */
+    public getCollapseTypes(options?: RawAxiosRequestConfig) {
+        return LogisticCollapseControllerApiFp(this.configuration).getCollapseTypes(options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {string} sessionId 
+     * @param {string} collapseType 
+     * @param {string} description 
+     * @param {number} severityLevel 
+     * @param {string} affectedArea 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof LogisticCollapseControllerApi
+     */
+    public reportCollapse(sessionId: string, collapseType: string, description: string, severityLevel: number, affectedArea: string, options?: RawAxiosRequestConfig) {
+        return LogisticCollapseControllerApiFp(this.configuration).reportCollapse(sessionId, collapseType, description, severityLevel, affectedArea, options).then((request) => request(this.axios, this.basePath));
+    }
+}
+
+
+
+/**
  * MainControllerApi - axios parameter creator
  * @export
  */
@@ -757,6 +962,97 @@ export const OperationControllerApiAxiosParamCreator = function (configuration?:
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
+        accelerateSimulation: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/operation/simulation/accelerate`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {string} orderId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        cancelOrder: async (orderId: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'orderId' is not null or undefined
+            assertParamExists('cancelOrder', 'orderId', orderId)
+            const localVarPath = `/operation/orders/{orderId}`
+                .replace(`{${"orderId"}}`, encodeURIComponent(String(orderId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'DELETE', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        decelerateSimulation: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/operation/simulation/decelerate`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
         getOperationStatus: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             const localVarPath = `/operation/status`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
@@ -788,6 +1084,35 @@ export const OperationControllerApiAxiosParamCreator = function (configuration?:
          */
         manualReplanification: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             const localVarPath = `/operation/replan`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        pauseSimulation: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/operation/simulation/pause`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -884,6 +1209,142 @@ export const OperationControllerApiAxiosParamCreator = function (configuration?:
                 options: localVarRequestOptions,
             };
         },
+        /**
+         * 
+         * @param {string} truckId 
+         * @param {TruckBreakdownRequest} truckBreakdownRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        reportTruckMaintenance: async (truckId: string, truckBreakdownRequest: TruckBreakdownRequest, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'truckId' is not null or undefined
+            assertParamExists('reportTruckMaintenance', 'truckId', truckId)
+            // verify required parameter 'truckBreakdownRequest' is not null or undefined
+            assertParamExists('reportTruckMaintenance', 'truckBreakdownRequest', truckBreakdownRequest)
+            const localVarPath = `/operation/trucks/{truckId}/maintenance`
+                .replace(`{${"truckId"}}`, encodeURIComponent(String(truckId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(truckBreakdownRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {string} truckId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        restoreTruckToIdle: async (truckId: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'truckId' is not null or undefined
+            assertParamExists('restoreTruckToIdle', 'truckId', truckId)
+            const localVarPath = `/operation/trucks/{truckId}/restore`
+                .replace(`{${"truckId"}}`, encodeURIComponent(String(truckId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        resumeSimulation: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/operation/simulation/resume`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {{ [key: string]: string; }} requestBody 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        sendSimulationCommand: async (requestBody: { [key: string]: string; }, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'requestBody' is not null or undefined
+            assertParamExists('sendSimulationCommand', 'requestBody', requestBody)
+            const localVarPath = `/operation/simulation/command`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(requestBody, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
     }
 };
 
@@ -894,6 +1355,40 @@ export const OperationControllerApiAxiosParamCreator = function (configuration?:
 export const OperationControllerApiFp = function(configuration?: Configuration) {
     const localVarAxiosParamCreator = OperationControllerApiAxiosParamCreator(configuration)
     return {
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async accelerateSimulation(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<{ [key: string]: string; }>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.accelerateSimulation(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['OperationControllerApi.accelerateSimulation']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {string} orderId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async cancelOrder(orderId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<{ [key: string]: string; }>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.cancelOrder(orderId, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['OperationControllerApi.cancelOrder']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async decelerateSimulation(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<{ [key: string]: string; }>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.decelerateSimulation(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['OperationControllerApi.decelerateSimulation']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
         /**
          * 
          * @param {*} [options] Override http request option.
@@ -914,6 +1409,17 @@ export const OperationControllerApiFp = function(configuration?: Configuration) 
             const localVarAxiosArgs = await localVarAxiosParamCreator.manualReplanification(options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['OperationControllerApi.manualReplanification']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async pauseSimulation(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<{ [key: string]: string; }>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.pauseSimulation(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['OperationControllerApi.pauseSimulation']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -941,6 +1447,54 @@ export const OperationControllerApiFp = function(configuration?: Configuration) 
             const localVarOperationServerBasePath = operationServerMap['OperationControllerApi.reportTruckBreakdown']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
+        /**
+         * 
+         * @param {string} truckId 
+         * @param {TruckBreakdownRequest} truckBreakdownRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async reportTruckMaintenance(truckId: string, truckBreakdownRequest: TruckBreakdownRequest, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.reportTruckMaintenance(truckId, truckBreakdownRequest, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['OperationControllerApi.reportTruckMaintenance']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {string} truckId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async restoreTruckToIdle(truckId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.restoreTruckToIdle(truckId, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['OperationControllerApi.restoreTruckToIdle']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async resumeSimulation(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<{ [key: string]: string; }>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.resumeSimulation(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['OperationControllerApi.resumeSimulation']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {{ [key: string]: string; }} requestBody 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async sendSimulationCommand(requestBody: { [key: string]: string; }, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<{ [key: string]: string; }>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.sendSimulationCommand(requestBody, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['OperationControllerApi.sendSimulationCommand']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
     }
 };
 
@@ -956,6 +1510,31 @@ export const OperationControllerApiFactory = function (configuration?: Configura
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
+        accelerateSimulation(options?: RawAxiosRequestConfig): AxiosPromise<{ [key: string]: string; }> {
+            return localVarFp.accelerateSimulation(options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {string} orderId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        cancelOrder(orderId: string, options?: RawAxiosRequestConfig): AxiosPromise<{ [key: string]: string; }> {
+            return localVarFp.cancelOrder(orderId, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        decelerateSimulation(options?: RawAxiosRequestConfig): AxiosPromise<{ [key: string]: string; }> {
+            return localVarFp.decelerateSimulation(options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
         getOperationStatus(options?: RawAxiosRequestConfig): AxiosPromise<{ [key: string]: any; }> {
             return localVarFp.getOperationStatus(options).then((request) => request(axios, basePath));
         },
@@ -966,6 +1545,14 @@ export const OperationControllerApiFactory = function (configuration?: Configura
          */
         manualReplanification(options?: RawAxiosRequestConfig): AxiosPromise<{ [key: string]: string; }> {
             return localVarFp.manualReplanification(options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        pauseSimulation(options?: RawAxiosRequestConfig): AxiosPromise<{ [key: string]: string; }> {
+            return localVarFp.pauseSimulation(options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -986,6 +1573,42 @@ export const OperationControllerApiFactory = function (configuration?: Configura
         reportTruckBreakdown(truckId: string, truckBreakdownRequest: TruckBreakdownRequest, options?: RawAxiosRequestConfig): AxiosPromise<void> {
             return localVarFp.reportTruckBreakdown(truckId, truckBreakdownRequest, options).then((request) => request(axios, basePath));
         },
+        /**
+         * 
+         * @param {string} truckId 
+         * @param {TruckBreakdownRequest} truckBreakdownRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        reportTruckMaintenance(truckId: string, truckBreakdownRequest: TruckBreakdownRequest, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.reportTruckMaintenance(truckId, truckBreakdownRequest, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {string} truckId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        restoreTruckToIdle(truckId: string, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.restoreTruckToIdle(truckId, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        resumeSimulation(options?: RawAxiosRequestConfig): AxiosPromise<{ [key: string]: string; }> {
+            return localVarFp.resumeSimulation(options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {{ [key: string]: string; }} requestBody 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        sendSimulationCommand(requestBody: { [key: string]: string; }, options?: RawAxiosRequestConfig): AxiosPromise<{ [key: string]: string; }> {
+            return localVarFp.sendSimulationCommand(requestBody, options).then((request) => request(axios, basePath));
+        },
     };
 };
 
@@ -996,6 +1619,37 @@ export const OperationControllerApiFactory = function (configuration?: Configura
  * @extends {BaseAPI}
  */
 export class OperationControllerApi extends BaseAPI {
+    /**
+     * 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof OperationControllerApi
+     */
+    public accelerateSimulation(options?: RawAxiosRequestConfig) {
+        return OperationControllerApiFp(this.configuration).accelerateSimulation(options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {string} orderId 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof OperationControllerApi
+     */
+    public cancelOrder(orderId: string, options?: RawAxiosRequestConfig) {
+        return OperationControllerApiFp(this.configuration).cancelOrder(orderId, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof OperationControllerApi
+     */
+    public decelerateSimulation(options?: RawAxiosRequestConfig) {
+        return OperationControllerApiFp(this.configuration).decelerateSimulation(options).then((request) => request(this.axios, this.basePath));
+    }
+
     /**
      * 
      * @param {*} [options] Override http request option.
@@ -1014,6 +1668,16 @@ export class OperationControllerApi extends BaseAPI {
      */
     public manualReplanification(options?: RawAxiosRequestConfig) {
         return OperationControllerApiFp(this.configuration).manualReplanification(options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof OperationControllerApi
+     */
+    public pauseSimulation(options?: RawAxiosRequestConfig) {
+        return OperationControllerApiFp(this.configuration).pauseSimulation(options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -1037,6 +1701,50 @@ export class OperationControllerApi extends BaseAPI {
      */
     public reportTruckBreakdown(truckId: string, truckBreakdownRequest: TruckBreakdownRequest, options?: RawAxiosRequestConfig) {
         return OperationControllerApiFp(this.configuration).reportTruckBreakdown(truckId, truckBreakdownRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {string} truckId 
+     * @param {TruckBreakdownRequest} truckBreakdownRequest 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof OperationControllerApi
+     */
+    public reportTruckMaintenance(truckId: string, truckBreakdownRequest: TruckBreakdownRequest, options?: RawAxiosRequestConfig) {
+        return OperationControllerApiFp(this.configuration).reportTruckMaintenance(truckId, truckBreakdownRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {string} truckId 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof OperationControllerApi
+     */
+    public restoreTruckToIdle(truckId: string, options?: RawAxiosRequestConfig) {
+        return OperationControllerApiFp(this.configuration).restoreTruckToIdle(truckId, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof OperationControllerApi
+     */
+    public resumeSimulation(options?: RawAxiosRequestConfig) {
+        return OperationControllerApiFp(this.configuration).resumeSimulation(options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {{ [key: string]: string; }} requestBody 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof OperationControllerApi
+     */
+    public sendSimulationCommand(requestBody: { [key: string]: string; }, options?: RawAxiosRequestConfig) {
+        return OperationControllerApiFp(this.configuration).sendSimulationCommand(requestBody, options).then((request) => request(this.axios, this.basePath));
     }
 }
 
@@ -1464,6 +2172,107 @@ export const StationControllerApiAxiosParamCreator = function (configuration?: C
     return {
         /**
          * 
+         * @param {Station} station 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        createStation: async (station: Station, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'station' is not null or undefined
+            assertParamExists('createStation', 'station', station)
+            const localVarPath = `/stations`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(station, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {string} stationId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        deleteStation: async (stationId: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'stationId' is not null or undefined
+            assertParamExists('deleteStation', 'stationId', stationId)
+            const localVarPath = `/stations/{stationId}`
+                .replace(`{${"stationId"}}`, encodeURIComponent(String(stationId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'DELETE', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {string} stationId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getStationById: async (stationId: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'stationId' is not null or undefined
+            assertParamExists('getStationById', 'stationId', stationId)
+            const localVarPath = `/stations/{stationId}`
+                .replace(`{${"stationId"}}`, encodeURIComponent(String(stationId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
          * @param {Pageable} pageable 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -1500,6 +2309,45 @@ export const StationControllerApiAxiosParamCreator = function (configuration?: C
                 options: localVarRequestOptions,
             };
         },
+        /**
+         * 
+         * @param {string} stationId 
+         * @param {Station} station 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        updateStation: async (stationId: string, station: Station, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'stationId' is not null or undefined
+            assertParamExists('updateStation', 'stationId', stationId)
+            // verify required parameter 'station' is not null or undefined
+            assertParamExists('updateStation', 'station', station)
+            const localVarPath = `/stations/{stationId}`
+                .replace(`{${"stationId"}}`, encodeURIComponent(String(stationId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'PUT', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(station, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
     }
 };
 
@@ -1512,6 +2360,42 @@ export const StationControllerApiFp = function(configuration?: Configuration) {
     return {
         /**
          * 
+         * @param {Station} station 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async createStation(station: Station, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Station>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.createStation(station, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['StationControllerApi.createStation']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {string} stationId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async deleteStation(stationId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.deleteStation(stationId, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['StationControllerApi.deleteStation']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {string} stationId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getStationById(stationId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Station>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getStationById(stationId, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['StationControllerApi.getStationById']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @param {Pageable} pageable 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -1520,6 +2404,19 @@ export const StationControllerApiFp = function(configuration?: Configuration) {
             const localVarAxiosArgs = await localVarAxiosParamCreator.list1(pageable, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['StationControllerApi.list1']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {string} stationId 
+         * @param {Station} station 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async updateStation(stationId: string, station: Station, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Station>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.updateStation(stationId, station, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['StationControllerApi.updateStation']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
     }
@@ -1534,12 +2431,49 @@ export const StationControllerApiFactory = function (configuration?: Configurati
     return {
         /**
          * 
+         * @param {Station} station 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        createStation(station: Station, options?: RawAxiosRequestConfig): AxiosPromise<Station> {
+            return localVarFp.createStation(station, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {string} stationId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        deleteStation(stationId: string, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.deleteStation(stationId, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {string} stationId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getStationById(stationId: string, options?: RawAxiosRequestConfig): AxiosPromise<Station> {
+            return localVarFp.getStationById(stationId, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @param {Pageable} pageable 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
         list1(pageable: Pageable, options?: RawAxiosRequestConfig): AxiosPromise<PageStation> {
             return localVarFp.list1(pageable, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {string} stationId 
+         * @param {Station} station 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        updateStation(stationId: string, station: Station, options?: RawAxiosRequestConfig): AxiosPromise<Station> {
+            return localVarFp.updateStation(stationId, station, options).then((request) => request(axios, basePath));
         },
     };
 };
@@ -1553,6 +2487,39 @@ export const StationControllerApiFactory = function (configuration?: Configurati
 export class StationControllerApi extends BaseAPI {
     /**
      * 
+     * @param {Station} station 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof StationControllerApi
+     */
+    public createStation(station: Station, options?: RawAxiosRequestConfig) {
+        return StationControllerApiFp(this.configuration).createStation(station, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {string} stationId 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof StationControllerApi
+     */
+    public deleteStation(stationId: string, options?: RawAxiosRequestConfig) {
+        return StationControllerApiFp(this.configuration).deleteStation(stationId, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {string} stationId 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof StationControllerApi
+     */
+    public getStationById(stationId: string, options?: RawAxiosRequestConfig) {
+        return StationControllerApiFp(this.configuration).getStationById(stationId, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
      * @param {Pageable} pageable 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
@@ -1560,6 +2527,18 @@ export class StationControllerApi extends BaseAPI {
      */
     public list1(pageable: Pageable, options?: RawAxiosRequestConfig) {
         return StationControllerApiFp(this.configuration).list1(pageable, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {string} stationId 
+     * @param {Station} station 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof StationControllerApi
+     */
+    public updateStation(stationId: string, station: Station, options?: RawAxiosRequestConfig) {
+        return StationControllerApiFp(this.configuration).updateStation(stationId, station, options).then((request) => request(this.axios, this.basePath));
     }
 }
 
@@ -1571,6 +2550,74 @@ export class StationControllerApi extends BaseAPI {
  */
 export const TruckControllerApiAxiosParamCreator = function (configuration?: Configuration) {
     return {
+        /**
+         * 
+         * @param {Truck} truck 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        createTruck: async (truck: Truck, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'truck' is not null or undefined
+            assertParamExists('createTruck', 'truck', truck)
+            const localVarPath = `/trucks`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(truck, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @param {string} truckId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        deleteTruck: async (truckId: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'truckId' is not null or undefined
+            assertParamExists('deleteTruck', 'truckId', truckId)
+            const localVarPath = `/trucks/{truckId}`
+                .replace(`{${"truckId"}}`, encodeURIComponent(String(truckId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'DELETE', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
         /**
          * 
          * @param {string} truckId 
@@ -1642,6 +2689,45 @@ export const TruckControllerApiAxiosParamCreator = function (configuration?: Con
                 options: localVarRequestOptions,
             };
         },
+        /**
+         * 
+         * @param {string} truckId 
+         * @param {Truck} truck 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        updateTruck: async (truckId: string, truck: Truck, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'truckId' is not null or undefined
+            assertParamExists('updateTruck', 'truckId', truckId)
+            // verify required parameter 'truck' is not null or undefined
+            assertParamExists('updateTruck', 'truck', truck)
+            const localVarPath = `/trucks/{truckId}`
+                .replace(`{${"truckId"}}`, encodeURIComponent(String(truckId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'PUT', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(truck, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
     }
 };
 
@@ -1652,6 +2738,30 @@ export const TruckControllerApiAxiosParamCreator = function (configuration?: Con
 export const TruckControllerApiFp = function(configuration?: Configuration) {
     const localVarAxiosParamCreator = TruckControllerApiAxiosParamCreator(configuration)
     return {
+        /**
+         * 
+         * @param {Truck} truck 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async createTruck(truck: Truck, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Truck>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.createTruck(truck, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['TruckControllerApi.createTruck']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @param {string} truckId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async deleteTruck(truckId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.deleteTruck(truckId, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['TruckControllerApi.deleteTruck']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
         /**
          * 
          * @param {string} truckId 
@@ -1676,6 +2786,19 @@ export const TruckControllerApiFp = function(configuration?: Configuration) {
             const localVarOperationServerBasePath = operationServerMap['TruckControllerApi.list']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
+        /**
+         * 
+         * @param {string} truckId 
+         * @param {Truck} truck 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async updateTruck(truckId: string, truck: Truck, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Truck>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.updateTruck(truckId, truck, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['TruckControllerApi.updateTruck']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
     }
 };
 
@@ -1686,6 +2809,24 @@ export const TruckControllerApiFp = function(configuration?: Configuration) {
 export const TruckControllerApiFactory = function (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) {
     const localVarFp = TruckControllerApiFp(configuration)
     return {
+        /**
+         * 
+         * @param {Truck} truck 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        createTruck(truck: Truck, options?: RawAxiosRequestConfig): AxiosPromise<Truck> {
+            return localVarFp.createTruck(truck, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @param {string} truckId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        deleteTruck(truckId: string, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.deleteTruck(truckId, options).then((request) => request(axios, basePath));
+        },
         /**
          * 
          * @param {string} truckId 
@@ -1704,6 +2845,16 @@ export const TruckControllerApiFactory = function (configuration?: Configuration
         list(pageable: Pageable, options?: RawAxiosRequestConfig): AxiosPromise<PageTruck> {
             return localVarFp.list(pageable, options).then((request) => request(axios, basePath));
         },
+        /**
+         * 
+         * @param {string} truckId 
+         * @param {Truck} truck 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        updateTruck(truckId: string, truck: Truck, options?: RawAxiosRequestConfig): AxiosPromise<Truck> {
+            return localVarFp.updateTruck(truckId, truck, options).then((request) => request(axios, basePath));
+        },
     };
 };
 
@@ -1714,6 +2865,28 @@ export const TruckControllerApiFactory = function (configuration?: Configuration
  * @extends {BaseAPI}
  */
 export class TruckControllerApi extends BaseAPI {
+    /**
+     * 
+     * @param {Truck} truck 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof TruckControllerApi
+     */
+    public createTruck(truck: Truck, options?: RawAxiosRequestConfig) {
+        return TruckControllerApiFp(this.configuration).createTruck(truck, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {string} truckId 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof TruckControllerApi
+     */
+    public deleteTruck(truckId: string, options?: RawAxiosRequestConfig) {
+        return TruckControllerApiFp(this.configuration).deleteTruck(truckId, options).then((request) => request(this.axios, this.basePath));
+    }
+
     /**
      * 
      * @param {string} truckId 
@@ -1734,6 +2907,18 @@ export class TruckControllerApi extends BaseAPI {
      */
     public list(pageable: Pageable, options?: RawAxiosRequestConfig) {
         return TruckControllerApiFp(this.configuration).list(pageable, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @param {string} truckId 
+     * @param {Truck} truck 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof TruckControllerApi
+     */
+    public updateTruck(truckId: string, truck: Truck, options?: RawAxiosRequestConfig) {
+        return TruckControllerApiFp(this.configuration).updateTruck(truckId, truck, options).then((request) => request(this.axios, this.basePath));
     }
 }
 

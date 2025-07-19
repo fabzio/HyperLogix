@@ -11,17 +11,12 @@ import { toast } from 'sonner'
 import { useManualReplanification } from '../hooks/useOperationMutations'
 import { useOperationStore } from '../store/operation'
 import AddOrderDialog from './AddOrderDialog'
+import { CreateBlockadeDialog } from './CreateBlockadeDialog'
 import { MapModal } from './MapModal'
 
 export function QuickActions() {
-  const {
-    isConnected,
-    planificationStatus,
-    plgNetwork,
-    metrics,
-    routes,
-    simulationTime,
-  } = useOperationStore()
+  const { isConnected, planificationStatus, plgNetwork, metrics } =
+    useOperationStore()
   const manualReplanificationMutation = useManualReplanification()
 
   const handleOptimizeRoutes = async () => {
@@ -263,12 +258,9 @@ export function QuickActions() {
               </span>
             </Button>
 
-            <MapModal
-              network={plgNetwork || undefined}
-              routes={routes || undefined}
-              simulationTime={simulationTime || undefined}
-              asQuickAction={true}
-            />
+            <CreateBlockadeDialog />
+
+            <MapModal asQuickAction={true} />
 
             <Button
               variant="outline"

@@ -8,7 +8,7 @@ import { useTrucks } from './hooks/useTrucks'
 
 function Management() {
   // Aquí iría la lógica de acciones masivas, eliminar, editar, etc.
-  return null
+  return <></>
 }
 
 export default function TrucksFeature() {
@@ -18,6 +18,7 @@ export default function TrucksFeature() {
   return (
     <PageLayout name="Camiones">
       <EntityManagement
+        path="/_auth/trucks"
         data={data}
         columns={columns}
         Management={Management}

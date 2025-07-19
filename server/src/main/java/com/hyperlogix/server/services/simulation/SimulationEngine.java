@@ -52,6 +52,7 @@ public class SimulationEngine implements Runnable {
   private final Map<String, Integer> truckDeliveryCount = new ConcurrentHashMap<>();
   private final Map<String, Duration> customerDeliveryTimes = new ConcurrentHashMap<>();
   private final Map<String, LocalDateTime> orderStartTimes = new ConcurrentHashMap<>();
+  private final Runnable onComplete;
   private int totalPlanificationRequests = 0;
   private Duration totalPlanificationTime = Duration.ZERO;
   private LocalDateTime lastPlanificationStart;
@@ -66,13 +67,14 @@ public class SimulationEngine implements Runnable {
       SimulationNotifier simulationNotifier,
       List<Order> orderRepository,
       ApplicationEventPublisher eventPublisher,
-      PlanificationService planificationService) {
+      PlanificationService planificationService, Runnable onComplete) {
     this.sessionId = sessionId;
     this.simulationConfig = simulationConfig;
     this.simulationNotifier = simulationNotifier;
     this.orderRepository = orderRepository;
     this.eventPublisher = eventPublisher;
     this.planificationService = planificationService;
+    this.onComplete = onComplete;
   }
 
   @Override
@@ -133,9 +135,10 @@ public class SimulationEngine implements Runnable {
           .notifySnapshot(
               new SimulationSnapshot(LocalDateTime.now(), simulatedTime, plgNetwork, activeRoutes, metrics,
                   planificationStatus));
+
       sleep(simulationConfig.getSimulationResolution());
     }
-
+    this.onComplete.run();
   }
 
   private boolean areAllOrdersCompleted() {
@@ -541,7 +544,6 @@ public class SimulationEngine implements Runnable {
           routes.getStops().size(),
           routes.getStops().values().stream().mapToInt(List::size).sum(),
           routes.getPaths().values().stream().mapToInt(List::size).sum());
-
 
       for (Truck truck : plgNetwork.getTrucks()) {
         if (truck.getStatus() == TruckState.MAINTENANCE || truck.getStatus() == TruckState.BROKEN_DOWN) {

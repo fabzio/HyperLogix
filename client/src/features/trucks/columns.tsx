@@ -4,6 +4,8 @@ import Typography from '@/components/typography'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import type { ColumnDef } from '@tanstack/react-table'
+import DeleteTruckDialog from './components/DeleteTruckDialog'
+import EditTruckDialog from './components/EditTruckDialog'
 
 export const truckColumns: ColumnDef<Partial<Truck>>[] = [
   {
@@ -101,6 +103,27 @@ export const truckColumns: ColumnDef<Partial<Truck>>[] = [
           <Typography variant="muted" className="font-semibold">
             {fuelCapacity}
           </Typography>
+        </div>
+      )
+    },
+  },
+  {
+    id: 'actions',
+    enableHiding: false,
+    cell: ({ row }) => {
+      const truck = row.original as Truck
+
+      // Solo mostrar acciones si el truck tiene ID
+      if (!truck.id) {
+        return null
+      }
+
+      return (
+        <div className="flex gap-2">
+          {/* @ts-expect-error - Type compatibility issue between API and Domain types */}
+          <EditTruckDialog truck={truck} />
+          {/* @ts-expect-error - Type compatibility issue between API and Domain types */}
+          <DeleteTruckDialog truck={truck} />
         </div>
       )
     },

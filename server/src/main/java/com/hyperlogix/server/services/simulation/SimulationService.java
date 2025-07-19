@@ -38,6 +38,9 @@ public class SimulationService {
   @Autowired
   private PlanificationService planificationService;
 
+  @Autowired
+  private BlockadeProcessor blockadeProcessor;
+
   public SimulationService(SimpMessagingTemplate messaging, ApplicationEventPublisher eventPublisher) {
     this.messaging = messaging;
     this.eventPublisher = eventPublisher;
@@ -65,17 +68,34 @@ public class SimulationService {
     List<Order> orderslist = new ArrayList<>(network.getOrders());
     stopSimulation(simulationId);
     SimulationEngine engine = new SimulationEngine(simulationId, config, notifier, orderslist,
-        eventPublisher, planificationService);
+        eventPublisher, planificationService, () -> {
+          System.out.println("Removing");
+          simulation.remove(simulationId);
+        });
     engine.setPlgNetwork(network);
     simulation.put(simulationId, engine);
     executor.execute(engine);
   }
 
   public void sendCommand(String simulationId, String command) {
+    log.info("Sending command '{}' to simulation '{}'", command, simulationId);
+
     SimulationEngine engine = simulation.get(simulationId);
     if (engine != null) {
+      log.info("Found standard simulation engine for ID: {}", simulationId);
       engine.handleCommand(command);
+      return;
     }
+
+    RealTimeSimulationEngine realTimeEngine = realTimeSimulation.get(simulationId);
+    if (realTimeEngine != null) {
+      log.info("Found real-time simulation engine for ID: {}", simulationId);
+      realTimeEngine.handleCommand(command);
+      return;
+    }
+
+    log.warn("No simulation found with ID: {}. Available simulations: standard={}, realTime={}",
+        simulationId, simulation.keySet(), realTimeSimulation.keySet());
   }
 
   public void stopSimulation(String simulationId) {
@@ -116,7 +136,7 @@ public class SimulationService {
       return realTimeEngine.getStatus();
     }
 
-    return new SimulationStatus(false, false, 0);
+    return new SimulationStatus(false, false, 1.0);
   }
 
   public void startRealTimeSimulation(String simulationId, PLGNetwork network,
@@ -134,7 +154,7 @@ public class SimulationService {
     // Use the real-time order repository instead of a static list
     stopSimulation(simulationId);
     RealTimeSimulationEngine engine = new RealTimeSimulationEngine(simulationId, config, notifier,
-        realTimeOrderRepository, eventPublisher, planificationService);
+        realTimeOrderRepository, eventPublisher, planificationService, blockadeProcessor);
     engine.setPlgNetwork(network);
     realTimeSimulation.put(simulationId, engine);
     executor.execute(engine);
@@ -175,15 +195,15 @@ public class SimulationService {
   @PreDestroy
   public void cleanup() {
     log.info("Cleaning up SimulationService resources...");
-    
+
     // Stop all running simulations
     simulation.values().forEach(SimulationEngine::stop);
     realTimeSimulation.values().forEach(RealTimeSimulationEngine::stop);
-    
+
     // Clear the maps
     simulation.clear();
     realTimeSimulation.clear();
-    
+
     // Shutdown executor service
     executor.shutdown();
     try {
@@ -199,12 +219,12 @@ public class SimulationService {
       executor.shutdownNow();
       Thread.currentThread().interrupt();
     }
-    
+
     log.info("SimulationService cleanup completed");
   }
 
   public void sendLogisticCollapseAlert(String simulationId, String collapseType, String description,
-                                       double severityLevel, String affectedArea) {
+      double severityLevel, String affectedArea) {
     System.out.println("Sending logistic collapse alert for simulation: " + simulationId);
 
     // Create collapse alert message

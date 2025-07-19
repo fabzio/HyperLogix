@@ -49,6 +49,11 @@ public class RealTimeOrderRepositoryImpl implements RealTimeOrderRepository {
   }
 
   @Override
+  public boolean existsById(String orderId) {
+    return orders.containsKey(orderId);
+  }
+
+  @Override
   public int size() {
     return orders.size();
   }

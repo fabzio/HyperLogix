@@ -4,12 +4,10 @@ import { useMemo } from 'react'
 import { stationColumns } from './columns'
 import { AddStationDialog } from './components'
 import { useStations } from './hooks/useStations'
-import { MdEvStation } from 'react-icons/md'
-import { Fuel } from 'lucide-react'
 
 function Management() {
   // Aquí iría la lógica de acciones masivas, eliminar, editar, etc.
-  return null
+  return <></>
 }
 
 export default function StationsFeature() {
@@ -17,15 +15,9 @@ export default function StationsFeature() {
   const columns = useMemo(() => stationColumns, [])
 
   return (
-    <PageLayout
-      name={
-        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Fuel className="w-5 h-5" />
-          Estaciones de Recarga
-        </span>
-      }
-    >
+    <PageLayout name="Estaciones de Recarga">
       <EntityManagement
+        path="/_auth/stations"
         data={data}
         columns={columns}
         Management={Management}
