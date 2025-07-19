@@ -3,6 +3,7 @@ import { FuelStatus } from './components/FuelStatus'
 import { MetricCards } from './components/MetricCards'
 import OrdersList from './components/OrdersList'
 import { QuickActions } from './components/QuickActions'
+import { SpeedControls } from './components/SpeedControls'
 import { SystemAlerts } from './components/SystemAlerts'
 import { SystemStatus } from './components/SystemStatus'
 import TrucksList from './components/TrucksList'
@@ -43,6 +44,7 @@ export default function DashboardFeature() {
         {/* Sidebar - spans 1 column */}
         <div className="space-y-6">
           <SystemStatus />
+          <SpeedControls />
           <QuickActions />
           <SystemAlerts />
           <FuelStatus />

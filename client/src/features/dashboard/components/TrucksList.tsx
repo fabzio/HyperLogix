@@ -1,5 +1,12 @@
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import {
   Pagination,
   PaginationContent,
@@ -19,8 +26,22 @@ import {
 import type { Truck } from '@/domain/Truck'
 import { TruckState } from '@/domain/TruckState'
 import { cn } from '@/lib/utils'
-import { Fuel, MapPin, Truck as TruckIcon } from 'lucide-react'
+import {
+  AlertTriangle,
+  Fuel,
+  MapPin,
+  MoreHorizontal,
+  RotateCcw,
+  Settings,
+  Truck as TruckIcon,
+} from 'lucide-react'
 import { useState } from 'react'
+import { toast } from 'sonner'
+import {
+  useReportTruckBreakdown,
+  useReportTruckMaintenance,
+  useRestoreTruckToIdle,
+} from '../hooks/useOperationMutations'
 
 interface TrucksListProps {
   trucks: Truck[]
@@ -73,6 +94,55 @@ const generatePaginationNumbers = (currentPage: number, totalPages: number) => {
 export default function TrucksList({ trucks }: TrucksListProps) {
   const [page, setPage] = useState(1)
   const [pageSize] = useState(8)
+
+  const { mutate: reportBreakdown, isPending: isReportingBreakdown } =
+    useReportTruckBreakdown()
+  const { mutate: reportMaintenance, isPending: isReportingMaintenance } =
+    useReportTruckMaintenance()
+  const { mutate: restoreToIdle, isPending: isRestoringToIdle } =
+    useRestoreTruckToIdle()
+
+  const handleReportBreakdown = (truckId: string) => {
+    reportBreakdown(
+      { truckId, request: { reason: 'Avería reportada manualmente' } },
+      {
+        onSuccess: () => {
+          toast.success('Avería reportada exitosamente')
+        },
+        onError: (error) => {
+          toast.error(`Error al reportar avería: ${error.message}`)
+        },
+      },
+    )
+  }
+
+  const handleReportMaintenance = (truckId: string) => {
+    reportMaintenance(
+      { truckId, request: { reason: 'Mantenimiento programado' } },
+      {
+        onSuccess: () => {
+          toast.success('Mantenimiento programado exitosamente')
+        },
+        onError: (error) => {
+          toast.error(`Error al programar mantenimiento: ${error.message}`)
+        },
+      },
+    )
+  }
+
+  const handleRestoreToIdle = (truckId: string) => {
+    restoreToIdle(
+      { truckId },
+      {
+        onSuccess: () => {
+          toast.success('Camión restaurado a estado inactivo')
+        },
+        onError: (error) => {
+          toast.error(`Error al restaurar camión: ${error.message}`)
+        },
+      },
+    )
+  }
 
   // Sort trucks by capacity utilization (lowest first)
   const sortedTrucks = trucks.sort(
@@ -127,6 +197,9 @@ export default function TrucksList({ trucks }: TrucksListProps) {
                 </TableHead>
                 <TableHead className="px-2 py-2 text-left font-semibold text-xs">
                   Ubicación
+                </TableHead>
+                <TableHead className="px-2 py-2 text-left font-semibold text-xs">
+                  Acciones
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -207,12 +280,58 @@ export default function TrucksList({ trucks }: TrucksListProps) {
                         </span>
                       </div>
                     </TableCell>
+                    <TableCell className="px-2 py-2">
+                      <div className="flex items-center gap-1">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleReportBreakdown(truck.id || '')
+                              }
+                              disabled={truck.status === TruckState.BROKEN_DOWN}
+                            >
+                              <AlertTriangle className="mr-2 h-4 w-4" />
+                              Reportar Avería
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleReportMaintenance(truck.id || '')
+                              }
+                              disabled={truck.status === TruckState.MAINTENANCE}
+                            >
+                              <Settings className="mr-2 h-4 w-4" />
+                              Programar Mantenimiento
+                            </DropdownMenuItem>
+                            {(truck.status === TruckState.BROKEN_DOWN ||
+                              truck.status === TruckState.MAINTENANCE) && (
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  handleRestoreToIdle(truck.id || '')
+                                }
+                              >
+                                <RotateCcw className="mr-2 h-4 w-4" />
+                                Restaurar a Inactivo
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
                   <TableCell
-                    colSpan={5}
+                    colSpan={6}
                     className="text-center px-2 py-4 text-sm text-muted-foreground"
                   >
                     No hay camiones disponibles

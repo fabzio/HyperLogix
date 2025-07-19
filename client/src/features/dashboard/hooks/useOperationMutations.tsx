@@ -2,9 +2,13 @@ import type { RegisterOrderRequest, TruckBreakdownRequest } from '@/api'
 import QueryKeys from '@/const/QueryKeys'
 import { useOperationStore } from '@/features/dashboard/store/operation'
 import {
+  cancelOrder,
   getOperationStatus,
   registerOrder,
   reportTruckBreakdown,
+  reportTruckMaintenance,
+  restoreTruckToIdle,
+  sendSimulationCommand,
   triggerManualReplanification,
 } from '@/services/OperationService'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -68,6 +72,37 @@ export function useReportTruckBreakdown() {
   })
 }
 
+export function useReportTruckMaintenance() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      truckId,
+      request,
+    }: { truckId: string; request: TruckBreakdownRequest }) =>
+      reportTruckMaintenance(truckId, request),
+    onSuccess: () => {
+      // Invalidate trucks and operation queries
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.TRUCKS] })
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.OPERATION] })
+    },
+  })
+}
+
+export function useRestoreTruckToIdle() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ truckId }: { truckId: string }) =>
+      restoreTruckToIdle(truckId),
+    onSuccess: () => {
+      // Invalidate trucks and operation queries
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.TRUCKS] })
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.OPERATION] })
+    },
+  })
+}
+
 export function useManualReplanification() {
   const queryClient = useQueryClient()
 
@@ -85,5 +120,36 @@ export function useOperationStatus() {
     queryKey: [QueryKeys.OPERATION, 'status'],
     queryFn: getOperationStatus,
     refetchInterval: 30000, // Refetch every 30 seconds
+  })
+}
+
+export function useOperationCommand() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (
+      command: 'PAUSE' | 'RESUME' | 'ACCELERATE' | 'DESACCELERATE',
+    ) => sendSimulationCommand(command),
+    onSuccess: () => {
+      // Invalidate operation status to get updated state
+      queryClient.invalidateQueries({
+        queryKey: [QueryKeys.OPERATION, 'status'],
+      })
+    },
+  })
+}
+
+export function useCancelOrder() {
+  const queryClient = useQueryClient()
+  const { updateOrderStatus } = useOperationStore()
+
+  return useMutation({
+    mutationFn: (orderId: string) => cancelOrder(orderId),
+    onSuccess: (_, orderId) => {
+      // Update local store to remove the order immediately
+      updateOrderStatus(orderId, 'CANCELLED' as any)
+      // Invalidate operation-related queries to get fresh data
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.OPERATION] })
+    },
   })
 }

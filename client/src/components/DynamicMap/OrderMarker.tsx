@@ -26,12 +26,12 @@ const OrderMarker = memo(
     >
       {/* Área de click invisible más grande */}
       <circle
-        r={8}
+        r={6}
         fill="transparent"
         stroke="none"
         style={{ cursor: onClick ? 'pointer' : 'default' }}
       />
-      <Receipt size={8} />
+      <Receipt size={6} />
       <title>{formatTooltipText(order)}</title>
     </Marker>
   ),

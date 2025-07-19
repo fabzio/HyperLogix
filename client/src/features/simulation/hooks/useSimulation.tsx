@@ -2,9 +2,8 @@ import type { PLGNetwork } from '@/domain/PLGNetwork'
 import {
   commandSimulation,
   getSimulationStatus,
-  startSimulation,
-  stopSimulation,
 } from '@/services/SimulatorService'
+import { startSimulation, stopSimulation } from '@/services/SimulatorService'
 import { useSessionStore } from '@/store/session'
 import { useWebSocketStore } from '@/store/websocket'
 import {
@@ -49,7 +48,8 @@ export const useStartSimulation = () => {
         collapseDetected: false,
         collapseInfo: null,
       })
-      queryClient.invalidateQueries({ queryKey: ['simulation'] })
+      const simulationId = username || 'main'
+      queryClient.invalidateQueries({ queryKey: ['simulation', simulationId] })
     },
   })
 }
@@ -110,7 +110,10 @@ export const useCollapseHandler = () => {
         })
 
         // Invalidar las consultas
-        queryClient.invalidateQueries({ queryKey: ['simulation'] })
+        const simulationId = username || 'main'
+        queryClient.invalidateQueries({
+          queryKey: ['simulation', simulationId],
+        })
       } catch (error) {
         console.error('Error al detener la simulación por colapso:', error)
       }
@@ -207,12 +210,10 @@ export const useSimulationWebSocket = () => {
 export const useStatusSimulation = () => {
   const { username } = useSessionStore()
   return useSuspenseQuery({
-    queryKey: ['simulation'],
+    queryKey: ['simulation', username || 'main'],
     queryFn: () => {
-      if (!username) {
-        throw new Error('Username is required to get simulation status')
-      }
-      return getSimulationStatus(username)
+      const simulationId = username || 'main'
+      return getSimulationStatus(simulationId)
     },
   })
 }
@@ -250,7 +251,8 @@ export const useStopSimulation = () => {
         to: '/simulacion',
         search: { truckId: undefined, orderId: undefined },
       })
-      queryClient.invalidateQueries({ queryKey: ['simulation'] })
+      const simulationId = username || 'main'
+      queryClient.invalidateQueries({ queryKey: ['simulation', simulationId] })
     },
     onError: (error) => {
       console.error('Error stopping simulation:', error)
@@ -327,12 +329,12 @@ export const useCommandSimulation = () => {
     mutationFn: (params: {
       command: 'PAUSE' | 'RESUME' | 'DESACCELERATE' | 'ACCELERATE'
     }) => {
-      if (!username) {
-        throw new Error('Username is required to command simulation')
-      }
-      return commandSimulation(username, params.command)
+      const simulationId = username || 'main'
+      return commandSimulation(simulationId, params.command)
     },
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ['simulation'] }),
+    onSuccess: () => {
+      const simulationId = username
+      queryClient.invalidateQueries({ queryKey: ['simulation', simulationId] })
+    },
   })
 }

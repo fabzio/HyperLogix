@@ -11,6 +11,7 @@ import { toast } from 'sonner'
 import { useManualReplanification } from '../hooks/useOperationMutations'
 import { useOperationStore } from '../store/operation'
 import AddOrderDialog from './AddOrderDialog'
+import { CreateBlockadeDialog } from './CreateBlockadeDialog'
 import { MapModal } from './MapModal'
 
 export function QuickActions() {
@@ -262,6 +263,8 @@ export function QuickActions() {
                   : 'Optimizar'}
               </span>
             </Button>
+
+            <CreateBlockadeDialog />
 
             <MapModal
               network={plgNetwork || undefined}

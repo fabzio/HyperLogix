@@ -2,7 +2,7 @@ package com.hyperlogix.server.features.operation.usecases;
 
 import org.springframework.stereotype.Service;
 import com.hyperlogix.server.domain.Order;
-import com.hyperlogix.server.features.operation.services.RealTimeOperationService;
+import com.hyperlogix.server.services.simulation.RealTimeOperationService;
 
 @Service
 public class RegisterOrderUseCase {

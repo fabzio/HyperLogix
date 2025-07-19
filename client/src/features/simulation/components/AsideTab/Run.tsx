@@ -9,11 +9,13 @@ import {
   FormLabel,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import {
   Select,
   SelectContent,
@@ -21,8 +23,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -36,6 +36,7 @@ import {
   Rewind,
   Square,
 } from 'lucide-react'
+import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import {
@@ -50,9 +51,33 @@ export default function Run() {
   const { mutate: sendCommand } = useCommandSimulation()
   const { mutate: stopSimulation } = useStopSimulation()
   const { data: status } = useStatusSimulation()
-  const form = useForm<FormSchema>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
+
+  // Get saved form state from localStorage
+  const getSavedFormState = () => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('simulationFormState')
+      if (saved) {
+        try {
+          const parsedState = JSON.parse(saved)
+          // Convert date strings back to Date objects
+          if (parsedState.absolute?.from) {
+            parsedState.absolute.from = new Date(parsedState.absolute.from)
+          }
+          if (parsedState.absolute?.to) {
+            parsedState.absolute.to = new Date(parsedState.absolute.to)
+          }
+          if (parsedState.relative?.startDate) {
+            parsedState.relative.startDate = new Date(
+              parsedState.relative.startDate,
+            )
+          }
+          return parsedState
+        } catch {
+          // If parsing fails, return defaults
+        }
+      }
+    }
+    return {
       simulationType: 'simple',
       mode: 'relative',
       executionMode: 'simulation',
@@ -65,8 +90,23 @@ export default function Run() {
         duration: 1,
         unit: 'weeks',
       },
-    },
+    }
+  }
+
+  const form = useForm<FormSchema>({
+    resolver: zodResolver(formSchema),
+    defaultValues: getSavedFormState(),
   })
+
+  // Save form state to localStorage whenever it changes
+  useEffect(() => {
+    const subscription = form.watch((values) => {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('simulationFormState', JSON.stringify(values))
+      }
+    })
+    return () => subscription.unsubscribe()
+  }, [form])
 
   const onSubmit = form.handleSubmit((data) => {
     let startDate: Date
@@ -76,11 +116,14 @@ export default function Run() {
       startDate = new Date()
       endDate = addDays(startDate, 3)
     } else if (data.simulationType === 'collapse') {
-      // For "Hasta el colapso": start today, end at end of week
-      startDate = new Date()
-      const today = new Date()
-      const daysUntilSunday = 7 - today.getDay()
-      endDate = addDays(today, daysUntilSunday === 7 ? 0 : daysUntilSunday)
+      // For "Hasta el colapso": use the selected start date, end at end of week
+      startDate = data.relative.startDate
+      const selectedDate = new Date(data.relative.startDate)
+      const daysUntilSunday = 7 - selectedDate.getDay()
+      endDate = addDays(
+        selectedDate,
+        daysUntilSunday === 7 ? 0 : daysUntilSunday,
+      )
     } else if (data.mode === 'absolute') {
       startDate = data.absolute.from
       endDate = data.absolute.to
@@ -206,7 +249,7 @@ export default function Run() {
                 <FormField
                   control={form.control}
                   name="relative.duration"
-                  render={({ field }) => (
+                  render={() => (
                     <FormItem className="flex-1">
                       <FormLabel>Duración</FormLabel>
                       <FormControl>
@@ -418,7 +461,7 @@ export default function Run() {
           <div className="mt-4">
             {isRunning ? (
               <div className="flex items-center justify-center gap-2">
-                {executionMode === 'simulation' && !isCollapseMode && (
+                {!isCollapseMode && (
                   <>
                     <Button
                       type="button"
@@ -451,7 +494,7 @@ export default function Run() {
                 >
                   <Square className="h-4 w-4" />
                 </Button>
-                {executionMode === 'simulation' && !isCollapseMode && (
+                {!isCollapseMode && (
                   <Button
                     type="button"
                     size="icon"

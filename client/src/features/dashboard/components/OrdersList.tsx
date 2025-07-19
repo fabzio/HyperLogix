@@ -1,4 +1,5 @@
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Pagination,
@@ -18,9 +19,11 @@ import {
 } from '@/components/ui/table'
 import type { Order } from '@/domain/Order'
 import type { Routes } from '@/domain/Routes'
+import { useCancelOrder } from '@/features/dashboard/hooks/useOperationMutations'
 import { cn } from '@/lib/utils'
-import { Clock, Package, User } from 'lucide-react'
+import { Clock, Package, User, X } from 'lucide-react'
 import { useState } from 'react'
+import { toast } from 'sonner'
 
 interface OrdersListProps {
   orders: Order[]
@@ -134,6 +137,18 @@ export default function OrdersList({
   const [page, setPage] = useState(1)
   const [pageSize] = useState(8)
 
+  const { mutate: cancelOrder, isPending: isCancelling } = useCancelOrder()
+
+  const handleCancelOrder = async (orderId: string) => {
+    try {
+      await cancelOrder(orderId)
+      toast.success(`Pedido ${orderId} cancelado exitosamente`)
+    } catch (error) {
+      toast.error('Error al cancelar el pedido')
+      console.error('Error cancelling order:', error)
+    }
+  }
+
   // Sort orders by priority (pending first, then by remaining time)
   const sortedOrders = orders.sort((a, b) => {
     // Pending orders first
@@ -234,6 +249,9 @@ export default function OrdersList({
                 <TableHead className="px-2 py-2 text-left font-semibold text-xs">
                   Tiempo Límite
                 </TableHead>
+                <TableHead className="px-2 py-2 text-left font-semibold text-xs">
+                  Acciones
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -325,13 +343,29 @@ export default function OrdersList({
                           </span>
                         </div>
                       </TableCell>
+                      <TableCell className="px-2 py-2">
+                        {(order.status === 'PENDING' ||
+                          order.status === 'IN_PROGRESS' ||
+                          order.status === 'CALCULATING') && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => handleCancelOrder(order.id)}
+                            disabled={isCancelling}
+                            title="Cancelar pedido"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </TableCell>
                     </TableRow>
                   )
                 })
               ) : (
                 <TableRow>
                   <TableCell
-                    colSpan={6}
+                    colSpan={7}
                     className="text-center px-2 py-4 text-sm text-muted-foreground"
                   >
                     No hay pedidos disponibles

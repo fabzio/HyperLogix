@@ -135,6 +135,7 @@ public class SimulationEngine implements Runnable {
           .notifySnapshot(
               new SimulationSnapshot(LocalDateTime.now(), simulatedTime, plgNetwork, activeRoutes, metrics,
                   planificationStatus));
+
       sleep(simulationConfig.getSimulationResolution());
     }
     this.onComplete.run();
@@ -543,7 +544,6 @@ public class SimulationEngine implements Runnable {
           routes.getStops().size(),
           routes.getStops().values().stream().mapToInt(List::size).sum(),
           routes.getPaths().values().stream().mapToInt(List::size).sum());
-
 
       for (Truck truck : plgNetwork.getTrucks()) {
         if (truck.getStatus() == TruckState.MAINTENANCE || truck.getStatus() == TruckState.BROKEN_DOWN) {
