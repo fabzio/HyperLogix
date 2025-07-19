@@ -178,7 +178,7 @@ public class SimulationEngine implements Runnable {
         if (!incidentsOrganized && activeRoutes != null) {
             incidentsOrganized = true;
         }
-        nextPlanningTime = nextPlanningTime
+         this.nextPlanningTime = nextPlanningTime
             .plus(simulationConfig.getConsumptionInterval());
         log.info("Next planning time: {} (interval: {})", nextPlanningTime,
             simulationConfig.getCurrentAlgorithmInterval());

@@ -10,6 +10,7 @@ Name | Type | Description | Notes
 **date** | **string** |  | [optional] [default to undefined]
 **location** | [**Point**](Point.md) |  | [optional] [default to undefined]
 **requestedGLP** | **number** |  | [optional] [default to undefined]
+**assignedGLP** | **number** |  | [optional] [default to undefined]
 **deliveredGLP** | **number** |  | [optional] [default to undefined]
 **deliveryLimit** | **string** |  | [optional] [default to undefined]
 **status** | **string** |  | [optional] [default to undefined]
@@ -27,6 +28,7 @@ const instance: Order = {
     date,
     location,
     requestedGLP,
+    assignedGLP,
     deliveredGLP,
     deliveryLimit,
     status,

@@ -25,6 +25,10 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 @Slf4j
 public class SimulationService {
+  public Map<String, RealTimeSimulationEngine> getRealTimeSimulationEngines() {
+    return realTimeSimulation;
+  }
+
   private final ApplicationEventPublisher eventPublisher;
   private final SimpMessagingTemplate messaging;
   private final Map<String, SimulationEngine> simulation = new ConcurrentHashMap<>();

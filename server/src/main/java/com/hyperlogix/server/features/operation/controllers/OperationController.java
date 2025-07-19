@@ -1,5 +1,7 @@
 package com.hyperlogix.server.features.operation.controllers;
 
+import com.hyperlogix.server.features.operation.dtos.ReportIncidentRequest;
+
 import com.hyperlogix.server.domain.Order;
 import com.hyperlogix.server.features.operation.dtos.RegisterOrderRequest;
 import com.hyperlogix.server.features.operation.dtos.TruckBreakdownRequest;
@@ -25,6 +27,13 @@ public class OperationController {
     this.registerOrderUseCase = registerOrderUseCase;
     this.reportTruckBreakdownUseCase = reportTruckBreakdownUseCase;
     this.realTimeOperationService = realTimeOperationService;
+  }
+
+  @PostMapping("/trucks/{truckCode}/incident")
+  public ResponseEntity<Void> reportIncident(@PathVariable String truckCode,
+      @RequestBody ReportIncidentRequest request) {
+    realTimeOperationService.reportIncident(request);
+    return ResponseEntity.ok().build();
   }
 
   @PostMapping("/orders")

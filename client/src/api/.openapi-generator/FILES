@@ -4,6 +4,8 @@ api.ts
 base.ts
 common.ts
 configuration.ts
+docs/Incident.md
+docs/IncidentControllerApi.md
 docs/LogisticCollapseControllerApi.md
 docs/MainControllerApi.md
 docs/OperationControllerApi.md
@@ -15,6 +17,7 @@ docs/Pageable.md
 docs/PageableObject.md
 docs/Point.md
 docs/RegisterOrderRequest.md
+docs/ReportIncidentRequest.md
 docs/Reservation.md
 docs/SimulationCommandRequest.md
 docs/SimulationControllerApi.md
