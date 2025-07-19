@@ -10,6 +10,8 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.beans.factory.annotation.Autowired;
+
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -28,7 +30,7 @@ public class TruckDataLoader implements CommandLineRunner {
         Truck t = new Truck();
         t.setCode("TA" + String.format("%02d", i));
         t.setType(TruckType.TA);
-        t.setStatus(TruckState.ACTIVE);
+        t.setStatus(TruckState.IDLE);
         t.setTareWeight(2.5);
         t.setMaxCapacity(25);
         t.setCurrentCapacity(25);
@@ -39,45 +41,45 @@ public class TruckDataLoader implements CommandLineRunner {
       }
       // TB: 4 camiones de 15m3
       for (int i = 1; i <= 4; i++) {
-        Truck t = new Truck();
-        t.setCode("TB" + String.format("%02d", i));
-        t.setType(TruckType.TB);
-        t.setStatus(TruckState.ACTIVE);
-        t.setTareWeight(2.0);
-        t.setMaxCapacity(15);
-        t.setCurrentCapacity(15);
-        t.setFuelCapacity(25);
-        t.setCurrentFuel(25);
-        t.setLocation(new Point(12, 8));
-        trucks.add(t);
+      Truck t = new Truck();
+      t.setCode("TB" + String.format("%02d", i));
+      t.setType(TruckType.TB);
+      t.setStatus(TruckState.IDLE);
+      t.setTareWeight(2.0);
+      t.setMaxCapacity(15);
+      t.setCurrentCapacity(15);
+      t.setFuelCapacity(25);
+      t.setCurrentFuel(25);
+      t.setLocation(new Point(12, 8));
+      trucks.add(t);
       }
       // TC: 4 camiones de 10m3
       for (int i = 1; i <= 4; i++) {
-        Truck t = new Truck();
-        t.setCode("TC" + String.format("%02d", i));
-        t.setType(TruckType.TC);
-        t.setStatus(TruckState.ACTIVE);
-        t.setTareWeight(1.5);
-        t.setMaxCapacity(10);
-        t.setCurrentCapacity(10);
-        t.setFuelCapacity(25);
-        t.setCurrentFuel(25);
-        t.setLocation(new Point(12, 8));
-        trucks.add(t);
+      Truck t = new Truck();
+      t.setCode("TC" + String.format("%02d", i));
+      t.setType(TruckType.TC);
+      t.setStatus(TruckState.IDLE);
+      t.setTareWeight(1.5);
+      t.setMaxCapacity(10);
+      t.setCurrentCapacity(10);
+      t.setFuelCapacity(25);
+      t.setCurrentFuel(25);
+      t.setLocation(new Point(12, 8));
+      trucks.add(t);
       }
       // TD: 10 camiones de 5m3
       for (int i = 1; i <= 10; i++) {
-        Truck t = new Truck();
-        t.setCode("TD" + String.format("%02d", i));
-        t.setType(TruckType.TD);
-        t.setStatus(TruckState.ACTIVE);
-        t.setTareWeight(1.0);
-        t.setMaxCapacity(5);
-        t.setCurrentCapacity(5);
-        t.setFuelCapacity(25);
-        t.setCurrentFuel(25);
-        t.setLocation(new Point(12, 8));
-        trucks.add(t);
+      Truck t = new Truck();
+      t.setCode("TD" + String.format("%02d", i));
+      t.setType(TruckType.TD);
+      t.setStatus(TruckState.IDLE);
+      t.setTareWeight(1.0);
+      t.setMaxCapacity(5);
+      t.setCurrentCapacity(5);
+      t.setFuelCapacity(25);
+      t.setCurrentFuel(25);
+      t.setLocation(new Point(12, 8));
+      trucks.add(t);
       }
 
       truckRepository.saveAll(trucks.stream().map(TruckMapper::mapToEntity).toList());

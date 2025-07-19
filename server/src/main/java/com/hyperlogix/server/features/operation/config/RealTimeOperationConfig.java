@@ -4,7 +4,7 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
-import com.hyperlogix.server.features.operation.services.RealTimeOperationService;
+import com.hyperlogix.server.services.simulation.RealTimeOperationService;
 
 import lombok.extern.slf4j.Slf4j;
 

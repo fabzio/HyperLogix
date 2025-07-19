@@ -9,11 +9,13 @@ import {
   FormLabel,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import {
   Select,
   SelectContent,
@@ -21,8 +23,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -45,7 +45,7 @@ import {
   Square,
   AlertTriangle,
 } from 'lucide-react'
-import React, { useCallback } from 'react'
+import React, { useCallback , useEffect} from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import {
@@ -77,23 +77,19 @@ export default function Run() {
   const { mutate: sendCommand } = useCommandSimulation()
   const { mutate: stopSimulation } = useStopSimulation()
   const { data: status } = useStatusSimulation()
+
   const {
     simulationType: activeSimulationType,
     originalStartDate,
     plgNetwork,
   } = useSimulationStore()
 
-  // Estado para manejar errores de validación
-  const [validationError, setValidationError] = React.useState<string | null>(
-    null,
-  )
+  const [validationError, setValidationError] = React.useState<string | null>(null)
 
-  // Determinar valores por defecto basados en la simulación activa
-  /*const getDefaultValues = useCallback(() => {
+  const getInitialValues = useCallback(() => {
     const isRunning = status?.running || false
 
     if (isRunning && activeSimulationType && originalStartDate) {
-      // Si hay una simulación activa, usar sus valores
       return {
         simulationType: activeSimulationType,
         mode: 'relative' as const,
@@ -109,43 +105,20 @@ export default function Run() {
         },
       }
     }
-    else {
-      return {
-        simulationType: 'simple' as const,
-        mode: 'relative' as const,
-        executionMode: 'simulation' as const,
-        absolute: {
-          from: new Date('2025-01-01'),
-          to: new Date('2025-01-08'),
-        },
-        relative: {
-          startDate: new Date('2025-01-01'),
-          duration: 1,
-          unit: 'weeks' as const,
-        },
-      }
-    }
-  })*/
-  const getDefaultValues = useCallback(() => {
-    const isRunning = status?.running || false
 
-    if (isRunning && activeSimulationType && originalStartDate) {
-      // Si hay una simulación activa, usar sus valores
-      return {
-        simulationType: activeSimulationType,
-        mode: 'relative' as const,
-        executionMode: 'simulation' as const,
-        absolute: {
-          from: new Date('2025-01-01'),
-          to: new Date('2025-01-08'),
-        },
-        relative: {
-          startDate: new Date(originalStartDate),
-          duration: 1,
-          unit: 'weeks' as const,
-        },
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('simulationFormState')
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved)
+          if (parsed.absolute?.from) parsed.absolute.from = new Date(parsed.absolute.from)
+          if (parsed.absolute?.to) parsed.absolute.to = new Date(parsed.absolute.to)
+          if (parsed.relative?.startDate) parsed.relative.startDate = new Date(parsed.relative.startDate)
+          return parsed
+        } catch {}
       }
     }
+
     return {
       simulationType: 'simple' as const,
       mode: 'relative' as const,
@@ -162,72 +135,54 @@ export default function Run() {
     }
   }, [status?.running, activeSimulationType, originalStartDate])
 
-  // Función para validar si hay pedidos disponibles para el mes seleccionado
-  const validateOrdersForMonth = useCallback(
-    (startDate: Date): boolean => {
-      console.log('Ejecutando validación para fecha:', startDate.toISOString())
-
-      // Solo validar si tenemos datos de la red PLG cargados
-      if (!plgNetwork) {
-        console.log(
-          'No hay datos de plgNetwork cargados, permitiendo continuar',
-        )
-        setValidationError(null) // Limpiar cualquier error previo
-        return true // Permitir continuar si no hay datos cargados aún
-      }
-
-      if (!plgNetwork.orders || plgNetwork.orders.length === 0) {
-        console.log('No hay pedidos en el sistema')
-        setValidationError('No hay pedidos disponibles en el sistema')
-        return false
-      }
-
-      // Verificar si hay pedidos para el mes de la fecha de inicio
-      console.log('Verificando pedidos para la fecha:', startDate)
-      const hasOrdersForMonth = plgNetwork.orders.some((order) => {
-        const orderDate = new Date(order.date)
-        const isSameMonthResult = isSameMonth(orderDate, startDate)
-        console.log(
-          `Comparando orden ${order.id}: ${order.date} (${orderDate.toISOString()}) con fecha inicio: ${startDate.toISOString()}, mismo mes: ${isSameMonthResult}`,
-        )
-        return isSameMonthResult
-      })
-
-      console.log(
-        `Total pedidos: ${plgNetwork.orders.length}, hay pedidos para el mes: ${hasOrdersForMonth}`,
-      )
-
-      if (!hasOrdersForMonth) {
-        const monthName = format(startDate, 'MMMM yyyy', { locale: es })
-        const errorMessage = `No hay pedidos disponibles para ${monthName}. Por favor, seleccione una fecha diferente.`
-        console.log('Error de validación:', errorMessage)
-        setValidationError(errorMessage)
-        return false
-      }
-
-      console.log('Validación exitosa - hay pedidos para el mes')
+  const validateOrdersForMonth = useCallback((startDate: Date): boolean => {
+    if (!plgNetwork) {
       setValidationError(null)
       return true
-    },
-    [plgNetwork],
-  )
+    }
+
+    if (!plgNetwork.orders || plgNetwork.orders.length === 0) {
+      setValidationError('No hay pedidos disponibles en el sistema')
+      return false
+    }
+
+    const hasOrdersForMonth = plgNetwork.orders.some((order) => {
+      const orderDate = new Date(order.date)
+      return isSameMonth(orderDate, startDate)
+    })
+
+    if (!hasOrdersForMonth) {
+      const monthName = format(startDate, 'MMMM yyyy', { locale: es })
+      const errorMessage = `No hay pedidos disponibles para ${monthName}. Por favor, seleccione una fecha diferente.`
+      setValidationError(errorMessage)
+      return false
+    }
+
+    setValidationError(null)
+    return true
+  }, [plgNetwork])
 
   const form = useForm<FormSchema>({
     resolver: zodResolver(formSchema),
-    defaultValues: getDefaultValues(),
+    defaultValues: getInitialValues(),
   })
 
-  // Sincronizar formulario cuando cambie el estado de la simulación
+  useEffect(() => {
+    const subscription = form.watch((values) => {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('simulationFormState', JSON.stringify(values))
+      }
+    })
+    return () => subscription.unsubscribe()
+  }, [form])
+
   const isRunning = status?.running || false
   const currentSimulationType = form.watch('simulationType')
-
-  // Validar cuando cambie la fecha de inicio
   const currentStartDate = form.watch('relative.startDate')
   const currentMode = form.watch('mode')
   const currentAbsolute = form.watch('absolute')
 
-  React.useEffect(() => {
-    // Solo validar si no estamos en una simulación activa
+  useEffect(() => {
     if (!isRunning) {
       let dateToValidate: Date | null = null
 
@@ -253,12 +208,10 @@ export default function Run() {
     validateOrdersForMonth,
   ])
 
-  // Actualizar formulario cuando cambie la simulación activa
-  React.useEffect(() => {
+  useEffect(() => {
     if (isRunning && activeSimulationType && originalStartDate) {
-      // Solo actualizar si los valores son diferentes
       if (currentSimulationType !== activeSimulationType) {
-        form.reset(getDefaultValues())
+        form.reset(getInitialValues())
       }
     }
   }, [
@@ -266,9 +219,10 @@ export default function Run() {
     activeSimulationType,
     originalStartDate,
     currentSimulationType,
-    getDefaultValues,
+    getInitialValues,
     form,
   ])
+
 
   const onSubmit = form.handleSubmit((data) => {
     let startDate: Date

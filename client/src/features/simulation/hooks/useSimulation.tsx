@@ -156,83 +156,70 @@ export const useSimulationWebSocket = () => {
   const { username } = useSessionStore()
   const { subscribe, unsubscribe, connected, client } = useWebSocketStore()
   const { handleCollapse } = useCollapseHandler()
+  // Stable message handler con logs y setState
+  const handleMessageRef = useRef<(message: unknown) => void>()
+  handleMessageRef.current = (message: unknown) => {
+    try {
+      const typedMessage = message as MesaggeResponse
+      console.log('Roadblocks received:', typedMessage.plgNetwork.roadblocks)
+      setState(typedMessage)
+    } catch (error) {
+      console.error('Error parsing message:', error)
+    }
+  }
 
-  const handleMessage = useCallback(
-    (message: unknown) => {
-      try {
-        const typedMessage = message as MesaggeResponse
-        console.log('Roadblocks received:', typedMessage.plgNetwork.roadblocks)
-        setState(typedMessage)
-      } catch (error) {
-        console.error('Error parsing message:', error)
+  // Stable collapse handler con validación de tipo
+  const handleCollapseAlertRef = useRef<(alert: unknown) => void>()
+  handleCollapseAlertRef.current = (alert: unknown) => {
+    try {
+      const { simulationType } = useSimulationStore.getState()
+
+      // Solo procesar alertas de colapso si estamos en modo "collapse"
+      if (simulationType !== 'collapse') {
+        console.log(
+          'Alerta de colapso ignorada - simulación no es de tipo colapso',
+        )
+        return
       }
-    },
-    [setState],
-  )
 
-  // Manejo de alertas de colapso
-  const handleCollapseAlert = useCallback(
-    (alert: unknown) => {
-      try {
-        const { simulationType } = useSimulationStore.getState()
-
-        // Solo procesar alertas de colapso si estamos en modo "collapse"
-        if (simulationType !== 'collapse') {
-          console.log(
-            'Alerta de colapso ignorada - simulación no es de tipo colapso',
-          )
-          return
-        }
-
-        const typedAlert = alert as {
-          type: string
-          collapseType?: string
-          description?: string
-        }
-        if (typedAlert.type === 'logistic_collapse') {
-          // Manejar la alerta de colapso
-          console.log(
-            'Colapso detectado:',
-            typedAlert.collapseType,
-            typedAlert.description,
-          )
-
-          // Usar el manejador de colapso que activa todo el flujo
-          handleCollapse({
-            type: typedAlert.collapseType || 'unknown',
-            description:
-              typedAlert.description || 'Colapso logístico detectado',
-          })
-        }
-      } catch (error) {
-        console.error('Error parsing collapse alert:', error)
+      const typedAlert = alert as {
+        type: string
+        collapseType?: string
+        description?: string
       }
-    },
-    [handleCollapse],
-  )
+
+      if (typedAlert.type === 'logistic_collapse') {
+        console.log(
+          'Colapso detectado:',
+          typedAlert.collapseType,
+          typedAlert.description,
+        )
+        handleCollapse({
+          type: typedAlert.collapseType || 'unknown',
+          description:
+            typedAlert.description || 'Colapso logístico detectado',
+        })
+      }
+    } catch (error) {
+      console.error('Error parsing collapse alert:', error)
+    }
+  }
 
   useEffect(() => {
-    if (!client || !connected) return
+    if (!client || !connected || !username) return
 
-    // Suscripción principal a simulación
-    subscribe(`/topic/simulation/${username}`, handleMessage)
+    const messageHandler = (msg: unknown) => handleMessageRef.current?.(msg)
+    const collapseHandler = (alert: unknown) =>
+      handleCollapseAlertRef.current?.(alert)
 
-    // Suscripción a alertas de colapso
-    subscribe(`/topic/simulation/${username}/alerts`, handleCollapseAlert)
+    subscribe(`/topic/simulation/${username}`, messageHandler)
+    subscribe(`/topic/simulation/${username}/alerts`, collapseHandler)
 
     return () => {
       unsubscribe(`/topic/simulation/${username}`)
       unsubscribe(`/topic/simulation/${username}/alerts`)
     }
-  }, [
-    subscribe,
-    unsubscribe,
-    connected,
-    client,
-    username,
-    handleMessage,
-    handleCollapseAlert,
-  ])
+  }, [client, connected, username, subscribe, unsubscribe])
 }
 
 export const useStatusSimulation = () => {

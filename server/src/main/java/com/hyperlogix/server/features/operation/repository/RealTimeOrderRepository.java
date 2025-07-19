@@ -16,6 +16,8 @@ public interface RealTimeOrderRepository {
 
   void removeOrder(String orderId);
 
+  boolean existsById(String orderId);
+
   int size();
 
   void clear();

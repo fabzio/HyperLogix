@@ -1,13 +1,10 @@
 package com.hyperlogix.server.optimizer.AntColony;
 
 import com.hyperlogix.server.config.Constants;
-import com.hyperlogix.server.domain.*;
 import com.hyperlogix.server.optimizer.Graph;
-import com.hyperlogix.server.features.planification.dtos.LogisticCollapseEvent;
 
 import lombok.Getter;
 import lombok.Setter;
-import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -17,6 +14,25 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.stream.Collectors;
+
+import org.springframework.context.ApplicationEventPublisher;
+
+import com.hyperlogix.server.domain.Node;
+import com.hyperlogix.server.domain.NodeType;
+import com.hyperlogix.server.domain.Order;
+import com.hyperlogix.server.domain.PLGNetwork;
+import com.hyperlogix.server.domain.Path;
+import com.hyperlogix.server.domain.Point;
+import com.hyperlogix.server.domain.Routes;
+import com.hyperlogix.server.domain.Station;
+import com.hyperlogix.server.domain.Stop;
+import com.hyperlogix.server.domain.Truck;
+import com.hyperlogix.server.domain.TruckState;
+import com.hyperlogix.server.features.planification.dtos.LogisticCollapseEvent;
+import com.hyperlogix.server.optimizer.Graph;
+
+import lombok.Getter;
+import lombok.Setter;
 
 public class Ant {
   private PLGNetwork network;
@@ -53,7 +69,12 @@ public class Ant {
   }
 
   public Routes findSolution() {
+
     for (Truck truck : network.getTrucks()) {
+      if (truck.getStatus() == TruckState.MAINTENANCE) {
+        handleMaintenanceTruckRoute(truck);
+        continue;
+      }
       Stop firstNode = new Stop(
           new Node(truck.getCode(), truck.getType().toString(), NodeType.LOCATION, truck.getLocation().integerPoint()),
           graph.getAlgorithmStartDate());
@@ -75,16 +96,14 @@ public class Ant {
         // Publicar evento de colapso logístico
         if (eventPublisher != null && sessionId != null) {
           LogisticCollapseEvent collapseEvent = new LogisticCollapseEvent(
-            sessionId,
-            "RESOURCE_SHORTAGE",
-            "No hay más camiones disponibles para completar las entregas pendientes",
-            LocalDateTime.now(),
-            0.9,
-            "Flota de vehículos"
-          );
+              sessionId,
+              "RESOURCE_SHORTAGE",
+              "No hay más camiones disponibles para completar las entregas pendientes",
+              LocalDateTime.now(),
+              0.9,
+              "Flota de vehículos");
           eventPublisher.publishEvent(collapseEvent);
         }
-
         // Process the current routes with A* before returning
         Routes roughSolution = new Routes(routes, paths,
             tourCost.values().stream().mapToDouble(Double::doubleValue).sum());
@@ -105,13 +124,90 @@ public class Ant {
     return graph.processRoutesWithAStar(roughSolution, graph.getAlgorithmStartDate());
   }
 
+  private void handleMaintenanceTruckRoute(Truck truck) {
+    Stop currentNode = new Stop(
+        new Node(truck.getCode(), truck.getType().toString(), NodeType.LOCATION, truck.getLocation().integerPoint()),
+        graph.getAlgorithmStartDate());
+
+    routes.put(truck.getId(), new ArrayList<>(List.of(currentNode)));
+
+    // Verificar si el camión ya está en una estación
+    if (isAtStation(truck)) {
+      // Si ya está en una estación, no necesita moverse
+      return;
+    }
+
+    // Encontrar la estación más cercana
+    Station nearestStation = findNearestStation(truck);
+    if (nearestStation == null) {
+      System.out.println("Warning: No available station found for maintenance truck " + truck.getCode());
+      return;
+    }
+
+    // Crear nodo de destino (estación)
+    Node stationNode = new Node(nearestStation.getId(), "STATION", NodeType.STATION,
+        nearestStation.getLocation().integerPoint());
+
+    // Calcular distancia y tiempo
+    int distance = calculateManhattanDistance(truck.getLocation().integerPoint(),
+        nearestStation.getLocation().integerPoint());
+    Duration timeToDestination = truck.getTimeToDestination(distance);
+    LocalDateTime arrivalTime = graph.getAlgorithmStartDate().plus(timeToDestination);
+
+    // Verificar si tiene suficiente combustible
+    double fuelConsumption = truck.getFuelConsumption(distance);
+    if (truck.getCurrentFuel() < fuelConsumption) {
+      System.out.println(
+          "Warning: Truck " + truck.getCode() + " in maintenance doesn't have enough fuel to reach nearest station");
+      // En un escenario real, podrías necesitar enviar un camión de combustible o
+      // grúa
+      return;
+    }
+
+    Stop stationStop = new Stop(stationNode, arrivalTime);
+    Path pathToStation = new Path(
+        List.of(currentNode.getNode().getLocation(), stationNode.getLocation()),
+        distance);
+    firstPath.put(stationNode, pathToStation);
+
+    // Agregar la ruta a la estación
+    moveToNode(truck, currentNode, stationStop);
+
+    System.out.println("Maintenance truck " + truck.getCode() + " routed to station " + nearestStation.getId());
+  }
+
+  private boolean isAtStation(Truck truck) {
+    Point truckLocation = truck.getLocation().integerPoint();
+    return network.getStations().stream()
+        .anyMatch(station -> station.getLocation().integerPoint().equals(truckLocation));
+  }
+
+  // Método auxiliar para encontrar la estación más cercana
+  private Station findNearestStation(Truck truck) {
+    Point truckLocation = truck.getLocation().integerPoint();
+
+    return network.getStations().stream()
+        .filter(station -> {
+          // Verificar que la estación tenga capacidad disponible
+          int distance = calculateManhattanDistance(truckLocation, station.getLocation().integerPoint());
+          Duration timeToDestination = truck.getTimeToDestination(distance);
+          LocalDateTime arrivalTime = graph.getAlgorithmStartDate().plus(timeToDestination);
+          return station.getAvailableCapacity(arrivalTime) > 0;
+        })
+        .min((s1, s2) -> {
+          int dist1 = calculateManhattanDistance(truckLocation, s1.getLocation().integerPoint());
+          int dist2 = calculateManhattanDistance(truckLocation, s2.getLocation().integerPoint());
+          return Integer.compare(dist1, dist2);
+        })
+        .orElse(null);
+  }
+
   private Truck selectBestTruck() {
-    List<Truck> availableTrucks = new ArrayList<>();
-    List<Double> truckScores = new ArrayList<>();
+    Truck bestTruck = null;
+    double bestScore = 0;
 
     for (Truck truck : network.getTrucks()) {
-      if (truck.getStatus() == TruckState.MAINTENANCE || truck.getStatus() == TruckState.BROKEN_DOWN
-          || truck.getStatus() == TruckState.ACTIVE) {
+      if (truck.getStatus() == TruckState.MAINTENANCE || truck.getStatus() == TruckState.BROKEN_DOWN) {
         continue;
       }
 
@@ -122,84 +218,17 @@ public class Ant {
         continue;
       }
 
-      availableTrucks.add(truck);
+      // Simple scoring: prioritize IDLE trucks, then by fuel level
+      double score = truck.getStatus() == TruckState.IDLE ? 2.0 : 0.5;
+      score *= truck.getCurrentFuel() / truck.getFuelCapacity();
 
-      // Calculate truck efficiency score
-      double score = calculateTruckScore(truck, currentNode, availableNodes);
-      truckScores.add(score);
-    }
-
-    if (availableTrucks.isEmpty()) {
-      return null;
-    }
-
-    // Select truck using weighted random selection based on scores
-    double totalScore = truckScores.stream().mapToDouble(Double::doubleValue).sum();
-    if (totalScore == 0) {
-      return availableTrucks.get(new Random().nextInt(availableTrucks.size()));
-    }
-
-    List<Double> probabilities = truckScores.stream().map(score -> score / totalScore).toList();
-
-    double randomValue = new Random().nextDouble();
-    double cumulativeProbability = 0.0;
-    for (int i = 0; i < availableTrucks.size(); i++) {
-      cumulativeProbability += probabilities.get(i);
-      if (randomValue <= cumulativeProbability) {
-        return availableTrucks.get(i);
+      if (score > bestScore) {
+        bestScore = score;
+        bestTruck = truck;
       }
     }
-    return availableTrucks.getLast();
-  }
 
-  private double calculateTruckScore(Truck truck, Stop currentNode, List<Stop> availableNodes) {
-    // Base efficiency: smaller trucks are more fuel efficient
-    double fuelEfficiency = switch (truck.getType()) {
-      case TD -> 4.0; // Best fuel efficiency (smallest truck)
-      case TC -> 3.0;
-      case TB -> 2.0;
-      case TA -> 1.0; // Worst fuel efficiency (largest truck)
-    };
-
-    // Capacity utilization factor - prefer trucks that can make full use of their
-    // capacity
-    double remainingOrders = nodesLeft.stream()
-        .filter(node -> node.getType() == NodeType.DELIVERY)
-        .mapToDouble(node -> {
-          Order order = network.getOrders().stream()
-              .filter(o -> o.getId().equals(node.getId()))
-              .findFirst().orElse(null);
-          return order != null ? (order.getRequestedGLP() - order.getDeliveredGLP()) : 0;
-        }).sum();
-
-    double capacityMatch = Math.min(truck.getCurrentCapacity() / Math.max(remainingOrders, 1.0), 1.0);
-
-    // Status bonus - prefer IDLE trucks to better distribute work
-    double statusBonus = switch (truck.getStatus()) {
-      case IDLE -> 2.0;
-      case ACTIVE -> 0.5;
-      default -> 0.1;
-    };
-
-    // Distance factor - consider proximity to available nodes
-    double avgDistance = availableNodes.stream()
-        .mapToDouble(node -> {
-          if (currentNode.getNode().getType() == NodeType.LOCATION) {
-            return firstPath.containsKey(node.getNode()) ? firstPath.get(node.getNode()).length() : 1000; // Fallback
-                                                                                                          // high value
-          } else {
-            return adjacencyMap.get(currentNode.getNode()).get(node.getNode()).length();
-          }
-        })
-        .average().orElse(1000.0);
-
-    double distanceFactor = 1000.0 / Math.max(avgDistance, 1.0);
-
-    // Fuel level factor - trucks with more fuel are preferred
-    double fuelFactor = truck.getCurrentFuel() / truck.getFuelCapacity();
-
-    // Combine factors
-    return fuelEfficiency * statusBonus * capacityMatch * distanceFactor * fuelFactor;
+    return bestTruck;
   }
 
   private List<Stop> getAvailableNodes(Truck truck, Stop currentNode) {

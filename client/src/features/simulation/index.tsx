@@ -22,12 +22,12 @@ const truckTypeColors: Record<string, string> = {
 
 export default function Simulation() {
   const [polylineHover, setPolylineHover] = useState<string | null>(null)
+
   const { truckId } = useSearch({ from: '/_auth/simulacion' })
   const navigate = useNavigate({ from: '/simulacion' })
 
   // Centralizar la suscripción WebSocket aquí
   useSimulationWebSocket()
-
   const { plgNetwork: network, simulationTime, routes } = useWatchSimulation()
   const { data: status } = useStatusSimulation()
 
@@ -54,38 +54,11 @@ export default function Simulation() {
   const poliLines: MapPolyline[] = useMemo(() => {
     const pathPolylines = routes?.paths
       ? Object.entries(routes.paths).flatMap(([truckId, paths]) => {
-          const truck = network?.trucks.find((t) => t.id === truckId)
           return paths.map((path, pathIndex) => {
-            let points =
+            const points =
               path.points?.map(
                 (location) => [location.x, location.y] as [number, number],
               ) || []
-
-            // Si tenemos la posición actual del camión, empezamos desde ahí
-            if (truck?.location && points.length > 0) {
-              const truckPoint: [number, number] = [
-                truck.location.x,
-                truck.location.y,
-              ]
-
-              // Encontrar el punto más cercano en el path a la posición actual del camión
-              let closestIndex = 0
-              let minDistance = Number.POSITIVE_INFINITY
-
-              points.forEach((point, index) => {
-                const distance = Math.sqrt(
-                  (point[0] - truckPoint[0]) ** 2 +
-                    (point[1] - truckPoint[1]) ** 2,
-                )
-                if (distance < minDistance) {
-                  minDistance = distance
-                  closestIndex = index
-                }
-              })
-
-              // Crear el path desde la posición del camión hasta el final del recorrido
-              points = [truckPoint, ...points.slice(closestIndex)]
-            }
 
             return {
               id: `${truckId}-path-${pathIndex}`,
@@ -109,7 +82,7 @@ export default function Simulation() {
         endTime: block.end,
       })) || []
     return [...pathPolylines, ...roadblockPolylines]
-  }, [routes?.paths, network?.roadblocks, network?.trucks, getTruckColorById])
+  }, [routes?.paths, network?.roadblocks, getTruckColorById])
 
   return (
     <div className="flex h-full w-full">
@@ -142,7 +115,7 @@ export default function Simulation() {
                   order.date <= simulationTime,
               ) || []
             }
-            /*polylines={
+            polylines={
               poliLines.filter(
                 (line) =>
                   line.type !== 'roadblock' ||
@@ -152,23 +125,6 @@ export default function Simulation() {
                     new Date(line.startTime) <= new Date(simulationTime) &&
                     new Date(line.endTime) >= new Date(simulationTime)),
               ) || []
-            }*/
-            polylines={
-              poliLines.filter((line) => {
-                if (line.type === 'path') return true
-                if (
-                  line.type === 'roadblock' &&
-                  line.startTime &&
-                  line.endTime &&
-                  simulationTime
-                ) {
-                  return (
-                    new Date(line.startTime) <= new Date(simulationTime) &&
-                    new Date(line.endTime) >= new Date(simulationTime)
-                  )
-                }
-                return false
-              }) || []
             }
             hoveredPolylineId={polylineHover}
             onPolylineHover={(lineId) => {
@@ -186,15 +142,6 @@ export default function Simulation() {
             onPolylineClick={(lineId) => {
               const isRoadblock = lineId?.startsWith('roadblock-')
               if (isRoadblock) {
-                const roadblockId = Number(lineId.split('-')[1])
-                const roadblock = network?.roadblocks?.[roadblockId]
-                if (roadblock?.start) {
-                  navigate({
-                    search: {
-                      roadblockStart: roadblock.start,
-                    },
-                  })
-                }
                 setPolylineHover(null)
                 return
               }

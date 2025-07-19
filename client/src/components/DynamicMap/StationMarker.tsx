@@ -27,21 +27,21 @@ const StationMarker = memo(
       {/* Invisible larger clickable area */}
       {onClick && (
         <circle
-          r="12"
+          r="8"
           fill="transparent"
           stroke="transparent"
           style={{ cursor: 'pointer' }}
         />
       )}
-      {/* Icono más grande */}
+      {/* Icono más pequeño */}
       <g>
-        {station.mainStation ? <Building2 size={10} /> : <Fuel size={10} />}
+        {station.mainStation ? <Building2 size={6} /> : <Fuel size={6} />}
         {/* Texto con el nombre debajo del icono */}
         <text
           x={0}
-          y={15}
+          y={12}
           textAnchor="middle"
-          fontSize="4"
+          fontSize="3"
           fill="currentColor"
           fontWeight="500"
         >

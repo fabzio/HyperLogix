@@ -15,7 +15,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 @Data
 public class Graph implements Cloneable {
@@ -38,16 +37,6 @@ public class Graph implements Cloneable {
     this.lastAdjacencyMapUpdateTime = null;
     this.lastActiveRoadblocks = new HashSet<>(); // Initialize to empty set
   }
-
-  private Set<Roadblock> getActiveRoadblocks(LocalDateTime currentTime) {
-    if (plgNetwork.getRoadblocks() == null) {
-      return new HashSet<>();
-    }
-    return plgNetwork.getRoadblocks().stream()
-        .filter(rb -> !currentTime.isBefore(rb.start()) && !currentTime.isAfter(rb.end()))
-        .collect(Collectors.toSet());
-  }
-
   public Map<Node, Map<Node, Path>> createAdjacencyMap(LocalDateTime currentTime) {
     // For adjacency map creation, we use Manhattan distance without A*
     List<Node> ordersNode = plgNetwork.getCalculatedOrders().stream()

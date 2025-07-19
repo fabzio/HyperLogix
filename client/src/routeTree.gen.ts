@@ -18,6 +18,7 @@ import { Route as AuthIndexImport } from './routes/_auth/index'
 import { Route as AuthTrucksImport } from './routes/_auth/trucks'
 import { Route as AuthStationsImport } from './routes/_auth/stations'
 import { Route as AuthSimulacionImport } from './routes/_auth/simulacion'
+import { Route as AuthMapImport } from './routes/_auth/map'
 import { Route as AuthDriverImport } from './routes/_auth/driver'
 
 // Create/Update Routes
@@ -63,6 +64,12 @@ const AuthSimulacionRoute = AuthSimulacionImport.update({
   getParentRoute: () => AuthRoute,
 } as any)
 
+const AuthMapRoute = AuthMapImport.update({
+  id: '/map',
+  path: '/map',
+  getParentRoute: () => AuthRoute,
+} as any)
+
 const AuthDriverRoute = AuthDriverImport.update({
   id: '/driver',
   path: '/driver',
@@ -101,6 +108,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthDriverImport
       parentRoute: typeof AuthImport
     }
+    '/_auth/map': {
+      id: '/_auth/map'
+      path: '/map'
+      fullPath: '/map'
+      preLoaderRoute: typeof AuthMapImport
+      parentRoute: typeof AuthImport
+    }
     '/_auth/simulacion': {
       id: '/_auth/simulacion'
       path: '/simulacion'
@@ -136,6 +150,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthRouteChildren {
   AuthDriverRoute: typeof AuthDriverRoute
+  AuthMapRoute: typeof AuthMapRoute
   AuthSimulacionRoute: typeof AuthSimulacionRoute
   AuthStationsRoute: typeof AuthStationsRoute
   AuthTrucksRoute: typeof AuthTrucksRoute
@@ -144,6 +159,7 @@ interface AuthRouteChildren {
 
 const AuthRouteChildren: AuthRouteChildren = {
   AuthDriverRoute: AuthDriverRoute,
+  AuthMapRoute: AuthMapRoute,
   AuthSimulacionRoute: AuthSimulacionRoute,
   AuthStationsRoute: AuthStationsRoute,
   AuthTrucksRoute: AuthTrucksRoute,
@@ -157,6 +173,7 @@ export interface FileRoutesByFullPath {
   '/clients': typeof ClientsRoute
   '/login': typeof LoginRoute
   '/driver': typeof AuthDriverRoute
+  '/map': typeof AuthMapRoute
   '/simulacion': typeof AuthSimulacionRoute
   '/stations': typeof AuthStationsRoute
   '/trucks': typeof AuthTrucksRoute
@@ -167,6 +184,7 @@ export interface FileRoutesByTo {
   '/clients': typeof ClientsRoute
   '/login': typeof LoginRoute
   '/driver': typeof AuthDriverRoute
+  '/map': typeof AuthMapRoute
   '/simulacion': typeof AuthSimulacionRoute
   '/stations': typeof AuthStationsRoute
   '/trucks': typeof AuthTrucksRoute
@@ -179,6 +197,7 @@ export interface FileRoutesById {
   '/clients': typeof ClientsRoute
   '/login': typeof LoginRoute
   '/_auth/driver': typeof AuthDriverRoute
+  '/_auth/map': typeof AuthMapRoute
   '/_auth/simulacion': typeof AuthSimulacionRoute
   '/_auth/stations': typeof AuthStationsRoute
   '/_auth/trucks': typeof AuthTrucksRoute
@@ -192,6 +211,7 @@ export interface FileRouteTypes {
     | '/clients'
     | '/login'
     | '/driver'
+    | '/map'
     | '/simulacion'
     | '/stations'
     | '/trucks'
@@ -201,6 +221,7 @@ export interface FileRouteTypes {
     | '/clients'
     | '/login'
     | '/driver'
+    | '/map'
     | '/simulacion'
     | '/stations'
     | '/trucks'
@@ -211,6 +232,7 @@ export interface FileRouteTypes {
     | '/clients'
     | '/login'
     | '/_auth/driver'
+    | '/_auth/map'
     | '/_auth/simulacion'
     | '/_auth/stations'
     | '/_auth/trucks'
@@ -249,6 +271,7 @@ export const routeTree = rootRoute
       "filePath": "_auth.tsx",
       "children": [
         "/_auth/driver",
+        "/_auth/map",
         "/_auth/simulacion",
         "/_auth/stations",
         "/_auth/trucks",
@@ -263,6 +286,10 @@ export const routeTree = rootRoute
     },
     "/_auth/driver": {
       "filePath": "_auth/driver.tsx",
+      "parent": "/_auth"
+    },
+    "/_auth/map": {
+      "filePath": "_auth/map.tsx",
       "parent": "/_auth"
     },
     "/_auth/simulacion": {

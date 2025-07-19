@@ -95,6 +95,15 @@ public class AntColonyOptimizer implements Optimizer {
 
           } catch (ExecutionException e) {
             Thread.currentThread().interrupt();
+            LogisticCollapseEvent collapseEvent = new LogisticCollapseEvent(
+                sessionId,
+                "TIME_LIMIT_EXCEEDED",
+                "No se pudo encontrar una solución válida dentro del tiempo límite de " + maxDuration.toMinutes()
+                    + " minutos",
+                java.time.LocalDateTime.now(),
+                0.95,
+                "Algoritmo de optimización");
+            eventPublisher.publishEvent(collapseEvent);
             System.err.println("Error retrieving ant solution: " + e.getMessage());
             e.printStackTrace();
           }
@@ -130,6 +139,20 @@ public class AntColonyOptimizer implements Optimizer {
         executor.shutdownNow();
         Thread.currentThread().interrupt();
       }
+    }
+
+    // Si no se encontró solución válida dentro del tiempo límite, publicar
+    // LogisticCollapse
+    if (bestSolution == null && eventPublisher != null && sessionId != null) {
+      LogisticCollapseEvent collapseEvent = new LogisticCollapseEvent(
+          sessionId,
+          "TIME_LIMIT_EXCEEDED",
+          "No se pudo encontrar una solución válida dentro del tiempo límite de " + maxDuration.toMinutes()
+              + " minutos",
+          java.time.LocalDateTime.now(),
+          0.95,
+          "Algoritmo de optimización");
+      eventPublisher.publishEvent(collapseEvent);
     }
 
     // Return best solution found

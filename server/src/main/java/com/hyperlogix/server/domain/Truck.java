@@ -94,9 +94,9 @@ public class Truck implements Cloneable { // Implement Cloneable
   /**
    * Salir de mantenimiento.
    */
-  public void endMaintenance() {
-    this.status = TruckState.ACTIVE;
-    this.nextMaintenance = LocalDateTime.now().plus(Constants.MAINTENANCE_TRUCK_PERIOD);
+  public void endMaintenance(LocalDateTime time) {
+    this.status = TruckState.IDLE;
+    this.nextMaintenance = time.plus(Constants.MAINTENANCE_TRUCK_PERIOD);
   }
 
   // Add clone method using super.clone()
