@@ -42,8 +42,8 @@ public class Ant {
   private String sessionId;
 
   // Variables para debugging
-  private static  String DEBUG_FILE = "ant_incident_debug.txt";
-  private static  DateTimeFormatter DEBUG_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
+  // private static  String DEBUG_FILE = "ant_incident_debug.txt";
+  // private static  DateTimeFormatter DEBUG_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
 
   public Ant(PLGNetwork network, Graph graph, AntColonyConfig antColonyConfig, List<Incident> incidents) {
     this.originalNetwork = network.clone();
@@ -104,7 +104,6 @@ public class Ant {
       }
 
       Stop currentNode = routes.get(bestTruck.getId()).getLast();
-      writeDebugLog("About to get next Node");
       Stop nextNode = getNextNode(currentNode, bestTruck);
       if (nextNode == null) {
         // Mark truck as temporarily unavailable by setting a flag or continue
@@ -126,7 +125,7 @@ public class Ant {
           || truck.getStatus() == TruckState.ACTIVE) {
         continue;
       }
-
+      // writeDebugLog("Se encontrarón camiones con status indicado");
       Stop currentNode = routes.get(truck.getId()).getLast();
       List<Stop> availableNodes = getAvailableNodes(truck, currentNode);
 
@@ -193,15 +192,9 @@ public class Ant {
       default -> 0.1;
     };
 
-    double incidentFactor = 1.0;
-    long incidentsInRange = availableNodes.stream()
-        .filter(node -> node.getNode().getType() == NodeType.INCIDENT)
-        .count();
-
-    if (incidentsInRange > 0) {
-        // Favorecer camiones con más capacidad disponible para poder transferir carga
-        incidentFactor = 1.0 + ((double)(truck.getMaxCapacity() - truck.getCurrentCapacity()) / truck.getMaxCapacity());
-    }
+    // Favorecer camiones con más capacidad disponible para poder transferir carga
+    double incidentFactor = 1.0 + ((double)(truck.getMaxCapacity() - truck.getCurrentCapacity()) / truck.getMaxCapacity());
+ 
 
     // Distance factor - consider proximity to available nodes
     double avgDistance = availableNodes.stream()
@@ -225,6 +218,7 @@ public class Ant {
   }
 
   private List<Stop> getAvailableNodes(Truck truck, Stop currentNode) {
+   
     List<Stop> availableNodes = new ArrayList<>();
     if (truck.getStatus() == TruckState.MAINTENANCE || truck.getStatus() == TruckState.BROKEN_DOWN) {
       return List.of();
@@ -286,13 +280,15 @@ public class Ant {
               .findFirst().orElse(null);
 
           assert incident != null;
-          if (currentNode.getArrivalTime().plus(timeToDestination).isAfter(incident.getExpectedRecovery())){
+          if(incident.getFuel() == 0)
             continue;
-          }
 
-          if ((truck.getMaxCapacity() - truck.getCurrentCapacity()) == 0){
+          if ((truck.getMaxCapacity() - truck.getCurrentCapacity()) == 0)
             continue;
-          }
+
+          if (currentNode.getArrivalTime().plus(timeToDestination).isAfter(incident.getExpectedRecovery()))
+            continue;
+          
           
             // Verificar si hay suficiente combustible para ir al incidente y luego a la estación más cercana
           double fuelAfterVisit = truck.getCurrentFuel() - fuelConsumption;
@@ -315,7 +311,6 @@ public class Ant {
   }
 
   private Stop getNextNode(Stop currentNode, Truck truck) {
-    writeDebugLog("About to calculate scores");
 
     List<Stop> availableNodes = getAvailableNodes(truck, currentNode);
     if (availableNodes.isEmpty()) {
@@ -327,8 +322,6 @@ public class Ant {
       int distance = adjacencyMap.get(currentNode.getNode()).get(node.getNode()).length();
       double pheromone = graph.getPheromoneMap().get(currentNode.getNode()).get(node.getNode());
 
-      writeDebugLog("Calculating scores");
-
       double penalization = 1;
       switch(node.getNode().getType()){
         case NodeType.STATION:
@@ -337,7 +330,6 @@ public class Ant {
           break;
 
         case NodeType.INCIDENT:
-            writeDebugLog("CALCULATE INCIDENT PENALTY");
                       // Priorizar incidentes basados en su severidad y carga disponible para transferir
             Incident incident = incidentList.stream()
                 .filter(i -> i.getId().equals(node.getNode().getId()))
@@ -350,8 +342,8 @@ public class Ant {
             double severityFactor = 1.0;
             if (incident != null && incident.getType() != null) {
                 severityFactor = switch (incident.getType()) {
-                    case "TYPE_3" -> 0.5;  // Más severo = mayor prioridad
-                    case "TYPE_2" -> 0.7;
+                    case IncidentType.TI3 -> 0.3;  // Más severo = mayor prioridad
+                    case IncidentType.TI2 -> 0.5;
                     default -> 1.0;
                 };
             }
@@ -362,7 +354,6 @@ public class Ant {
                 transferFactor = 0.5 + (0.5 * (1.0 - (double)accidentedTruck.getCurrentCapacity() / accidentedTruck.getMaxCapacity()));
             }
             penalization = severityFactor * transferFactor;
-            writeDebugLog("INCIDENT MANAGEMENT with " + penalization + "penalization");
             break;
 
         case NodeType.DELIVERY:
@@ -511,15 +502,15 @@ public void resetState() {
 
   }
 
-  //metodo para debuggear
-  private void writeDebugLog(String message) {
-    try (FileWriter writer = new FileWriter(DEBUG_FILE)) {
-      String timestamp = LocalDateTime.now().format(DEBUG_TIME_FORMAT);
-      writer.write("[" + timestamp + "] ANT- " + message + "\n");
-    } catch (IOException e) {
-      System.err.println("Error writing debug log: " + e.getMessage());
-    }
-  }
+  // //metodo para debuggear
+  // private void writeDebugLog(String message) {
+  //   try (FileWriter writer = new FileWriter(DEBUG_FILE)) {
+  //     String timestamp = LocalDateTime.now().format(DEBUG_TIME_FORMAT);
+  //     writer.write("[" + timestamp + "] ANT- " + message + "\n");
+  //   } catch (IOException e) {
+  //     System.err.println("Error writing debug log: " + e.getMessage());
+  //   }
+  // }
 }
 
 

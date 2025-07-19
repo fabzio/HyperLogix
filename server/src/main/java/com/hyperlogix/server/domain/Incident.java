@@ -29,7 +29,7 @@ public class Incident {
     /**
      * The type of incident (TI1, TI2, TI3)
      */
-    private String type;
+    private IncidentType type;
 
     /**
      * The code of the truck involved in the incident
@@ -41,6 +41,10 @@ public class Incident {
     private Point location;
 
     private int daysSinceIncident = 0;
+
+    private IncidentStatus status;
+
+    private LocalDateTime incidentTime;
 
     private LocalDateTime expectedRecovery;
 

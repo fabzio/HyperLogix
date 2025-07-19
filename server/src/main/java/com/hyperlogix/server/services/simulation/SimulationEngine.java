@@ -12,8 +12,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 
+import java.io.FileWriter;
+import java.io.IOException;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -26,8 +29,11 @@ import java.util.Map;
 import java.util.ArrayList;
 
 
+
 public class SimulationEngine implements Runnable {
   private static final Logger log = LoggerFactory.getLogger(SimulationEngine.class);
+  private static  String DEBUG_FILE = "engine_incident_debug.txt";
+  private static  DateTimeFormatter DEBUG_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
 
   private final ApplicationEventPublisher eventPublisher;
   private final PlanificationService planificationService;
@@ -67,8 +73,6 @@ public class SimulationEngine implements Runnable {
   private LocalDateTime lastOrderRateCheck = null;
   private static final Duration ORDER_RATE_CHECK_WINDOW = Duration.ofMinutes(10);
 
-  // Mapa para guardar las órdenes DELAYED que deben ser prioridad para cada camión
-  private final Map<String, List<String>> truckPriorityOrders = new ConcurrentHashMap<>();
 
   public SimulationEngine(String sessionId,
       SimulationConfig simulationConfig,
@@ -201,23 +205,31 @@ public class SimulationEngine implements Runnable {
       return;
     }    synchronized (routesLock) {
       for (Truck truck : plgNetwork.getTrucks()) {
-        // Handle trucks that are completely broken down (TYPE_2/TYPE_3 incidents)
         if (truck.getStatus() == TruckState.BROKEN_DOWN) {
-          continue; // These trucks need workshop repair, skip all processing
+          Incident recoveredIncident = incidentRepository.stream()
+            .filter(incident -> incident.getTruckCode().equals(truck.getCode()))
+            .findFirst()
+            .orElse(null);
+
+            if (recoveredIncident != null) {
+              boolean recovered = incidentManager.handleMaintenanceDelay(truck, simulatedTime, recoveredIncident );
+            }
+            continue;
         }
 
-        // Handle trucks in maintenance (TYPE_1 incidents) - they stay in standby
-        if (truck.getStatus() == TruckState.MAINTENANCE) {
-          boolean recovered = incidentManager.handleMaintenanceDelay(truck, simulatedTime);
-          if (!recovered) {
-            // Truck is still in maintenance, skip movement but keep route assigned
-            log.trace("Truck {} in maintenance standby - route preserved", truck.getId());
-            continue;
-          }
-          // If recovered, continue with normal processing below
-                      incidentRepository.removeIf(incident -> incident.getTruckCode().equals(truck.getCode()));
-          changeOrdersState(truck.getId(), OrderStatus.IN_PROGRESS);
-          log.info("Truck {} recovered from maintenance, resuming route", truck.getId());
+        if(truck.getStatus() == TruckState.MAINTENANCE){
+          Incident recoveredIncident = incidentRepository.stream()
+            .filter(incident -> incident.getTruckCode().equals(truck.getCode()))
+            .findFirst()
+            .orElse(null);
+
+            if (recoveredIncident != null) {
+                if (recoveredIncident.getExpectedRecovery().isAfter(simulatedTime)) {
+                    truck.endMaintenance();
+                    recoveredIncident.setStatus(IncidentStatus.RESOLVED);    
+              }
+            }
+          continue;
         }
 
         // Get assigned route for this truck
@@ -283,7 +295,50 @@ public class SimulationEngine implements Runnable {
     } else if (stop.getNode().getType() == NodeType.DELIVERY) {
       handleDeliveryArrival(truck, stop);
     }
+    else if (stop.getNode().getType() == NodeType.INCIDENT) {
+      handleIncidentArrival(truck, stop);
+    }
   }
+
+/**
+ * Maneja la llegada de un camión a un nodo de incidente
+ * Realiza la transferencia de carga entre camiones y actualiza los estados
+ */
+private void handleIncidentArrival(Truck truck, Stop stop) {
+    Incident incident = incidentRepository.stream()
+        .filter(i -> i.getId().equals(stop.getNode().getId()))
+        .findFirst().orElse(null);
+    
+    if (incident == null) {
+        return;
+    }
+    
+    Truck accidentedTruck = plgNetwork.getTrucks().stream()
+        .filter(t -> t.getCode().equals(incident.getTruckCode()))
+        .findFirst().orElse(null);
+    
+    if (accidentedTruck == null) {
+        return;
+    }
+    
+    int transferAmount = Math.min(
+        accidentedTruck.getCurrentCapacity(),  // Lo que tiene el camión accidentado
+        truck.getMaxCapacity() - truck.getCurrentCapacity()  // Espacio disponible en el camión rescatista
+    );
+    
+    if (transferAmount <= 0) {
+        return;
+    }
+    
+    // 4. Realizar la transferencia de carga
+    accidentedTruck.setCurrentCapacity(accidentedTruck.getCurrentCapacity() - transferAmount);
+    truck.setCurrentCapacity(truck.getCurrentCapacity() + transferAmount);
+    incident.setFuel(accidentedTruck.getCurrentCapacity());  // Actualizar combustible restante en el incidente
+    
+    writeDebugLog(String.format("Transferencia completada: %d unidades de GLP transferidas del camión %s al camión %s", 
+             transferAmount, accidentedTruck.getCode(), truck.getCode()));
+
+}
 
   private void handleStationArrival(Truck truck, Stop stop) {
     Station station = plgNetwork.getStations().stream()
@@ -450,30 +505,16 @@ public class SimulationEngine implements Runnable {
     if (progress >= 0.05 && progress <= 0.35) {
       Incident detectedIncident = incidentManager.checkAndHandleIncident(truck, simulatedTime);
       if(detectedIncident != null){
-        changeOrdersState(truck.getId(), OrderStatus.DELAYED);
+        changeOrdersState(truck.getId(), OrderStatus.CALCULATING);
         incidentRepository.add(detectedIncident);
-        log.info("Incident added to repository. Total incidents: {}. Details: ID={}, TruckCode={}, Type={}, Turn={}, Location=({}, {}), TruckPosition=({}, {})", 
-                 incidentRepository.size(), 
-                 detectedIncident.getId(), 
-                 detectedIncident.getTruckCode(), 
-                 detectedIncident.getType(), 
-                 detectedIncident.getTurn(),
-                 detectedIncident.getLocation().x(), 
-                 detectedIncident.getLocation().y(),
-                 truck.getLocation().x(),
-                 truck.getLocation().y());
       }
-
     }
-    log.trace("Truck {} at position ({}, {}) - progress: {:.2f}%, fuel: {:.2f}gal",
-      truck.getId(), interpolatedPosition.x(), interpolatedPosition.y(), progress * 100, newFuelLevel);
   }
 
 
   private void changeOrdersState(String truckId, OrderStatus newStatus){
       // Cambiar estado A todas las órdenes asignadas actualmente a este camión
       List<Stop> assignedStops = activeRoutes.getStops().getOrDefault(truckId, List.of());
-      List<String> delayedOrderIds = new ArrayList<>();
       for (Stop stop : assignedStops) {
         if (stop.getNode().getType() == NodeType.DELIVERY) {
           Order order = orderRepository.stream()
@@ -481,9 +522,6 @@ public class SimulationEngine implements Runnable {
             .findFirst().orElse(null);
           if (order != null) {
             order.setStatus(newStatus);
-            if (newStatus == OrderStatus.DELAYED) {
-              delayedOrderIds.add(order.getId());
-            }
           }
         }
       }
@@ -588,8 +626,14 @@ public class SimulationEngine implements Runnable {
     if (hasCalculatingOrders) {
       lastPlanificationStart = LocalDateTime.now();
       totalPlanificationRequests++;
+
+      List<Incident> immobilizedIncidents = incidentRepository.stream()
+        .filter(incident -> incident.getStatus() == IncidentStatus.IMMOBILIZED)
+        .toList();
+      
+
       eventPublisher.publishEvent(
-          new PlanificationRequestEvent(sessionId, plgNetwork, simulatedTime, simulationConfig.getAlgorithmTime(), incidentRepository));
+          new PlanificationRequestEvent(sessionId, plgNetwork, simulatedTime, simulationConfig.getAlgorithmTime(), immobilizedIncidents));
     } else {
     }
   }
@@ -743,4 +787,15 @@ public class SimulationEngine implements Runnable {
         totalDistance,
         deliveryEfficiency);
   }
+
+  //metodo para debuggear
+  private void writeDebugLog(String message) {
+    try (FileWriter writer = new FileWriter(DEBUG_FILE)) {
+      String timestamp = LocalDateTime.now().format(DEBUG_TIME_FORMAT);
+      writer.write("[" + timestamp + "] SIM - " + message + "\n");
+    } catch (IOException e) {
+      System.err.println("Error writing debug log: " + e.getMessage());
+    }
+  }
+
 }

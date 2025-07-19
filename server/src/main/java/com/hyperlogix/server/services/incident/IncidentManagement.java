@@ -10,7 +10,6 @@ import org.slf4j.LoggerFactory;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.Random;
 
 /**
  * Clase dedicada al manejo de incidencias en el sistema logístico.
@@ -28,11 +27,7 @@ public class IncidentManagement {
   private final Random random = new Random();
     
     private List<Incident> incidents;
-    public enum IncidentType {
-        TYPE_1, // Llanta ponchada - 2h inmovilización, continúa ruta original
-        TYPE_2, // Motor ahogado - 2h inmovilización + 1 turno completo en taller
-        TYPE_3  // Choque - 4h inmovilización + 1 día completo en taller
-    }      public IncidentManagement(List<Incident> incidents) {
+    public IncidentManagement(List<Incident> incidents) {
         // Create a mutable copy to allow removal of incidents
         this.incidents = new ArrayList<>(incidents);
     }
@@ -63,6 +58,8 @@ public class IncidentManagement {
           incident.getTurn().equals(currentTurn)) {
         targetIncident = incident;
         targetIncident.setDaysSinceIncident(0);
+        targetIncident.setStatus(IncidentStatus.IMMOBILIZED);
+        targetIncident.setIncidentTime(simulatedTime);
         break;
       }
     }
@@ -96,12 +93,12 @@ public class IncidentManagement {
   private void handleIncidentWithManagement(Truck truck, Incident incident, LocalDateTime simulatedTime) {
     
     // Determinar el tipo de incidente usando el método de IncidentManagement
-    IncidentManagement.IncidentType incidentType = determineIncidentType(incident, simulatedTime);
+    IncidentType incidentType = determineIncidentType(incident, simulatedTime);
     
     // Aplicar el incidente específico según su tipo
-    TruckState previousStatus = truck.getStatus();
-    applySpecificIncident(truck, incidentType, incident);
-    TruckState newStatus = truck.getStatus();
+
+    applySpecificIncident(truck, incident);
+
   
   }
 
@@ -109,58 +106,37 @@ public class IncidentManagement {
    * Determina el tipo de incidente basado en el objeto Incident del sistema
    * (Adaptado de IncidentManagement)
    */
-  private IncidentManagement.IncidentType determineIncidentType(Incident incident, LocalDateTime simulatedTime) {
-    String incidentTypeStr = incident.getType().toUpperCase();
+  private IncidentType determineIncidentType(Incident incident, LocalDateTime simulatedTime) {
+    String incidentTypeStr = incident.getType().toString();
     
     if (incidentTypeStr.contains("TI1") || incidentTypeStr.equals("1")) {
       incident.setExpectedRecovery(simulatedTime.plusHours(2)); // 2 horas de inmovilización
-      return IncidentManagement.IncidentType.TYPE_1;
+      return IncidentType.TI1;
     } else if (incidentTypeStr.contains("TI2") || incidentTypeStr.equals("2")) {
-      return IncidentManagement.IncidentType.TYPE_2;
+      incident.setExpectedRecovery(simulatedTime.plusHours(2)); // 2 horas de inmovilización
+      return IncidentType.TI2;
     } else if (incidentTypeStr.contains("TI3") || incidentTypeStr.equals("3")) {
-      return IncidentManagement.IncidentType.TYPE_3;
+      incident.setExpectedRecovery(simulatedTime.plusHours(4)); // 4 horas de inmovilización
+      return IncidentType.TI3;
     }
     
     // Por defecto, usar TYPE_1 (menos severo)
-    return IncidentManagement.IncidentType.TYPE_1;
+    return IncidentType.TI1;
   }
 
   /**
    * Aplica un incidente específico a un camión
    * (Adaptado de IncidentManagement)
    */
-  private void applySpecificIncident(Truck truck, IncidentManagement.IncidentType incidentType, Incident incident) {
+  private void applySpecificIncident(Truck truck, Incident incident) {
     // Validar la ubicación del incidente (usar ubicación actual del camión)
     Point incidentLocation = validateIncidentLocation(truck.getLocation());
     
     // Actualizar la ubicación del incidente
     incident.setLocation(incidentLocation);
-    incident.setFuel(truck.getCurrentCapacity()); // Actualizar combustible del camión
-    
-    // Cambiar el estado del camión según el tipo de incidente
-    switch (incidentType) {
-      case TYPE_1:
-        // TI1: Llanta ponchada - 2h inmovilización, puede repararse en el lugar
-        truck.setStatus(TruckState.MAINTENANCE);
-        truck.setLocation(incidentLocation);
-        log.info("TYPE_1 INCIDENT - Flat tire: {} immobilized for 2 hours at location ({}, {})", 
-                 truck.getCode(), incidentLocation.x(), incidentLocation.y());
-        break;
-      case TYPE_2:
-        // TI2: Motor ahogado - 2h inmovilización + 1 turno completo en taller
-        truck.setStatus(TruckState.BROKEN_DOWN); // Requiere taller
-        truck.setLocation(incidentLocation);
-        log.info("TYPE_2 INCIDENT - Engine failure: {} immobilized for 2 hours + 1 full turn in workshop at location ({}, {})", 
-                 truck.getCode(), incidentLocation.x(), incidentLocation.y());
-        break;
-      case TYPE_3:
-        // TI3: Choque - 4h inmovilización + 1 día completo en taller
-        truck.setStatus(TruckState.BROKEN_DOWN); // Requiere taller
-        truck.setLocation(incidentLocation);
-        log.info("TYPE_3 INCIDENT - Crash: {} immobilized for 4 hours + 1 full day in workshop at location ({}, {})", 
-                 truck.getCode(), incidentLocation.x(), incidentLocation.y());
-        break;
-    }
+    incident.setFuel(truck.getCurrentCapacity()); 
+    truck.setStatus(TruckState.BROKEN_DOWN);
+
   }
 
   /**
@@ -177,8 +153,8 @@ public class IncidentManagement {
    * El camión permanece inmóvil en su posición actual por 2 horas
    * @return true if truck recovered from maintenance, false if still in maintenance
    */
-  public boolean handleMaintenanceDelay(Truck truck, LocalDateTime simulatedTime) {    // Solo procesar si el camión está en mantenimiento
-    if (truck.getStatus() != TruckState.MAINTENANCE) {
+  public boolean handleMaintenanceDelay(Truck truck, LocalDateTime simulatedTime, Incident incident) {    // Solo procesar si el camión está en mantenimiento
+    if (truck.getStatus() != TruckState.BROKEN_DOWN) {
       return false; // Truck is not in maintenance
     }
     
@@ -198,19 +174,52 @@ public class IncidentManagement {
     long hoursElapsed = maintenanceElapsed.toHours();
     
     // Si han pasado 2 horas o más, reactivar el camión
-    if (hoursElapsed >= 2) {
-      truck.setStatus(TruckState.ACTIVE);
+    if ((hoursElapsed >= 2) && (incident.getType() == IncidentType.TI1)) {
       truck.setMaintenanceStartTime(null); // Limpiar el tiempo de inicio
-        log.info("Truck {} maintenance completed after {} hours - reactivated and ready to continue at position ({}, {})", 
-               truck.getCode(), hoursElapsed, truck.getLocation().x(), truck.getLocation().y());
-      
+      truck.setStatus(TruckState.IDLE);
+      incident.setStatus(IncidentStatus.RESOLVED);
       return true; // Truck has recovered from maintenance
-    } else {
-      // El camión sigue en mantenimiento, logear progreso
-      long minutesRemaining = (2 * 60) - maintenanceElapsed.toMinutes();
-      log.debug("Truck {} still in maintenance - {} minutes remaining (elapsed: {} minutes)", 
-                truck.getCode(), minutesRemaining, maintenanceElapsed.toMinutes());
+    } 
+    else if ((hoursElapsed >= 2) && (incident.getType() == IncidentType.TI2)) {
+      truck.setMaintenanceStartTime(simulatedTime);
+      truck.setStatus(TruckState.MAINTENANCE);
+      truck.setLocation(new Point(12, 8));
+      incident.setStatus(IncidentStatus.IN_MAINTENANCE);
+
+            // Determinar el subsiguiente turno según el turno actual
+      String currentTurn = getCurrentTurn(incident.getIncidentTime());
+      LocalDateTime recoveryTime;
       
+      if (currentTurn.equals("T1")) {
+        // Si es turno 1 (00:00-08:00), estará disponible en turno 3 (16:00-00:00)
+        recoveryTime = simulatedTime.withHour(16).withMinute(0).withSecond(0).withNano(0);
+      } else if (currentTurn.equals("T2")) {
+        // Si es turno 2 (08:00-16:00), estará disponible en turno 1 (00:00-08:00) del día siguiente
+        recoveryTime = simulatedTime.plusDays(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
+      } else { // T3
+        // Si es turno 3 (16:00-00:00), estará disponible en turno 2 (08:00-16:00) del día siguiente
+        recoveryTime = simulatedTime.plusDays(1).withHour(8).withMinute(0).withSecond(0).withNano(0);
+      }
+      incident.setExpectedRecovery(recoveryTime);
+      return true; // Truck has recovered from maintenance
+    } 
+    else if ((hoursElapsed >= 4) && (incident.getType() == IncidentType.TI3)) {
+      truck.setMaintenanceStartTime(simulatedTime);
+      truck.setStatus(TruckState.MAINTENANCE);
+      truck.setLocation(new Point(12, 8));
+      incident.setStatus(IncidentStatus.IN_MAINTENANCE);
+
+      LocalDateTime recoveryTime = incident.getIncidentTime().plusDays(2)  // Día A+2
+          .withHour(0)     // Inicio del turno 1 (00:00)
+          .withMinute(0)
+          .withSecond(0)
+          .withNano(0);
+      
+      incident.setExpectedRecovery(recoveryTime);
+
+      return true; // Truck has recovered from maintenance
+    }
+    else {
       return false; // Truck is still in maintenance
     }
   }

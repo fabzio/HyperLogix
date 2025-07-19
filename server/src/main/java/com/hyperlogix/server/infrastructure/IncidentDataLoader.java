@@ -17,6 +17,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.hyperlogix.server.domain.Incident;
+import com.hyperlogix.server.domain.IncidentType;
 import com.hyperlogix.server.features.incidents.repository.IncidentRepository;
 import com.hyperlogix.server.features.incidents.utils.IncidentMapper;
 import com.hyperlogix.server.features.trucks.TruckRepositoryHolder;
@@ -150,7 +151,7 @@ public class IncidentDataLoader implements CommandLineRunner, org.springframewor
                 matcher = INCIDENT_PATTERN.matcher(line);
                 if (matcher.matches()) {                    String turn = matcher.group(1);
                     String truckCode = matcher.group(2);
-                    String incidentType = matcher.group(3);
+                    IncidentType incidentType = IncidentType.valueOf(matcher.group(3));
                     
                     log.info("Parsed incident: turn={}, truckCode={}, incidentType={} from line '{}'", 
                             turn, truckCode, incidentType, line);

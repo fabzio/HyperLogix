@@ -24,7 +24,7 @@ public class IncidentMapper {
             }
         }
         entity.setTurn(incident.getTurn());
-        entity.setType(IncidentType.valueOf(incident.getType()));
+        entity.setType(incident.getType());
         // Look up TruckEntity by code and set it
         if (TruckRepositoryHolder.truckRepository != null) {
             var truck = TruckRepositoryHolder.truckRepository.findByCode(incident.getTruckCode());
@@ -46,7 +46,7 @@ public class IncidentMapper {
             incident.setId(entity.getId().toString());
         }
         incident.setTurn(entity.getTurn());
-        incident.setType(entity.getType().toString());
+        incident.setType(entity.getType());
         incident.setTruckCode(entity.getTruck().getCode());
         
         return incident;

@@ -114,12 +114,12 @@ public class Truck implements Cloneable { // Implement Cloneable
     if (!this.code.equals(incident.getTruckCode())) {
         return;
     }
-    String type = incident.getType();
+    IncidentType type = incident.getType();
     String incidentTurn = incident.getTurn();
     int daysSinceIncident = incident.getDaysSinceIncident();
 
     // Tipo 1: inmovilizado 2h (simulamos como BROKEN_DOWN solo el turno del incidente)
-    if (type.equals("TI1")) {
+    if (type.equals(IncidentType.TI1)) {
         // Solo está inmovilizado en el turno del incidente
         this.status = currentTurn.equals(incidentTurn) && daysSinceIncident == 0 ? TruckState.BROKEN_DOWN : TruckState.ACTIVE;
         return;
