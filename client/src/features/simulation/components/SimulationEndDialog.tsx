@@ -7,6 +7,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { useSessionStore } from '@/store/session'
+import { format } from 'date-fns'
+import { es } from 'date-fns/locale'
 import { Download, FileText } from 'lucide-react'
 import { useState } from 'react'
 import { useSimulationStore } from '../store/simulation'
@@ -61,14 +63,28 @@ export default function SimulationEndDialog({ open, onClose, reason }: Props) {
 
   const getDialogContent = () => {
     switch (reason) {
-      case 'collapse':
+      case 'collapse': {
+        // Agregar logs para depurar el problema de la fecha en el diálogo
+        console.log('=== DEBUG DIÁLOGO COLAPSO ===')
+        console.log('collapseInfo completo:', collapseInfo)
+        console.log('collapseInfo.timestamp:', collapseInfo?.timestamp)
+
+        const collapseTimestamp = collapseInfo?.timestamp
+          ? format(new Date(collapseInfo.timestamp), 'PPpp', {
+              locale: es,
+            })
+          : 'Fecha no disponible'
+
+        console.log('Timestamp formateado que se mostrará:', collapseTimestamp)
+
         return {
           title: 'Simulación detenida por colapso',
-          description: collapseInfo
-            ? `Se detectó un colapso logístico: ${collapseInfo.description}`
-            : 'Se detectó un colapso logístico y la simulación fue detenida automáticamente.',
+          description:
+            'No hay camiones disponibles para completar las entregas.',
           icon: '⚠️',
+          timestamp: collapseTimestamp,
         }
+      }
       case 'manual':
         return {
           title: 'Simulación finalizada',
@@ -102,6 +118,14 @@ export default function SimulationEndDialog({ open, onClose, reason }: Props) {
             {dialogContent.title}
           </DialogTitle>
           <DialogDescription>{dialogContent.description}</DialogDescription>
+          {dialogContent.timestamp && (
+            <div className="mt-2 p-3  border border-red-200 rounded-md">
+              <p className="text-sm text-800 font-medium">
+                📅 Fecha y hora del colapso:
+              </p>
+              <p className="text-sm text-700">{dialogContent.timestamp}</p>
+            </div>
+          )}
         </DialogHeader>
 
         <div className="flex flex-col gap-3 mt-4">

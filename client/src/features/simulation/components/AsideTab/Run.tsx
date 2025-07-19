@@ -26,7 +26,15 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { addDays, addMonths, addWeeks, addYears, format } from 'date-fns'
+import {
+  addDays,
+  addMonths,
+  addWeeks,
+  addYears,
+  format,
+  isSameMonth,
+} from 'date-fns'
+import { es } from 'date-fns/locale'
 import {
   CalendarIcon,
   FastForward,
@@ -35,8 +43,9 @@ import {
   Play,
   Rewind,
   Square,
+  AlertTriangle,
 } from 'lucide-react'
-import { useEffect } from 'react'
+import React, { useCallback , useEffect} from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import {
@@ -45,6 +54,23 @@ import {
   useStatusSimulation,
   useStopSimulation,
 } from '../../hooks/useSimulation'
+import { useSimulationStore } from '../../store/simulation'
+
+const formSchema = z.object({
+  simulationType: z.enum(['simple', 'collapse']),
+  mode: z.enum(['absolute', 'relative']),
+  absolute: z.object({
+    from: z.date(),
+    to: z.date(),
+  }),
+  relative: z.object({
+    startDate: z.date(),
+    duration: z.number().min(1, 'La duración debe ser mayor a 0'),
+    unit: z.enum(['days', 'weeks', 'months', 'years']),
+  }),
+  executionMode: z.enum(['simulation', 'real']),
+})
+type FormSchema = z.infer<typeof formSchema>
 
 export default function Run() {
   const { mutate: startSimulation, isPending } = useStartSimulation()
@@ -52,35 +78,51 @@ export default function Run() {
   const { mutate: stopSimulation } = useStopSimulation()
   const { data: status } = useStatusSimulation()
 
-  // Get saved form state from localStorage
-  const getSavedFormState = () => {
+  const {
+    simulationType: activeSimulationType,
+    originalStartDate,
+    plgNetwork,
+  } = useSimulationStore()
+
+  const [validationError, setValidationError] = React.useState<string | null>(null)
+
+  const getInitialValues = useCallback(() => {
+    const isRunning = status?.running || false
+
+    if (isRunning && activeSimulationType && originalStartDate) {
+      return {
+        simulationType: activeSimulationType,
+        mode: 'relative' as const,
+        executionMode: 'simulation' as const,
+        absolute: {
+          from: new Date('2025-01-01'),
+          to: new Date('2025-01-08'),
+        },
+        relative: {
+          startDate: new Date(originalStartDate),
+          duration: 1,
+          unit: 'weeks' as const,
+        },
+      }
+    }
+
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('simulationFormState')
       if (saved) {
         try {
-          const parsedState = JSON.parse(saved)
-          // Convert date strings back to Date objects
-          if (parsedState.absolute?.from) {
-            parsedState.absolute.from = new Date(parsedState.absolute.from)
-          }
-          if (parsedState.absolute?.to) {
-            parsedState.absolute.to = new Date(parsedState.absolute.to)
-          }
-          if (parsedState.relative?.startDate) {
-            parsedState.relative.startDate = new Date(
-              parsedState.relative.startDate,
-            )
-          }
-          return parsedState
-        } catch {
-          // If parsing fails, return defaults
-        }
+          const parsed = JSON.parse(saved)
+          if (parsed.absolute?.from) parsed.absolute.from = new Date(parsed.absolute.from)
+          if (parsed.absolute?.to) parsed.absolute.to = new Date(parsed.absolute.to)
+          if (parsed.relative?.startDate) parsed.relative.startDate = new Date(parsed.relative.startDate)
+          return parsed
+        } catch {}
       }
     }
+
     return {
-      simulationType: 'simple',
-      mode: 'relative',
-      executionMode: 'simulation',
+      simulationType: 'simple' as const,
+      mode: 'relative' as const,
+      executionMode: 'simulation' as const,
       absolute: {
         from: new Date('2025-01-01'),
         to: new Date('2025-01-08'),
@@ -88,17 +130,43 @@ export default function Run() {
       relative: {
         startDate: new Date('2025-01-01'),
         duration: 1,
-        unit: 'weeks',
+        unit: 'weeks' as const,
       },
     }
-  }
+  }, [status?.running, activeSimulationType, originalStartDate])
+
+  const validateOrdersForMonth = useCallback((startDate: Date): boolean => {
+    if (!plgNetwork) {
+      setValidationError(null)
+      return true
+    }
+
+    if (!plgNetwork.orders || plgNetwork.orders.length === 0) {
+      setValidationError('No hay pedidos disponibles en el sistema')
+      return false
+    }
+
+    const hasOrdersForMonth = plgNetwork.orders.some((order) => {
+      const orderDate = new Date(order.date)
+      return isSameMonth(orderDate, startDate)
+    })
+
+    if (!hasOrdersForMonth) {
+      const monthName = format(startDate, 'MMMM yyyy', { locale: es })
+      const errorMessage = `No hay pedidos disponibles para ${monthName}. Por favor, seleccione una fecha diferente.`
+      setValidationError(errorMessage)
+      return false
+    }
+
+    setValidationError(null)
+    return true
+  }, [plgNetwork])
 
   const form = useForm<FormSchema>({
     resolver: zodResolver(formSchema),
-    defaultValues: getSavedFormState(),
+    defaultValues: getInitialValues(),
   })
 
-  // Save form state to localStorage whenever it changes
   useEffect(() => {
     const subscription = form.watch((values) => {
       if (typeof window !== 'undefined') {
@@ -108,6 +176,54 @@ export default function Run() {
     return () => subscription.unsubscribe()
   }, [form])
 
+  const isRunning = status?.running || false
+  const currentSimulationType = form.watch('simulationType')
+  const currentStartDate = form.watch('relative.startDate')
+  const currentMode = form.watch('mode')
+  const currentAbsolute = form.watch('absolute')
+
+  useEffect(() => {
+    if (!isRunning) {
+      let dateToValidate: Date | null = null
+
+      if (currentMode === 'absolute' && currentAbsolute?.from) {
+        dateToValidate = currentAbsolute.from
+      } else if (currentMode === 'relative' && currentStartDate) {
+        dateToValidate = currentStartDate
+      }
+
+      if (dateToValidate) {
+        const timeoutId = setTimeout(() => {
+          validateOrdersForMonth(dateToValidate)
+        }, 300)
+
+        return () => clearTimeout(timeoutId)
+      }
+    }
+  }, [
+    currentStartDate,
+    currentMode,
+    currentAbsolute,
+    isRunning,
+    validateOrdersForMonth,
+  ])
+
+  useEffect(() => {
+    if (isRunning && activeSimulationType && originalStartDate) {
+      if (currentSimulationType !== activeSimulationType) {
+        form.reset(getInitialValues())
+      }
+    }
+  }, [
+    isRunning,
+    activeSimulationType,
+    originalStartDate,
+    currentSimulationType,
+    getInitialValues,
+    form,
+  ])
+
+
   const onSubmit = form.handleSubmit((data) => {
     let startDate: Date
     let endDate: Date = new Date()
@@ -116,14 +232,10 @@ export default function Run() {
       startDate = new Date()
       endDate = addDays(startDate, 3)
     } else if (data.simulationType === 'collapse') {
-      // For "Hasta el colapso": use the selected start date, end at end of week
+      // For "Hasta el colapso": use selected start date
       startDate = data.relative.startDate
-      const selectedDate = new Date(data.relative.startDate)
-      const daysUntilSunday = 7 - selectedDate.getDay()
-      endDate = addDays(
-        selectedDate,
-        daysUntilSunday === 7 ? 0 : daysUntilSunday,
-      )
+      const daysUntilSunday = 7 - startDate.getDay()
+      endDate = addDays(startDate, daysUntilSunday === 7 ? 0 : daysUntilSunday)
     } else if (data.mode === 'absolute') {
       startDate = data.absolute.from
       endDate = data.absolute.to
@@ -141,14 +253,23 @@ export default function Run() {
       }
     }
 
+    // Validar que hay pedidos disponibles para la fecha de inicio (solo para modo simulación)
+    if (
+      data.executionMode === 'simulation' &&
+      !validateOrdersForMonth(startDate)
+    ) {
+      return // No iniciar la simulación si la validación falla
+    }
+
     startSimulation({
       startTimeOrders: startDate.toISOString(),
       endTimeOrders: endDate.toISOString(),
       mode: data.executionMode,
+      simulationType: data.simulationType,
+      originalStartDate: startDate.toISOString(),
     })
   })
 
-  const isRunning = status?.running || false
   const executionMode = form.watch('executionMode')
   const simulationType = form.watch('simulationType')
   const isCollapseMode = simulationType === 'collapse'
@@ -175,6 +296,15 @@ export default function Run() {
   return (
     <article>
       <Typography variant="h3">Simulación</Typography>
+
+      {/* Mostrar alerta de error de validación */}
+      {validationError && (
+        <div className="mb-4 p-3 border rounded-md flex items-start gap-2">
+          <AlertTriangle className="h-4 w-4 text-600 mt-0.5 flex-shrink-0" />
+          <p className="text-sm text-700">{validationError}</p>
+        </div>
+      )}
+
       <Form {...form}>
         <form onSubmit={onSubmit}>
           <FormField
@@ -461,7 +591,7 @@ export default function Run() {
           <div className="mt-4">
             {isRunning ? (
               <div className="flex items-center justify-center gap-2">
-                {!isCollapseMode && (
+                {executionMode === 'simulation' && (
                   <>
                     <Button
                       type="button"
@@ -494,7 +624,7 @@ export default function Run() {
                 >
                   <Square className="h-4 w-4" />
                 </Button>
-                {!isCollapseMode && (
+                {executionMode === 'simulation' && (
                   <Button
                     type="button"
                     size="icon"
@@ -528,19 +658,3 @@ export default function Run() {
     </article>
   )
 }
-
-const formSchema = z.object({
-  simulationType: z.enum(['simple', 'collapse']),
-  mode: z.enum(['absolute', 'relative']),
-  absolute: z.object({
-    from: z.date(),
-    to: z.date(),
-  }),
-  relative: z.object({
-    startDate: z.date(),
-    duration: z.number().min(1, 'La duración debe ser mayor a 0'),
-    unit: z.enum(['days', 'weeks', 'months', 'years']),
-  }),
-  executionMode: z.enum(['simulation', 'real']),
-})
-type FormSchema = z.infer<typeof formSchema>
