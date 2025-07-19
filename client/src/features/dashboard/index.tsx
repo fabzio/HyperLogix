@@ -46,8 +46,6 @@ export default function DashboardFeature() {
           <SystemStatus />
           <SpeedControls />
           <QuickActions />
-          <SystemAlerts />
-          <FuelStatus />
         </div>
       </div>
 
