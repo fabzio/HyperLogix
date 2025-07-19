@@ -6,10 +6,12 @@ import com.hyperlogix.server.optimizer.Notifier;
 import com.hyperlogix.server.optimizer.Optimizer;
 import com.hyperlogix.server.optimizer.OptimizerContext;
 import com.hyperlogix.server.optimizer.OptimizerResult;
+import com.hyperlogix.server.features.planification.dtos.LogisticCollapseEvent;
 
 import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -81,7 +83,17 @@ public class AntColonyOptimizer implements Optimizer {
         for (Future<Routes> future : futures) {
           try {
             solutions.add(future.get());
-          } catch (InterruptedException | ExecutionException e) {
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            System.err.println("Error retrieving ant solution: " + e.getMessage());
+            e.printStackTrace();
+
+            // Publicar evento de colapso logístico cuando ocurre InterruptedException
+            publishLogisticCollapseEvent("ALGORITHM_INTERRUPTION",
+                "Sistema de optimización interrumpido durante ejecución de algoritmo de colonia de hormigas",
+                9.0, "OPTIMIZATION_ENGINE");
+
+          } catch (ExecutionException e) {
             Thread.currentThread().interrupt();
             System.err.println("Error retrieving ant solution: " + e.getMessage());
             e.printStackTrace();
@@ -131,6 +143,26 @@ public class AntColonyOptimizer implements Optimizer {
   @Override
   public OptimizerResult run(OptimizerContext ctx, Duration maxDuration) {
     return run(ctx, maxDuration, null);
+  }
+
+  /**
+   * Publica un evento de colapso logístico cuando ocurre una InterruptedException
+   */
+  private void publishLogisticCollapseEvent(String collapseType, String description,
+                                          double severityLevel, String affectedArea) {
+    if (eventPublisher != null) {
+      LogisticCollapseEvent collapseEvent = new LogisticCollapseEvent(
+          sessionId != null ? sessionId : "UNKNOWN_SESSION",
+          collapseType,
+          description,
+          LocalDateTime.now(),
+          severityLevel,
+          affectedArea
+      );
+
+      eventPublisher.publishEvent(collapseEvent);
+      System.err.println("COLAPSO LOGÍSTICO DETECTADO: " + collapseType + " - " + description);
+    }
   }
 
 }

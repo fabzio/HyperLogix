@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consulta de Pedidos por Mes</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, button {
+            padding: 10px;
+            margin-right: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .alert {
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 20px;
+        }
+        .alert-warning {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+        }
+        .alert-success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .orders-list {
+            margin-top: 20px;
+        }
+        .order-item {
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Consulta de Pedidos por Mes</h1>
+
+    <form id="orderForm">
+        <div class="form-group">
+            <label for="year">Año:</label>
+            <input type="number" id="year" value="2024" min="2020" max="2030">
+        </div>
+
+        <div class="form-group">
+            <label for="month">Mes:</label>
+            <select id="month">
+                <option value="1">Enero</option>
+                <option value="2">Febrero</option>
+                <option value="3">Marzo</option>
+                <option value="4" selected>Abril</option>
+                <option value="5">Mayo</option>
+                <option value="6">Junio</option>
+                <option value="7">Julio</option>
+                <option value="8">Agosto</option>
+                <option value="9">Septiembre</option>
+                <option value="10">Octubre</option>
+                <option value="11">Noviembre</option>
+                <option value="12">Diciembre</option>
+            </select>
+        </div>
+
+        <button type="submit">Buscar Pedidos</button>
+    </form>
+
+    <div id="results"></div>
+
+    <script>
+        document.getElementById('orderForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const year = document.getElementById('year').value;
+            const month = document.getElementById('month').value;
+            const resultsDiv = document.getElementById('results');
+
+            try {
+                // Llamada al endpoint del backend
+                const response = await fetch(`http://localhost:8080/orders/by-month?year=${year}&month=${month}`);
+                const data = await response.json();
+
+                // Limpiar resultados anteriores
+                resultsDiv.innerHTML = '';
+
+                if (data.hasOrders) {
+                    // Mostrar mensaje de éxito y lista de pedidos
+                    resultsDiv.innerHTML = `
+                        <div class="alert alert-success">
+                            <strong>✓ ${data.message}</strong>
+                        </div>
+                        <div class="orders-list">
+                            <h3>Pedidos encontrados:</h3>
+                            ${data.orders.map(order => `
+                                <div class="order-item">
+                                    <strong>ID:</strong> ${order.id}<br>
+                                    <strong>Cliente:</strong> ${order.clientId}<br>
+                                    <strong>Fecha:</strong> ${new Date(order.date).toLocaleString('es-ES')}<br>
+                                    <strong>GLP Solicitado:</strong> ${order.requestedGLP}<br>
+                                    <strong>Estado:</strong> ${order.status}
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                } else {
+                    // Mostrar aviso de que no hay pedidos
+                    resultsDiv.innerHTML = `
+                        <div class="alert alert-warning">
+                            <strong>⚠️ ${data.message}</strong>
+                            <p>No se encontraron pedidos para el período seleccionado.
+                               Puedes intentar con otro mes o verificar la fecha de inicio de la simulación.</p>
+                        </div>
+                    `;
+                }
+
+            } catch (error) {
+                resultsDiv.innerHTML = `
+                    <div class="alert alert-warning">
+                        <strong>Error:</strong> No se pudo conectar con el servidor.
+                        Asegúrate de que el backend esté ejecutándose en el puerto 8080.
+                    </div>
+                `;
+                console.error('Error:', error);
+            }
+        });
+    </script>
+</body>
+</html>

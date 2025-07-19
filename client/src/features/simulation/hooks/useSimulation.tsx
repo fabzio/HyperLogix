@@ -31,6 +31,8 @@ export const useStartSimulation = () => {
       endTimeOrders: string
       startTimeOrders: string
       mode?: 'real' | 'simulation'
+      simulationType?: 'simple' | 'collapse'
+      originalStartDate?: string
     }) => {
       if (!username) {
         throw new Error('Username is required to start simulation')
@@ -42,12 +44,15 @@ export const useStartSimulation = () => {
         mode: params.mode ?? 'simulation',
       })
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       // Reset collapse state and save simulation start time
       setState({
         simulationStartTime: new Date().toISOString(),
         collapseDetected: false,
         collapseInfo: null,
+        simulationType: variables.simulationType || 'simple',
+        originalStartDate:
+          variables.originalStartDate || variables.startTimeOrders,
       })
       queryClient.invalidateQueries({ queryKey: ['simulation'] })
     },
@@ -72,6 +77,7 @@ export const useCollapseHandler = () => {
     metrics,
     plgNetwork,
     saveFinalMetrics,
+    simulationTime, // Agregar simulationTime para usar la fecha de la simulación
   } = useSimulationStore()
   const { username } = useSessionStore()
   const queryClient = useQueryClient()
@@ -79,16 +85,29 @@ export const useCollapseHandler = () => {
   const handleCollapse = useCallback(
     async (collapseInfo: { type: string; description: string }) => {
       try {
-        // Marcar que se detectó un colapso
-        setCollapseDetected(collapseInfo)
+        // Agregar logs para depurar el problema de la fecha
+        console.log('=== DEBUG COLAPSO ===')
+        console.log('simulationTime actual:', simulationTime)
+        console.log('Fecha del sistema:', new Date().toISOString())
+
+        // Usar la fecha de la simulación en lugar de la fecha actual del sistema
+        const collapseTimestamp = simulationTime || new Date().toISOString()
+        console.log('Timestamp de colapso que se guardará:', collapseTimestamp)
+
+        // Marcar que se detectó un colapso con timestamp
+        setCollapseDetected({
+          ...collapseInfo,
+          timestamp: collapseTimestamp,
+        })
+
+        console.log('Información de colapso guardada:', {
+          ...collapseInfo,
+          timestamp: collapseTimestamp,
+        })
 
         // Guardar métricas finales antes de detener
         if (metrics) {
-          saveFinalMetrics(
-            metrics,
-            new Date().toISOString(),
-            plgNetwork || undefined,
-          )
+          saveFinalMetrics(metrics, collapseTimestamp, plgNetwork || undefined)
         }
 
         if (!username) {
@@ -102,11 +121,12 @@ export const useCollapseHandler = () => {
         console.log('Simulación detenida automáticamente debido al colapso')
 
         // Limpiar el estado de la simulación para activar el diálogo
+        // NO borrar simulationTime aquí para que el diálogo pueda usarlo
         setState({
           plgNetwork: null,
-          simulationTime: null,
           routes: null,
           metrics: null,
+          // simulationTime: null, // ⚠️ Comentado para conservar la fecha para el diálogo
         })
 
         // Invalidar las consultas
@@ -121,6 +141,7 @@ export const useCollapseHandler = () => {
       metrics,
       plgNetwork,
       saveFinalMetrics,
+      simulationTime, // Agregar simulationTime a las dependencias
       username,
       queryClient,
     ],
@@ -140,7 +161,7 @@ export const useSimulationWebSocket = () => {
     (message: unknown) => {
       try {
         const typedMessage = message as MesaggeResponse
-        //console.log(typedMessage.plgNetwork.roadblocks)
+        console.log('Roadblocks received:', typedMessage.plgNetwork.roadblocks)
         setState(typedMessage)
       } catch (error) {
         console.error('Error parsing message:', error)
@@ -153,6 +174,16 @@ export const useSimulationWebSocket = () => {
   const handleCollapseAlert = useCallback(
     (alert: unknown) => {
       try {
+        const { simulationType } = useSimulationStore.getState()
+
+        // Solo procesar alertas de colapso si estamos en modo "collapse"
+        if (simulationType !== 'collapse') {
+          console.log(
+            'Alerta de colapso ignorada - simulación no es de tipo colapso',
+          )
+          return
+        }
+
         const typedAlert = alert as {
           type: string
           collapseType?: string
