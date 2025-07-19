@@ -1,7 +1,6 @@
 package com.hyperlogix.server.optimizer.AntColony;
 
 import com.hyperlogix.server.config.Constants;
-import com.hyperlogix.server.domain.*;
 import com.hyperlogix.server.optimizer.Graph;
 
 import lombok.Getter;
@@ -15,6 +14,22 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.stream.Collectors;
+import com.hyperlogix.server.domain.Node;
+import com.hyperlogix.server.domain.NodeType;
+import com.hyperlogix.server.domain.Order;
+import com.hyperlogix.server.domain.PLGNetwork;
+import com.hyperlogix.server.domain.Path;
+import com.hyperlogix.server.domain.Point;
+import com.hyperlogix.server.domain.Routes;
+import com.hyperlogix.server.domain.Station;
+import com.hyperlogix.server.domain.Stop;
+import com.hyperlogix.server.domain.Truck;
+import com.hyperlogix.server.domain.TruckState;
+import com.hyperlogix.server.features.planification.dtos.LogisticCollapseEvent;
+import com.hyperlogix.server.optimizer.Graph;
+
+import lombok.Getter;
+import lombok.Setter;
 
 public class Ant {
   private PLGNetwork network;
@@ -43,6 +58,10 @@ public class Ant {
   public Routes findSolution() {
 
     for (Truck truck : network.getTrucks()) {
+      if (truck.getStatus() == TruckState.MAINTENANCE) {
+            handleMaintenanceTruckRoute(truck);
+            continue;
+        }
       Stop firstNode = new Stop(
           new Node(truck.getCode(), truck.getType().toString(), NodeType.LOCATION, truck.getLocation().integerPoint()),
           graph.getAlgorithmStartDate());
@@ -80,6 +99,81 @@ public class Ant {
     Routes roughSolution = new Routes(routes, paths, tourCost.values().stream().mapToDouble(Double::doubleValue).sum());
     return graph.processRoutesWithAStar(roughSolution, graph.getAlgorithmStartDate());
   }
+
+  private void handleMaintenanceTruckRoute(Truck truck) {
+    Stop currentNode = new Stop(
+        new Node(truck.getCode(), truck.getType().toString(), NodeType.LOCATION, truck.getLocation().integerPoint()),
+        graph.getAlgorithmStartDate());
+    
+    routes.put(truck.getId(), new ArrayList<>(List.of(currentNode)));
+    
+    // Verificar si el camión ya está en una estación
+    if (isAtStation(truck)) {
+        // Si ya está en una estación, no necesita moverse
+        return;
+    }
+    
+    // Encontrar la estación más cercana
+    Station nearestStation = findNearestStation(truck);
+    if (nearestStation == null) {
+        System.out.println("Warning: No available station found for maintenance truck " + truck.getCode());
+        return;
+    }
+    
+    // Crear nodo de destino (estación)
+    Node stationNode = new Node(nearestStation.getId(), "STATION", NodeType.STATION, nearestStation.getLocation().integerPoint());
+    
+    // Calcular distancia y tiempo
+    int distance = calculateManhattanDistance(truck.getLocation().integerPoint(), nearestStation.getLocation().integerPoint());
+    Duration timeToDestination = truck.getTimeToDestination(distance);
+    LocalDateTime arrivalTime = graph.getAlgorithmStartDate().plus(timeToDestination);
+    
+    // Verificar si tiene suficiente combustible
+    double fuelConsumption = truck.getFuelConsumption(distance);
+    if (truck.getCurrentFuel() < fuelConsumption) {
+        System.out.println("Warning: Truck " + truck.getCode() + " in maintenance doesn't have enough fuel to reach nearest station");
+        // En un escenario real, podrías necesitar enviar un camión de combustible o grúa
+        return;
+    }
+    
+    Stop stationStop = new Stop(stationNode, arrivalTime);
+    Path pathToStation = new Path(
+        List.of(currentNode.getNode().getLocation(), stationNode.getLocation()), 
+        distance
+    );
+    firstPath.put(stationNode, pathToStation);
+    
+    // Agregar la ruta a la estación
+    moveToNode(truck, currentNode, stationStop);
+    
+    System.out.println("Maintenance truck " + truck.getCode() + " routed to station " + nearestStation.getId());
+}
+
+private boolean isAtStation(Truck truck) {
+    Point truckLocation = truck.getLocation().integerPoint();
+    return network.getStations().stream()
+        .anyMatch(station -> station.getLocation().integerPoint().equals(truckLocation));
+}
+
+// Método auxiliar para encontrar la estación más cercana
+private Station findNearestStation(Truck truck) {
+    Point truckLocation = truck.getLocation().integerPoint();
+    
+    return network.getStations().stream()
+        .filter(station -> {
+            // Verificar que la estación tenga capacidad disponible
+            int distance = calculateManhattanDistance(truckLocation, station.getLocation().integerPoint());
+            Duration timeToDestination = truck.getTimeToDestination(distance);
+            LocalDateTime arrivalTime = graph.getAlgorithmStartDate().plus(timeToDestination);
+            return station.getAvailableCapacity(arrivalTime) > 0;
+        })
+        .min((s1, s2) -> {
+            int dist1 = calculateManhattanDistance(truckLocation, s1.getLocation().integerPoint());
+            int dist2 = calculateManhattanDistance(truckLocation, s2.getLocation().integerPoint());
+            return Integer.compare(dist1, dist2);
+        })
+        .orElse(null);
+}
 
   private Truck selectBestTruck() {
     Truck bestTruck = null;
