@@ -37,13 +37,6 @@ public class TruckDataLoader implements CommandLineRunner {
         t.setFuelCapacity(25);
         t.setCurrentFuel(25);
         t.setLocation(new Point(12, 8));
-
-        if (i == 1) {
-                t.setNextMaintenance(LocalDateTime.of(2025, 1, 1, 2, 0));
-            } else {
-                t.setNextMaintenance(LocalDateTime.now().plusDays(30)); // o la fecha que prefieras
-            }
-
         trucks.add(t);
       }
       // TB: 4 camiones de 15m3

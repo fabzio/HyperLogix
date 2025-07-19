@@ -44,10 +44,10 @@ public class PlanificationService {
 
     // Usar el nuevo constructor que incluye eventPublisher y sessionId
     PlanificationEngine engine = new PlanificationEngine(network, notifier, algorithmTime, algorithmDuration,
-                                                         eventPublisher, planificationId,()->{
-      System.out.println("Removing");
-      planification.remove(planificationId);
-    });
+        eventPublisher, planificationId, () -> {
+          System.out.println("Removing");
+          planification.remove(planificationId);
+        });
     stopPlanification(planificationId);
     planification.put(planificationId, engine);
     executor.execute(engine);
@@ -75,11 +75,11 @@ public class PlanificationService {
   @PreDestroy
   public void cleanup() {
     log.info("Cleaning up PlanificationService resources...");
-    
+
     // Stop all running planifications
     planification.values().forEach(PlanificationEngine::stop);
     planification.clear();
-    
+
     // Shutdown executor service
     executor.shutdown();
     try {
@@ -95,7 +95,7 @@ public class PlanificationService {
       executor.shutdownNow();
       Thread.currentThread().interrupt();
     }
-    
+
     log.info("PlanificationService cleanup completed");
   }
 }

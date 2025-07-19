@@ -42,6 +42,9 @@ public class AntColonyOptimizer implements Optimizer {
     ants = new ArrayList<>();
     for (int i = 0; i < antColonyConfig.NUM_ANTS(); i++) {
       Ant ant = new Ant(ctx.plgNetwork, graph, antColonyConfig);
+      // Configurar el evento publisher y sessionId para cada hormiga
+      ant.setEventPublisher(eventPublisher);
+      ant.setSessionId(sessionId);
       ants.add(ant);
     }
 
@@ -81,6 +84,15 @@ public class AntColonyOptimizer implements Optimizer {
             solutions.add(future.get());
           } catch (InterruptedException | ExecutionException e) {
             Thread.currentThread().interrupt();
+            LogisticCollapseEvent collapseEvent = new LogisticCollapseEvent(
+                sessionId,
+                "TIME_LIMIT_EXCEEDED",
+                "No se pudo encontrar una solución válida dentro del tiempo límite de " + maxDuration.toMinutes()
+                    + " minutos",
+                java.time.LocalDateTime.now(),
+                0.95,
+                "Algoritmo de optimización");
+            eventPublisher.publishEvent(collapseEvent);
             System.err.println("Error retrieving ant solution: " + e.getMessage());
             e.printStackTrace();
           }

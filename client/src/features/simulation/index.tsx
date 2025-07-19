@@ -9,6 +9,7 @@ import SimulationEndDialog from './components/SimulationEndDialog'
 import SimulationHeader from './components/SimulationHeader'
 import {
   useSimulationEndDialog,
+  useSimulationWebSocket,
   useStatusSimulation,
   useWatchSimulation,
 } from './hooks/useSimulation'
@@ -25,6 +26,8 @@ export default function Simulation() {
   const { truckId } = useSearch({ from: '/_auth/simulacion' })
   const navigate = useNavigate({ from: '/simulacion' })
 
+  // Centralizar la suscripción WebSocket aquí
+  useSimulationWebSocket()
   const { plgNetwork: network, simulationTime, routes } = useWatchSimulation()
   const { data: status } = useStatusSimulation()
 
@@ -51,38 +54,11 @@ export default function Simulation() {
   const poliLines: MapPolyline[] = useMemo(() => {
     const pathPolylines = routes?.paths
       ? Object.entries(routes.paths).flatMap(([truckId, paths]) => {
-          const truck = network?.trucks.find((t) => t.id === truckId)
           return paths.map((path, pathIndex) => {
-            let points =
+            const points =
               path.points?.map(
                 (location) => [location.x, location.y] as [number, number],
               ) || []
-
-            // Si tenemos la posición actual del camión, empezamos desde ahí
-            if (truck?.location && points.length > 0) {
-              const truckPoint: [number, number] = [
-                truck.location.x,
-                truck.location.y,
-              ]
-
-              // Encontrar el punto más cercano en el path a la posición actual del camión
-              let closestIndex = 0
-              let minDistance = Number.POSITIVE_INFINITY
-
-              points.forEach((point, index) => {
-                const distance = Math.sqrt(
-                  (point[0] - truckPoint[0]) ** 2 +
-                    (point[1] - truckPoint[1]) ** 2,
-                )
-                if (distance < minDistance) {
-                  minDistance = distance
-                  closestIndex = index
-                }
-              })
-
-              // Crear el path desde la posición del camión hasta el final del recorrido
-              points = [truckPoint, ...points.slice(closestIndex)]
-            }
 
             return {
               id: `${truckId}-path-${pathIndex}`,
@@ -106,7 +82,7 @@ export default function Simulation() {
         endTime: block.end,
       })) || []
     return [...pathPolylines, ...roadblockPolylines]
-  }, [routes?.paths, network?.roadblocks, network?.trucks, getTruckColorById])
+  }, [routes?.paths, network?.roadblocks, getTruckColorById])
 
   return (
     <div className="flex h-full w-full">
