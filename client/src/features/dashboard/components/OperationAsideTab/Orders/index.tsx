@@ -48,11 +48,7 @@ export default function Orders() {
     const matchesStatus =
       statusFilter === 'all' || order.status === statusFilter
 
-    // Filter by simulation time (only show orders that should be visible)
-    const matchesTime =
-      !simulationTime || new Date(order.date) <= new Date(simulationTime)
-
-    return matchesSearch && matchesStatus && matchesTime
+    return matchesSearch && matchesStatus
   })
 
   const orders = filteredOrders.sort((a, b) => {

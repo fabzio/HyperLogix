@@ -76,6 +76,9 @@ public class RealTimeSimulationEngine implements Runnable {
   private String lastOrdersSnapshot = "";
   private boolean forceReplanification = false;
 
+  // Truck maintenance tracking
+  private Set<String> trucksInMaintenance = new HashSet<>();
+
   public RealTimeSimulationEngine(String sessionId,
       SimulationConfig simulationConfig,
       SimulationNotifier simulationNotifier,
@@ -117,6 +120,15 @@ public class RealTimeSimulationEngine implements Runnable {
           .multipliedBy((long) simulationConfig.getTimeAcceleration());
 
       simulatedTime = simulatedTime.plus(timeStep);
+
+      // Check for scheduled truck maintenances
+      boolean needsReplanning = checkScheduledMaintenances();
+
+      if (needsReplanning) {
+        log.info("Maintenance changes detected, requesting immediate replanning");
+        forceReplanification = true;
+        requestPlanification();
+      }
 
       // Check and adjust algorithm interval based on order arrival rate
       if (simulatedTime.isAfter(lastOrderRateCheck.plus(ORDER_RATE_CHECK_WINDOW))) {
@@ -245,10 +257,141 @@ public class RealTimeSimulationEngine implements Runnable {
           .orElse(null);
 
       if (truck != null) {
+        TruckState oldState = truck.getStatus();
         truck.setStatus(newState);
+
+        // Handle maintenance state transitions
+        if (newState == TruckState.MAINTENANCE && oldState != TruckState.MAINTENANCE) {
+          // Starting maintenance - set nextMaintenance to current simulation time
+          truck.setNextMaintenance(simulatedTime);
+          trucksInMaintenance.add(truck.getId());
+          log.info("Truck {} entered maintenance at simulation time {}", truck.getCode(), simulatedTime);
+        } else if (oldState == TruckState.MAINTENANCE && newState != TruckState.MAINTENANCE) {
+          // Ending maintenance - schedule next maintenance
+          truck.endMaintenance(simulatedTime);
+          trucksInMaintenance.remove(truck.getId());
+          log.info("Truck {} ended maintenance at simulation time {}, next maintenance: {}",
+              truck.getCode(), simulatedTime, truck.getNextMaintenance());
+        }
       } else {
+        log.warn("Truck with ID {} not found when trying to update state to {}", truckId, newState);
       }
       triggerImmediatePlanification();
+    }
+  }
+
+  /**
+   * Checks for scheduled truck maintenances and handles them automatically.
+   * Similar to SimulationEngine but adapted for real-time operation.
+   * 
+   * @return true if any maintenance changes require replanning
+   */
+  private boolean checkScheduledMaintenances() {
+    if (plgNetwork == null) {
+      return false;
+    }
+
+    boolean needsReplanning = false;
+    for (Truck truck : plgNetwork.getTrucks()) {
+      if (truck.getNextMaintenance() != null) {
+        // If maintenance time has arrived and truck is not already in maintenance
+        if (activeRoutes != null
+            && (simulatedTime.isEqual(truck.getNextMaintenance()) || simulatedTime.isAfter(truck.getNextMaintenance()))
+            && truck.getStatus() != TruckState.MAINTENANCE) {
+          boolean wasInRoute = startTruckMaintenance(truck);
+          if (wasInRoute) {
+            needsReplanning = true;
+          }
+        }
+
+        // If maintenance period has ended (after 24 hours), end maintenance
+        if (simulatedTime.isAfter(truck.getNextMaintenance().plusHours(24))
+            && truck.getStatus() == TruckState.MAINTENANCE) {
+          endTruckMaintenance(truck);
+          needsReplanning = true;
+        }
+      }
+    }
+
+    return needsReplanning;
+  }
+
+  /**
+   * Starts maintenance for a truck, interrupting current route if necessary.
+   * 
+   * @param truck The truck to start maintenance for
+   * @return true if the truck was in route and needs replanning
+   */
+  private boolean startTruckMaintenance(Truck truck) {
+    log.info("Starting scheduled maintenance for truck {} at {}", truck.getCode(), simulatedTime);
+
+    // Check if truck is currently in route
+    boolean wasInRoute = isInRoute(truck);
+
+    if (wasInRoute) {
+      log.warn("Truck {} is in route, interrupting current route for scheduled maintenance", truck.getCode());
+
+      // Interrupt current route immediately
+      synchronized (routesLock) {
+        if (activeRoutes != null) {
+          activeRoutes.getStops().put(truck.getId(), List.of());
+          activeRoutes.getPaths().put(truck.getId(), List.of());
+        }
+        truckCurrentStopIndex.remove(truck.getId());
+      }
+    }
+
+    truck.startMaintenance();
+    trucksInMaintenance.add(truck.getId());
+    return wasInRoute;
+  }
+
+  /**
+   * Ends maintenance for a truck and schedules next maintenance.
+   * 
+   * @param truck The truck to end maintenance for
+   */
+  private void endTruckMaintenance(Truck truck) {
+    log.info("Ending scheduled maintenance for truck {} at {}", truck.getCode(), simulatedTime);
+
+    // Change status to active and schedule next maintenance
+    truck.endMaintenance(simulatedTime);
+    trucksInMaintenance.remove(truck.getId());
+  }
+
+  /**
+   * Checks if a truck is currently in route.
+   * 
+   * @param truck The truck to check
+   * @return true if truck has active stops assigned
+   */
+  private boolean isInRoute(Truck truck) {
+    if (activeRoutes == null) {
+      return false;
+    }
+    List<Stop> stops = activeRoutes.getStops().getOrDefault(truck.getId(), List.of());
+    return stops.size() > 1;
+  }
+
+  /**
+   * Schedules a future maintenance for a truck.
+   * 
+   * @param truckId         The ID of the truck to schedule maintenance for
+   * @param maintenanceTime The time when maintenance should occur
+   */
+  public void scheduleTruckMaintenance(String truckId, LocalDateTime maintenanceTime) {
+    if (plgNetwork != null) {
+      Truck truck = plgNetwork.getTrucks().stream()
+          .filter(t -> t.getId().equals(truckId))
+          .findFirst()
+          .orElse(null);
+
+      if (truck != null) {
+        truck.setNextMaintenance(maintenanceTime);
+        log.info("Scheduled maintenance for truck {} at {}", truck.getCode(), maintenanceTime);
+      } else {
+        log.warn("Truck with ID {} not found when trying to schedule maintenance", truckId);
+      }
     }
   }
 

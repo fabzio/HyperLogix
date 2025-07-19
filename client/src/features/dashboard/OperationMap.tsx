@@ -137,10 +137,7 @@ export default function OperationMap() {
             stations={network?.stations || []}
             orders={
               network?.orders.filter(
-                (order) =>
-                  order.status !== 'COMPLETED' &&
-                  simulationTime &&
-                  order.date <= simulationTime,
+                (order) => order.status !== 'COMPLETED' && simulationTime,
               ) || []
             }
             polylines={

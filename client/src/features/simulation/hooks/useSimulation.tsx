@@ -2,8 +2,9 @@ import type { PLGNetwork } from '@/domain/PLGNetwork'
 import {
   commandSimulation,
   getSimulationStatus,
+  startSimulation,
+  stopSimulation,
 } from '@/services/SimulatorService'
-import { startSimulation, stopSimulation } from '@/services/SimulatorService'
 import { useSessionStore } from '@/store/session'
 import { useWebSocketStore } from '@/store/websocket'
 import {
@@ -42,102 +43,17 @@ export const useStartSimulation = () => {
       })
     },
     onSuccess: () => {
-      // Reset collapse state and save simulation start time
-      setState({
-        simulationStartTime: new Date().toISOString(),
-        collapseDetected: false,
-        collapseInfo: null,
-      })
-      const simulationId = username || 'main'
-      queryClient.invalidateQueries({ queryKey: ['simulation', simulationId] })
+      // Save simulation start time
+      setState({ simulationStartTime: new Date().toISOString() })
+      queryClient.invalidateQueries({ queryKey: ['simulation'] })
     },
   })
 }
 
 export const useWatchSimulation = () => {
-  const { plgNetwork, simulationTime, routes } = useSimulationStore()
-
-  return {
-    plgNetwork,
-    simulationTime,
-    routes,
-  }
-}
-
-// Hook personalizado para manejar el colapso
-export const useCollapseHandler = () => {
-  const {
-    setCollapseDetected,
-    setState,
-    metrics,
-    plgNetwork,
-    saveFinalMetrics,
-  } = useSimulationStore()
-  const { username } = useSessionStore()
-  const queryClient = useQueryClient()
-
-  const handleCollapse = useCallback(
-    async (collapseInfo: { type: string; description: string }) => {
-      try {
-        // Marcar que se detectó un colapso
-        setCollapseDetected(collapseInfo)
-
-        // Guardar métricas finales antes de detener
-        if (metrics) {
-          saveFinalMetrics(
-            metrics,
-            new Date().toISOString(),
-            plgNetwork || undefined,
-          )
-        }
-
-        if (!username) {
-          console.error('Username is required to stop simulation')
-          return
-        }
-
-        // Detener la simulación directamente
-        await stopSimulation(username)
-
-        console.log('Simulación detenida automáticamente debido al colapso')
-
-        // Limpiar el estado de la simulación para activar el diálogo
-        setState({
-          plgNetwork: null,
-          simulationTime: null,
-          routes: null,
-          metrics: null,
-        })
-
-        // Invalidar las consultas
-        const simulationId = username || 'main'
-        queryClient.invalidateQueries({
-          queryKey: ['simulation', simulationId],
-        })
-      } catch (error) {
-        console.error('Error al detener la simulación por colapso:', error)
-      }
-    },
-    [
-      setCollapseDetected,
-      setState,
-      metrics,
-      plgNetwork,
-      saveFinalMetrics,
-      username,
-      queryClient,
-    ],
-  )
-
-  return { handleCollapse }
-}
-
-// Nuevo hook específico para la suscripción WebSocket
-export const useSimulationWebSocket = () => {
-  const { setState } = useSimulationStore()
+  const { plgNetwork, simulationTime, setState, routes } = useSimulationStore()
   const { username } = useSessionStore()
   const { subscribe, unsubscribe, connected, client } = useWebSocketStore()
-  const { handleCollapse } = useCollapseHandler()
 
   const handleMessage = useCallback(
     (message: unknown) => {
@@ -152,68 +68,30 @@ export const useSimulationWebSocket = () => {
     [setState],
   )
 
-  // Manejo de alertas de colapso
-  const handleCollapseAlert = useCallback(
-    (alert: unknown) => {
-      try {
-        const typedAlert = alert as {
-          type: string
-          collapseType?: string
-          description?: string
-        }
-        if (typedAlert.type === 'logistic_collapse') {
-          // Manejar la alerta de colapso
-          console.log(
-            'Colapso detectado:',
-            typedAlert.collapseType,
-            typedAlert.description,
-          )
-
-          // Usar el manejador de colapso que activa todo el flujo
-          handleCollapse({
-            type: typedAlert.collapseType || 'unknown',
-            description:
-              typedAlert.description || 'Colapso logístico detectado',
-          })
-        }
-      } catch (error) {
-        console.error('Error parsing collapse alert:', error)
-      }
-    },
-    [handleCollapse],
-  )
-
   useEffect(() => {
     if (!client || !connected) return
-
-    // Suscripción principal a simulación
     subscribe(`/topic/simulation/${username}`, handleMessage)
-
-    // Suscripción a alertas de colapso
-    subscribe(`/topic/simulation/${username}/alerts`, handleCollapseAlert)
-
     return () => {
       unsubscribe(`/topic/simulation/${username}`)
-      unsubscribe(`/topic/simulation/${username}/alerts`)
     }
-  }, [
-    subscribe,
-    unsubscribe,
-    connected,
-    client,
-    username,
-    handleMessage,
-    handleCollapseAlert,
-  ])
+  }, [subscribe, unsubscribe, connected, client, username, handleMessage])
+
+  return {
+    plgNetwork,
+    simulationTime,
+    routes,
+  }
 }
 
 export const useStatusSimulation = () => {
   const { username } = useSessionStore()
   return useSuspenseQuery({
-    queryKey: ['simulation', username || 'main'],
+    queryKey: ['simulation'],
     queryFn: () => {
-      const simulationId = username || 'main'
-      return getSimulationStatus(simulationId)
+      if (!username) {
+        throw new Error('Username is required to get simulation status')
+      }
+      return getSimulationStatus(username)
     },
   })
 }
@@ -251,8 +129,7 @@ export const useStopSimulation = () => {
         to: '/simulacion',
         search: { truckId: undefined, orderId: undefined },
       })
-      const simulationId = username || 'main'
-      queryClient.invalidateQueries({ queryKey: ['simulation', simulationId] })
+      queryClient.invalidateQueries({ queryKey: ['simulation'] })
     },
     onError: (error) => {
       console.error('Error stopping simulation:', error)
@@ -261,29 +138,19 @@ export const useStopSimulation = () => {
 }
 export const useSimulationEndDialog = (network: PLGNetwork | null) => {
   const [isOpen, setIsOpen] = useState(false)
-  const [endReason, setEndReason] = useState<
-    'completed' | 'manual' | 'collapse' | null
-  >(null)
-  const { metrics, plgNetwork, saveFinalMetrics, collapseDetected } =
-    useSimulationStore()
+  const [endReason, setEndReason] = useState<'completed' | 'manual' | null>(
+    null,
+  )
+  const { metrics, plgNetwork, saveFinalMetrics } = useSimulationStore()
 
   const wasActiveRef = useRef(false)
   const prevAllCompletedRef = useRef(false)
-  const prevCollapseDetectedRef = useRef(false)
 
   useEffect(() => {
     const isActive = !!network
 
-    // Check for collapse detection change
-    if (collapseDetected && !prevCollapseDetectedRef.current) {
-      setEndReason('collapse')
-      setIsOpen(true)
-      prevCollapseDetectedRef.current = collapseDetected
-      return
-    }
-
-    // Check for manual stop (only if not a collapse)
-    if (!collapseDetected && wasActiveRef.current && !isActive) {
+    // Check for manual stop
+    if (wasActiveRef.current && !isActive) {
       setEndReason('manual')
       setIsOpen(true)
     }
@@ -309,15 +176,9 @@ export const useSimulationEndDialog = (network: PLGNetwork | null) => {
     }
 
     wasActiveRef.current = isActive
-    prevCollapseDetectedRef.current = collapseDetected
-  }, [network, metrics, saveFinalMetrics, plgNetwork, collapseDetected])
+  }, [network, metrics, saveFinalMetrics, plgNetwork])
 
-  const closeDialog = () => {
-    setIsOpen(false)
-    // Reset collapse state when closing dialog
-    const { setState } = useSimulationStore.getState()
-    setState({ collapseDetected: false, collapseInfo: null })
-  }
+  const closeDialog = () => setIsOpen(false)
 
   return { isOpen, endReason, closeDialog }
 }
@@ -329,12 +190,12 @@ export const useCommandSimulation = () => {
     mutationFn: (params: {
       command: 'PAUSE' | 'RESUME' | 'DESACCELERATE' | 'ACCELERATE'
     }) => {
-      const simulationId = username || 'main'
-      return commandSimulation(simulationId, params.command)
+      if (!username) {
+        throw new Error('Username is required to start simulation')
+      }
+      return commandSimulation(username, params.command)
     },
-    onSuccess: () => {
-      const simulationId = username
-      queryClient.invalidateQueries({ queryKey: ['simulation', simulationId] })
-    },
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ['simulation'] }),
   })
 }

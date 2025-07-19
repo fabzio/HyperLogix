@@ -190,6 +190,23 @@ public class SimulationService {
   }
 
   /**
+   * Schedules a future maintenance for a truck in real-time simulation.
+   * 
+   * @param simulationId    The simulation ID
+   * @param truckId         The truck ID
+   * @param maintenanceTime The time when maintenance should occur
+   */
+  public void scheduleTruckMaintenance(String simulationId, String truckId, java.time.LocalDateTime maintenanceTime) {
+    RealTimeSimulationEngine engine = realTimeSimulation.get(simulationId);
+    if (engine != null) {
+      engine.scheduleTruckMaintenance(truckId, maintenanceTime);
+      log.info("Scheduled maintenance for truck {} at {} in simulation {}", truckId, maintenanceTime, simulationId);
+    } else {
+      log.warn("No real-time simulation found with ID: {} when trying to schedule maintenance", simulationId);
+    }
+  }
+
+  /**
    * Cleanup resources when the service is being destroyed
    */
   @PreDestroy

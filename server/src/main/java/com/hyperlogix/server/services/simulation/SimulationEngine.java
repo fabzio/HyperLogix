@@ -44,11 +44,13 @@ public class SimulationEngine implements Runnable {
   private final SimulationConfig simulationConfig;
   private final SimulationNotifier simulationNotifier;
   private final List<Order> orderRepository;
+
   public enum TruckMaintenanceState {
     NONE,
-    TRAVELING_TO_MAINTENANCE,  // Camión va hacia mantenimiento pero puede moverse
-    IN_MAINTENANCE             // Camión está en mantenimiento, no se mueve
+    TRAVELING_TO_MAINTENANCE, // Camión va hacia mantenimiento pero puede moverse
+    IN_MAINTENANCE // Camión está en mantenimiento, no se mueve
   }
+
   private final Map<String, TruckMaintenanceState> truckMaintenanceStates = new ConcurrentHashMap<>();
   @Setter
   private PLGNetwork plgNetwork;
@@ -78,7 +80,7 @@ public class SimulationEngine implements Runnable {
   private final Map<LocalDateTime, Integer> orderArrivalHistory = new ConcurrentHashMap<>();
   private LocalDateTime lastOrderRateCheck = null;
   private static final Duration ORDER_RATE_CHECK_WINDOW = Duration.ofMinutes(10);
- 
+
   private Set<String> trucksInMaintenance = new HashSet<>();
 
   public SimulationEngine(String sessionId,
@@ -128,8 +130,8 @@ public class SimulationEngine implements Runnable {
       boolean needsReplaning = checkScheduledMaintenances();
 
       if (needsReplaning) {
-          log.info("Maintenance changes detected, requesting immediate replanning");
-          requestPlanification();
+        log.info("Maintenance changes detected, requesting immediate replanning");
+        requestPlanification();
       }
 
       // Check and adjust algorithm interval based on order arrival rate
@@ -169,64 +171,68 @@ public class SimulationEngine implements Runnable {
   }
 
   private boolean checkScheduledMaintenances() {
-        boolean needsReplanning = false;
-        for (Truck truck : plgNetwork.getTrucks()) {
-            if (truck.getNextMaintenance() != null) {
-                // Si la fecha de mantenimiento llegó y el camión no está ya en mantenimiento
-                if ((simulatedTime.isEqual(truck.getNextMaintenance()) || simulatedTime.isAfter(truck.getNextMaintenance())) && truck.getStatus() != TruckState.MAINTENANCE) {
-                  boolean wasInRoute = startTruckMaintenance(truck);
-                  if (wasInRoute) {
-                    needsReplanning = true;
-                  }
-                }
-                
-                // Si ya pasó el día de mantenimiento, terminar el mantenimiento
-                if (simulatedTime.isAfter(truck.getNextMaintenance().plusHours(24)) && truck.getStatus() == TruckState.MAINTENANCE) {
-                    endTruckMaintenance(truck);
-                    needsReplanning = true;
-                }
-            }
+    boolean needsReplanning = false;
+    for (Truck truck : plgNetwork.getTrucks()) {
+      if (truck.getNextMaintenance() != null) {
+        // Si la fecha de mantenimiento llegó y el camión no está ya en mantenimiento
+        if (activeRoutes != null
+            & (simulatedTime.isEqual(truck.getNextMaintenance()) || simulatedTime.isAfter(truck.getNextMaintenance()))
+            && truck.getStatus() != TruckState.MAINTENANCE) {
+          boolean wasInRoute = startTruckMaintenance(truck);
+          if (wasInRoute) {
+            needsReplanning = true;
+          }
         }
 
-        return needsReplanning;
-    }
-
-    private boolean startTruckMaintenance(Truck truck) {
-        log.info("Starting maintenance for truck {} at {}", truck.getCode(), simulatedTime);
-        
-        // Verificar si el camión está en ruta
-        boolean wasInRoute = isInRoute(truck);
-        
-        if (wasInRoute) {
-        log.warn("Truck {} is in route, interrupting current route for maintenance", truck.getCode());
-        
-        // Interrumpir ruta actual inmediatamente
-        synchronized (routesLock) {
-            if (activeRoutes != null) {
-                activeRoutes.getStops().put(truck.getId(), List.of());
-                activeRoutes.getPaths().put(truck.getId(), List.of());
-            }
-            truckCurrentStopIndex.remove(truck.getId());
+        // Si ya pasó el día de mantenimiento, terminar el mantenimiento
+        if (simulatedTime.isAfter(truck.getNextMaintenance().plusHours(24))
+            && truck.getStatus() == TruckState.MAINTENANCE) {
+          endTruckMaintenance(truck);
+          needsReplanning = true;
         }
       }
-      truck.startMaintenance();
-    trucksInMaintenance.add(truck.getId());
-        return wasInRoute;
     }
 
-    private void endTruckMaintenance(Truck truck) {
-        log.info("Ending maintenance for truck {} at {}", truck.getCode(), simulatedTime);
-        
-        // Cambiar estado a activo
-        truck.endMaintenance();
-        trucksInMaintenance.remove(truck.getId());
-    } 
-  
+    return needsReplanning;
+  }
+
+  private boolean startTruckMaintenance(Truck truck) {
+    log.info("Starting maintenance for truck {} at {}", truck.getCode(), simulatedTime);
+
+    // Verificar si el camión está en ruta
+    boolean wasInRoute = isInRoute(truck);
+
+    if (wasInRoute) {
+      log.warn("Truck {} is in route, interrupting current route for maintenance", truck.getCode());
+
+      // Interrumpir ruta actual inmediatamente
+      synchronized (routesLock) {
+        if (activeRoutes != null) {
+          activeRoutes.getStops().put(truck.getId(), List.of());
+          activeRoutes.getPaths().put(truck.getId(), List.of());
+        }
+        truckCurrentStopIndex.remove(truck.getId());
+      }
+    }
+    truck.startMaintenance();
+    trucksInMaintenance.add(truck.getId());
+    return wasInRoute;
+  }
+
+  private void endTruckMaintenance(Truck truck) {
+    log.info("Ending maintenance for truck {} at {}", truck.getCode(), simulatedTime);
+
+    // Cambiar estado a activo
+    truck.endMaintenance(simulatedTime);
+    trucksInMaintenance.remove(truck.getId());
+  }
+
   private boolean isInRoute(Truck truck) {
-        List<Stop> stops = activeRoutes.getStops().getOrDefault(truck.getId(), List.of());
-        if(stops.size() <= 1) return false;
-        return true;
-    }  
+    List<Stop> stops = activeRoutes.getStops().getOrDefault(truck.getId(), List.of());
+    if (stops.size() <= 1)
+      return false;
+    return true;
+  }
 
   private boolean areAllOrdersCompleted() {
     return orderRepository.stream()
@@ -623,84 +629,86 @@ public class SimulationEngine implements Runnable {
     }
 
     synchronized (routesLock) {
-        // Debug info antes del cambio
-        for (Truck truck : plgNetwork.getTrucks()) {
-            if (truck.getStatus() == TruckState.MAINTENANCE) {
-                List<Stop> oldStops = activeRoutes != null ? 
-                    activeRoutes.getStops().getOrDefault(truck.getId(), List.of()) : List.of();
-                Integer oldIndex = truckCurrentStopIndex.get(truck.getId());
-                
-                log.info("BEFORE MAINTENANCE - Truck {} currentStopIndex: {}, current stops: {}", 
-                    truck.getId(), oldIndex, oldStops.size());
-            }
+      // Debug info antes del cambio
+      for (Truck truck : plgNetwork.getTrucks()) {
+        if (truck.getStatus() == TruckState.MAINTENANCE) {
+          List<Stop> oldStops = activeRoutes != null ? activeRoutes.getStops().getOrDefault(truck.getId(), List.of())
+              : List.of();
+          Integer oldIndex = truckCurrentStopIndex.get(truck.getId());
+
+          log.info("BEFORE MAINTENANCE - Truck {} currentStopIndex: {}, current stops: {}",
+              truck.getId(), oldIndex, oldStops.size());
         }
-        
-        this.activeRoutes = routes;
-        // Reset stop indices cuando se reciben nuevas rutas
-        truckCurrentStopIndex.clear();
+      }
 
-        log.info("Received routes for {} trucks, {} total stops, {} total paths",
-            routes.getStops().size(),
-            routes.getStops().values().stream().mapToInt(List::size).sum(),
-            routes.getPaths().values().stream().mapToInt(List::size).sum());
+      this.activeRoutes = routes;
+      // Reset stop indices cuando se reciben nuevas rutas
+      truckCurrentStopIndex.clear();
 
-        for (Truck truck : plgNetwork.getTrucks()) {
-            if (truck.getStatus() == TruckState.BROKEN_DOWN) {
-                continue; // No cambiar estado para camiones averiados
-            }
+      log.info("Received routes for {} trucks, {} total stops, {} total paths",
+          routes.getStops().size(),
+          routes.getStops().values().stream().mapToInt(List::size).sum(),
+          routes.getPaths().values().stream().mapToInt(List::size).sum());
 
-            List<Stop> assignedStops = routes.getStops().getOrDefault(truck.getId(), List.of());
-
-            if (truck.getStatus() == TruckState.MAINTENANCE) {
-                // Debug después del cambio
-                Integer newIndex = truckCurrentStopIndex.get(truck.getId());
-                
-                log.info("AFTER MAINTENANCE - Truck {} currentStopIndex: {}, new stops: {}", 
-                    truck.getId(), newIndex, assignedStops.size());
-                
-                if (assignedStops.size() > 1) {
-                    // CAMBIO: NO cambiar a ACTIVE, mantener MAINTENANCE
-                    // El camión debe seguir en mantenimiento hasta que termine
-                    log.info("Maintenance truck {} assigned route to station (but staying in MAINTENANCE state)", truck.getId());
-                    
-                    // Log detalles de la ruta
-                    StringBuilder routeInfo = new StringBuilder();
-                    for (int i = 1; i < assignedStops.size(); i++) {
-                        Stop stop = assignedStops.get(i);
-                        routeInfo.append(stop.getNode().getType()).append(":").append(stop.getNode().getId());
-                        if (i < assignedStops.size() - 1)
-                            routeInfo.append(" -> ");
-                    }
-                    log.info("AFTER MAINTENANCE - Truck {} route: {}", truck.getId(), routeInfo.toString());
-                    
-                    log.info("AFTER MAINTENANCE - Truck {} ALL stops with times: {}", truck.getId(),
-                        assignedStops.stream().map(s -> s.getNode().getType() + ":" + s.getNode().getId() + "@" + s.getArrivalTime()).toList());
-                    
-                } else {
-                    // Sin ruta asignada, mantener en mantenimiento
-                    log.info("Maintenance truck {} has no route assigned", truck.getId());
-                }
-                continue; // IMPORTANTE: No procesar más, mantener estado MAINTENANCE
-            }
-            
-            // Para camiones que NO están en mantenimiento
-            if (assignedStops.size() <= 1) {
-                truck.setStatus(TruckState.IDLE);
-                log.debug("Truck {} set to IDLE - no assigned routes", truck.getId());
-            } else {
-                truck.setStatus(TruckState.ACTIVE);
-
-                // Log detalles de la ruta para debugging
-                StringBuilder routeInfo = new StringBuilder();
-                for (int i = 1; i < assignedStops.size(); i++) { // Saltar primera parada (ubicación inicial)
-                    Stop stop = assignedStops.get(i);
-                    routeInfo.append(stop.getNode().getType()).append(":").append(stop.getNode().getId());
-                    if (i < assignedStops.size() - 1)
-                        routeInfo.append(" -> ");
-                }
-                log.info("Truck {} set to ACTIVE - route: {}", truck.getId(), routeInfo.toString());
-            }
+      for (Truck truck : plgNetwork.getTrucks()) {
+        if (truck.getStatus() == TruckState.BROKEN_DOWN) {
+          continue; // No cambiar estado para camiones averiados
         }
+
+        List<Stop> assignedStops = routes.getStops().getOrDefault(truck.getId(), List.of());
+
+        if (truck.getStatus() == TruckState.MAINTENANCE) {
+          // Debug después del cambio
+          Integer newIndex = truckCurrentStopIndex.get(truck.getId());
+
+          log.info("AFTER MAINTENANCE - Truck {} currentStopIndex: {}, new stops: {}",
+              truck.getId(), newIndex, assignedStops.size());
+
+          if (assignedStops.size() > 1) {
+            // CAMBIO: NO cambiar a ACTIVE, mantener MAINTENANCE
+            // El camión debe seguir en mantenimiento hasta que termine
+            log.info("Maintenance truck {} assigned route to station (but staying in MAINTENANCE state)",
+                truck.getId());
+
+            // Log detalles de la ruta
+            StringBuilder routeInfo = new StringBuilder();
+            for (int i = 1; i < assignedStops.size(); i++) {
+              Stop stop = assignedStops.get(i);
+              routeInfo.append(stop.getNode().getType()).append(":").append(stop.getNode().getId());
+              if (i < assignedStops.size() - 1)
+                routeInfo.append(" -> ");
+            }
+            log.info("AFTER MAINTENANCE - Truck {} route: {}", truck.getId(), routeInfo.toString());
+
+            log.info("AFTER MAINTENANCE - Truck {} ALL stops with times: {}", truck.getId(),
+                assignedStops.stream()
+                    .map(s -> s.getNode().getType() + ":" + s.getNode().getId() + "@" + s.getArrivalTime()).toList());
+
+          } else {
+            // Sin ruta asignada, mantener en mantenimiento
+            log.info("Maintenance truck {} has no route assigned", truck.getId());
+          }
+          continue; // IMPORTANTE: No procesar más, mantener estado MAINTENANCE
+        }
+
+        // Para camiones que NO están en mantenimiento
+        if (assignedStops.size() <= 1) {
+          truck.setStatus(TruckState.IDLE);
+          log.debug("Truck {} set to IDLE - no assigned routes", truck.getId());
+        } else {
+          truck.setStatus(TruckState.ACTIVE);
+
+          // Log detalles de la ruta para debugging
+          StringBuilder routeInfo = new StringBuilder();
+          for (int i = 1; i < assignedStops.size(); i++) { // Saltar primera parada (ubicación inicial)
+            Stop stop = assignedStops.get(i);
+            routeInfo.append(stop.getNode().getType()).append(":").append(stop.getNode().getId());
+            if (i < assignedStops.size() - 1)
+              routeInfo.append(" -> ");
+          }
+          log.info("Truck {} set to ACTIVE - route: {}", truck.getId(), routeInfo.toString());
+        }
+      }
     }
 
     // Track planification time

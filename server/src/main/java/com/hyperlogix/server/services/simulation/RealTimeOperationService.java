@@ -132,6 +132,38 @@ public class RealTimeOperationService {
     simulationService.updateTruckState(MAIN_SESSION_ID, truckId, TruckState.IDLE);
   }
 
+  /**
+   * Schedules a future maintenance for a truck
+   * 
+   * @param truckId         The ID of the truck to schedule maintenance for
+   * @param maintenanceTime The time when maintenance should occur
+   */
+  public void scheduleTruckMaintenance(String truckId, java.time.LocalDateTime maintenanceTime) {
+    if (!simulationInitialized.get()) {
+      throw new IllegalStateException("Simulation not yet initialized");
+    }
+
+    simulationService.scheduleTruckMaintenance(MAIN_SESSION_ID, truckId, maintenanceTime);
+    log.info("Scheduled maintenance for truck {} at {}", truckId, maintenanceTime);
+  }
+
+  /**
+   * Schedules an immediate maintenance for a truck (starts now)
+   * This will interrupt any current route and put the truck in maintenance
+   * 
+   * @param truckId The ID of the truck to put in immediate maintenance
+   * @param reason  The reason for the maintenance
+   */
+  public void scheduleImmediateMaintenance(String truckId, String reason) {
+    if (!simulationInitialized.get()) {
+      throw new IllegalStateException("Simulation not yet initialized");
+    }
+
+    // Schedule maintenance to start immediately (current simulation time)
+    simulationService.updateTruckState(MAIN_SESSION_ID, truckId, TruckState.MAINTENANCE);
+    log.info("Scheduled immediate maintenance for truck {} - reason: {}", truckId, reason);
+  }
+
   public boolean isSimulationInitialized() {
     return simulationInitialized.get();
   }
