@@ -24,7 +24,7 @@ public class PlanificationController {
   @EventListener
   public void handlePlanificationRequest(PlanificationRequestEvent request) {
     generatePlanificationUseCase.generateRoutes(request.getSessionId(), request.getPlgNetwork(),
-        request.getSimulatedTime(), request.getAlgorithmDuration());
+        request.getSimulatedTime(), request.getAlgorithmDuration(), request.getIncidents());
   }
 
   @EventListener

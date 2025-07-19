@@ -215,6 +215,7 @@ public class SimulationEngine implements Runnable {
             continue;
           }
           // If recovered, continue with normal processing below
+                      incidentRepository.removeIf(incident -> incident.getTruckCode().equals(truck.getCode()));
           changeOrdersState(truck.getId(), OrderStatus.IN_PROGRESS);
           log.info("Truck {} recovered from maintenance, resuming route", truck.getId());
         }
@@ -549,7 +550,7 @@ public class SimulationEngine implements Runnable {
 
       // Also recalculate existing IN_PROGRESS orders when new orders arrive
       List<Order> inProgressOrders = orderRepository.stream()
-          .filter(order -> order.getStatus() == OrderStatus.IN_PROGRESS)
+          .filter(order -> order.getStatus() == OrderStatus.IN_PROGRESS || order.getStatus() == OrderStatus.DELAYED)
           .toList();
 
       inProgressOrders.forEach(order -> {
@@ -588,7 +589,7 @@ public class SimulationEngine implements Runnable {
       lastPlanificationStart = LocalDateTime.now();
       totalPlanificationRequests++;
       eventPublisher.publishEvent(
-          new PlanificationRequestEvent(sessionId, plgNetwork, simulatedTime, simulationConfig.getAlgorithmTime()));
+          new PlanificationRequestEvent(sessionId, plgNetwork, simulatedTime, simulationConfig.getAlgorithmTime(), incidentRepository));
     } else {
     }
   }

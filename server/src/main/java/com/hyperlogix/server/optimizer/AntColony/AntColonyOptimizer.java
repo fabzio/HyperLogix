@@ -36,11 +36,11 @@ public class AntColonyOptimizer implements Optimizer {
 
   @Override
   public OptimizerResult run(OptimizerContext ctx, Duration maxDuration, Notifier notifier) {
-    graph = new Graph(ctx.plgNetwork, ctx.algorithmStartDate, antColonyConfig);
+    graph = new Graph(ctx.plgNetwork, ctx.algorithmStartDate, antColonyConfig, ctx.incidents);
 
     ants = new ArrayList<>();
     for (int i = 0; i < antColonyConfig.NUM_ANTS(); i++) {
-      Ant ant = new Ant(ctx.plgNetwork, graph, antColonyConfig);
+      Ant ant = new Ant(ctx.plgNetwork, graph, antColonyConfig, ctx.incidents);
       // Configurar el evento publisher y sessionId para cada hormiga
       ant.setEventPublisher(eventPublisher);
       ant.setSessionId(sessionId);

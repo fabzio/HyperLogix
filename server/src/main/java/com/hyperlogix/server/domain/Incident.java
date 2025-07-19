@@ -36,7 +36,12 @@ public class Incident {
      */
     private String truckCode;
 
+    private int fuel;
+
     private Point location;
 
-    public int daysSinceIncident = 0;
+    private int daysSinceIncident = 0;
+
+    private LocalDateTime expectedRecovery;
+
 }

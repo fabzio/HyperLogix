@@ -18,9 +18,15 @@ import java.util.Map;
 import java.util.Random;
 import java.util.stream.Collectors;
 
+import java.time.format.DateTimeFormatter;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.concurrent.atomic.AtomicInteger;
+
 public class Ant {
   private PLGNetwork network;
   private final PLGNetwork originalNetwork;
+  private List<Incident> incidentList;
   @Getter
   @Setter
   private Graph graph;
@@ -35,10 +41,15 @@ public class Ant {
   private ApplicationEventPublisher eventPublisher;
   private String sessionId;
 
-  public Ant(PLGNetwork network, Graph graph, AntColonyConfig antColonyConfig) {
+  // Variables para debugging
+  private static  String DEBUG_FILE = "ant_incident_debug.txt";
+  private static  DateTimeFormatter DEBUG_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
+
+  public Ant(PLGNetwork network, Graph graph, AntColonyConfig antColonyConfig, List<Incident> incidents) {
     this.originalNetwork = network.clone();
     this.graph = graph;
     this.antColonyConfig = antColonyConfig;
+    this.incidentList = incidents;
 
     network.getTrucksCapacity();
     resetState();
@@ -63,6 +74,7 @@ public class Ant {
       if (availableNodes.isEmpty()) {
         continue;
       }
+      
       Stop nextNode = availableNodes.get(new Random().nextInt(availableNodes.size()));
       moveToNode(truck, firstNode, nextNode);
     }
@@ -92,6 +104,7 @@ public class Ant {
       }
 
       Stop currentNode = routes.get(bestTruck.getId()).getLast();
+      writeDebugLog("About to get next Node");
       Stop nextNode = getNextNode(currentNode, bestTruck);
       if (nextNode == null) {
         // Mark truck as temporarily unavailable by setting a flag or continue
@@ -180,6 +193,16 @@ public class Ant {
       default -> 0.1;
     };
 
+    double incidentFactor = 1.0;
+    long incidentsInRange = availableNodes.stream()
+        .filter(node -> node.getNode().getType() == NodeType.INCIDENT)
+        .count();
+
+    if (incidentsInRange > 0) {
+        // Favorecer camiones con más capacidad disponible para poder transferir carga
+        incidentFactor = 1.0 + ((double)(truck.getMaxCapacity() - truck.getCurrentCapacity()) / truck.getMaxCapacity());
+    }
+
     // Distance factor - consider proximity to available nodes
     double avgDistance = availableNodes.stream()
         .mapToDouble(node -> {
@@ -198,7 +221,7 @@ public class Ant {
     double fuelFactor = truck.getCurrentFuel() / truck.getFuelCapacity();
 
     // Combine factors
-    return fuelEfficiency * statusBonus * capacityMatch * distanceFactor * fuelFactor;
+    return fuelEfficiency * statusBonus * capacityMatch * distanceFactor * fuelFactor * incidentFactor;
   }
 
   private List<Stop> getAvailableNodes(Truck truck, Stop currentNode) {
@@ -251,12 +274,37 @@ public class Ant {
         // currentNode.getArrivalTime().plus(timeToDestination).isBefore(order.getMinDeliveryDate()))
         double fuelAfterDelivery = truck.getCurrentFuel() - fuelConsumption;
         double fuelToNearestStation = adjacencyMap.get(node).entrySet().stream()
-            .filter(entry -> entry.getKey().getType() == NodeType.STATION)
+            .filter(entry -> entry.getKey().getType() == NodeType.STATION || entry.getKey().getType() == NodeType.DELIVERY)
             .map(entry -> entry.getValue().length()).mapToDouble(truck::getFuelConsumption).min()
             .orElse(Double.POSITIVE_INFINITY);
         if (fuelToNearestStation > fuelAfterDelivery)
           continue;
-      }
+      } else if(node.getType() == NodeType.INCIDENT){
+
+          Incident incident = incidentList.stream()
+              .filter(i -> i.getId().equals(node.getId()))
+              .findFirst().orElse(null);
+
+          assert incident != null;
+          if (currentNode.getArrivalTime().plus(timeToDestination).isAfter(incident.getExpectedRecovery())){
+            continue;
+          }
+
+          if ((truck.getMaxCapacity() - truck.getCurrentCapacity()) == 0){
+            continue;
+          }
+          
+            // Verificar si hay suficiente combustible para ir al incidente y luego a la estación más cercana
+          double fuelAfterVisit = truck.getCurrentFuel() - fuelConsumption;
+
+          double fuelToNearestStation = adjacencyMap.get(node).entrySet().stream()
+              .filter(entry -> entry.getKey().getType() == NodeType.STATION || entry.getKey().getType() == NodeType.DELIVERY)
+              .map(entry -> entry.getValue().length()).mapToDouble(truck::getFuelConsumption).min()
+              .orElse(Double.POSITIVE_INFINITY);
+              
+          if (fuelToNearestStation > fuelAfterVisit) 
+              continue;
+        }
       availableNodes.add(new Stop(node, arrivalTime));
     }
     return availableNodes;
@@ -267,41 +315,81 @@ public class Ant {
   }
 
   private Stop getNextNode(Stop currentNode, Truck truck) {
+    writeDebugLog("About to calculate scores");
+
     List<Stop> availableNodes = getAvailableNodes(truck, currentNode);
     if (availableNodes.isEmpty()) {
       return null;
     }
+
     List<Double> scores = new ArrayList<>();
     for (Stop node : availableNodes) {
       int distance = adjacencyMap.get(currentNode.getNode()).get(node.getNode()).length();
       double pheromone = graph.getPheromoneMap().get(currentNode.getNode()).get(node.getNode());
 
-      double penalization;
-      if (node.getNode().getType() == NodeType.STATION) {
-        double capacityFactor = 1 + (double) truck.getCurrentCapacity() / truck.getMaxCapacity();
-        penalization = capacityFactor;
-      } else {
+      writeDebugLog("Calculating scores");
 
-        // Suponemos que puedes acceder a la orden por ID
-        Order order = network.getOrders().stream()
-            .filter(o -> o.getId().equals(node.getNode().getId()))
-            .findFirst().orElse(null);
-        // Usar la urgencia basada en la ventana de entrega
-        Duration timeLeft = Duration.between(currentNode.getArrivalTime(), order.getMaxDeliveryDate());
-        long minutesLeft = timeLeft.toMinutes();
+      double penalization = 1;
+      switch(node.getNode().getType()){
+        case NodeType.STATION:
+          double capacityFactor = 1 + (double) truck.getCurrentCapacity() / truck.getMaxCapacity();
+          penalization = capacityFactor;
+          break;
 
-        long maxTimeLeft = network.getOrders().stream()
-            .filter(o -> o.getMaxDeliveryDate().isAfter(currentNode.getArrivalTime()))
-            .mapToLong(o -> Duration.between(currentNode.getArrivalTime(), o.getMaxDeliveryDate()).toMinutes())
-            .max().orElse(1);
+        case NodeType.INCIDENT:
+            writeDebugLog("CALCULATE INCIDENT PENALTY");
+                      // Priorizar incidentes basados en su severidad y carga disponible para transferir
+            Incident incident = incidentList.stream()
+                .filter(i -> i.getId().equals(node.getNode().getId()))
+                .findFirst().orElse(null);
+                
+            Truck accidentedTruck = network.getTrucks().stream()
+                .filter(t -> incident != null && t.getCode().equals(incident.getTruckCode()))
+                .findFirst().orElse(null);
+            
+            double severityFactor = 1.0;
+            if (incident != null && incident.getType() != null) {
+                severityFactor = switch (incident.getType()) {
+                    case "TYPE_3" -> 0.5;  // Más severo = mayor prioridad
+                    case "TYPE_2" -> 0.7;
+                    default -> 1.0;
+                };
+            }
+            
+            double transferFactor = 1.0;
+            if (accidentedTruck != null && accidentedTruck.getCurrentCapacity() > 0) {
+                // Si hay mucha carga para transferir, es más prioritario
+                transferFactor = 0.5 + (0.5 * (1.0 - (double)accidentedTruck.getCurrentCapacity() / accidentedTruck.getMaxCapacity()));
+            }
+            penalization = severityFactor * transferFactor;
+            writeDebugLog("INCIDENT MANAGEMENT with " + penalization + "penalization");
+            break;
 
-        double urgencyFactor = 1 - Math.min((double) minutesLeft / maxTimeLeft, 1.0); // Más cerca del deadline = mayor
-                                                                                      // urgencia
-        double urgencyPenaltyScale = 0.5;
-        double urgencyPenalty = 1 + urgencyPenaltyScale * urgencyFactor;
+        case NodeType.DELIVERY:
+                // Código existente para DELIVERY...
+            // Suponemos que puedes acceder a la orden por ID
+            Order order = network.getOrders().stream()
+                .filter(o -> o.getId().equals(node.getNode().getId()))
+                .findFirst().orElse(null);
+            // Usar la urgencia basada en la ventana de entrega
+            Duration timeLeft = Duration.between(currentNode.getArrivalTime(), order.getMaxDeliveryDate());
+            long minutesLeft = timeLeft.toMinutes();
 
-        penalization = urgencyPenalty / (1 + (double) truck.getCurrentCapacity() / truck.getMaxCapacity());
+            long maxTimeLeft = network.getOrders().stream()
+                .filter(o -> o.getMaxDeliveryDate().isAfter(currentNode.getArrivalTime()))
+                .mapToLong(o -> Duration.between(currentNode.getArrivalTime(), o.getMaxDeliveryDate()).toMinutes())
+                .max().orElse(1);
 
+            double urgencyFactor = 1 - Math.min((double) minutesLeft / maxTimeLeft, 1.0); // Más cerca del deadline = mayor
+                                                                                          // urgencia
+            double urgencyPenaltyScale = 0.5;
+            double urgencyPenalty = 1 + urgencyPenaltyScale * urgencyFactor;
+
+            penalization = urgencyPenalty / (1 + (double) truck.getCurrentCapacity() / truck.getMaxCapacity());
+            break;
+
+        case NodeType.LOCATION:
+          break;
       }
 
       double heuristic = 1.0 / (penalization * distance);
@@ -363,13 +451,47 @@ public class Ant {
       } else
         order.setAssignedGLP(order.getAssignedGLP() + glpToDeliver);
       truck.setCurrentCapacity(truck.getCurrentCapacity() - glpToDeliver);
-      truck.setCurrentFuel(truck.getCurrentFuel() - fuelConsumption);
-      truck.setLocation(nextNode.getNode().getLocation());
     }
-    this.tourTime.put(truck.getId(), this.tourTime.get(truck.getId()).plus(timeToDestination));
-    this.tourCost.put(truck.getId(), this.tourCost.get(truck.getId()) + fuelConsumption);
+
+    else if (nextNode.getNode().getType() == NodeType.INCIDENT) {
+        // Obtener el camión accidentado y el incidente
+        Incident incident = incidentList.stream()
+            .filter(i -> i.getId().equals(nextNode.getNode().getId()))
+            .findFirst().orElse(null);
+        
+        if (incident != null) {
+            // Encontrar el camión asociado al incidente
+            Truck accidentedTruck = network.getTrucks().stream()
+                .filter(t -> t.getCode().equals(incident.getTruckCode()))
+                .findFirst().orElse(null);
+                
+            if (accidentedTruck != null && accidentedTruck.getCurrentCapacity() > 0) {
+                // Transferir una parte de la carga del camión accidentado
+                int transferAmount = Math.min(
+                    accidentedTruck.getCurrentCapacity(),
+                    truck.getMaxCapacity() - truck.getCurrentCapacity()
+                );
+                
+                // Actualizar capacidades
+                accidentedTruck.setCurrentCapacity(accidentedTruck.getCurrentCapacity() - transferAmount);
+                incident.setFuel(accidentedTruck.getCurrentCapacity());
+                truck.setCurrentCapacity(truck.getCurrentCapacity() + transferAmount);
+
+                if (incident.getFuel() == 0)
+                  nodesLeft.remove(nextNode.getNode());
+                
+        }
+    
+    // Consumir combustible
+    truck.setCurrentFuel(truck.getCurrentFuel() - fuelConsumption);
+    truck.setLocation(nextNode.getNode().getLocation());
+  }
+
+  this.tourTime.put(truck.getId(), this.tourTime.get(truck.getId()).plus(timeToDestination));
+  this.tourCost.put(truck.getId(), this.tourCost.get(truck.getId()) + fuelConsumption);
 
   }
+}
 
 public void resetState() {
 
@@ -387,5 +509,16 @@ public void resetState() {
     this.firstPath = new HashMap<>();
 
   }
+
+  //metodo para debuggear
+  private void writeDebugLog(String message) {
+    try (FileWriter writer = new FileWriter(DEBUG_FILE)) {
+      String timestamp = LocalDateTime.now().format(DEBUG_TIME_FORMAT);
+      writer.write("[" + timestamp + "] ANT- " + message + "\n");
+    } catch (IOException e) {
+      System.err.println("Error writing debug log: " + e.getMessage());
+    }
+  }
 }
+
 

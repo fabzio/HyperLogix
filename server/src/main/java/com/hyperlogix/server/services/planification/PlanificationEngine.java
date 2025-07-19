@@ -2,6 +2,7 @@ package com.hyperlogix.server.services.planification;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,6 +10,8 @@ import org.springframework.context.ApplicationEventPublisher;
 
 import com.hyperlogix.server.domain.OrderStatus;
 import com.hyperlogix.server.domain.PLGNetwork;
+import com.hyperlogix.server.domain.Incident;
+
 import com.hyperlogix.server.domain.Routes;
 import com.hyperlogix.server.optimizer.Optimizer;
 import com.hyperlogix.server.optimizer.OptimizerContext;
@@ -25,24 +28,26 @@ public class PlanificationEngine implements Runnable {
   private final Duration algorithmDuration;
   private final ApplicationEventPublisher eventPublisher;
   private final String sessionId;
+  private final List<Incident> incidents;
   private volatile Thread currentThread;
   private volatile boolean isPlanning = false;
   private volatile int currentNodesProcessed = 0;
 
   public PlanificationEngine(PLGNetwork network, PlanificationNotifier notifier, LocalDateTime algorithmTime,
-      Duration algorithmDuration, ApplicationEventPublisher eventPublisher, String sessionId) {
+      Duration algorithmDuration, List<Incident> incidents, ApplicationEventPublisher eventPublisher, String sessionId) {
     this.notifier = notifier;
     this.network = network;
     this.algorithmTime = algorithmTime;
     this.algorithmDuration = algorithmDuration;
     this.eventPublisher = eventPublisher;
     this.sessionId = sessionId;
+    this.incidents = incidents != null ? incidents : List.of();
   }
 
   // Constructor sin eventos para compatibilidad hacia atrás
   public PlanificationEngine(PLGNetwork network, PlanificationNotifier notifier, LocalDateTime algorithmTime,
-      Duration algorithmDuration) {
-    this(network, notifier, algorithmTime, algorithmDuration, null, null);
+      Duration algorithmDuration, List<Incident> incidents) {
+    this(network, notifier, algorithmTime, algorithmDuration, incidents, null, null);
   }
 
   @Override
@@ -55,10 +60,10 @@ public class PlanificationEngine implements Runnable {
         .filter(order -> order.getStatus() == OrderStatus.CALCULATING)
         .count();
 
-    currentNodesProcessed = (int) calculatingOrdersCount + network.getStations().size();
+    currentNodesProcessed = (int) calculatingOrdersCount + network.getStations().size() + (incidents != null ? incidents.size() : 0);
 
-    log.info("Planification starting with {} total orders, {} calculating orders, {} stations",
-        network.getOrders().size(), calculatingOrdersCount, network.getStations().size());
+    log.info("Planification starting with {} total orders, {} calculating orders, {} stations and {} incidents",
+        network.getOrders().size(), calculatingOrdersCount, network.getStations().size(), (incidents != null ? incidents.size() : 0));
 
     // Log order details for debugging
     network.getOrders().forEach(order -> log.debug("Order {}: status={}, clientId={}, requestedGLP={}",
@@ -83,7 +88,8 @@ public class PlanificationEngine implements Runnable {
 
       OptimizerContext ctx = new OptimizerContext(
           network,
-          algorithmTime);
+          algorithmTime,
+          incidents);
 
       log.info("Running optimizer with {} trucks and {} calculating orders",
           network.getTrucks().size(), calculatingOrdersCount);
