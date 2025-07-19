@@ -10,7 +10,6 @@ import org.springframework.context.ApplicationEventPublisher;
 import com.hyperlogix.server.domain.OrderStatus;
 import com.hyperlogix.server.domain.PLGNetwork;
 import com.hyperlogix.server.domain.Routes;
-import com.hyperlogix.server.optimizer.Optimizer;
 import com.hyperlogix.server.optimizer.OptimizerContext;
 import com.hyperlogix.server.optimizer.OptimizerResult;
 import com.hyperlogix.server.optimizer.AntColony.AntColonyConfig;

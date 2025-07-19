@@ -248,6 +248,7 @@ public class RealTimeSimulationEngine implements Runnable {
         truck.setStatus(newState);
       } else {
       }
+      triggerImmediatePlanification();
     }
   }
 
