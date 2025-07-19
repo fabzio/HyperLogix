@@ -1,7 +1,22 @@
 package com.hyperlogix.server.services.simulation;
 
+import com.hyperlogix.server.config.Constants;
+import com.hyperlogix.server.domain.*;
+import com.hyperlogix.server.services.planification.PlanificationService;
+import com.hyperlogix.server.services.planification.PlanificationStatus;
+import com.hyperlogix.server.services.incident.IncidentManagement;
+
+import lombok.Setter;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
+
+import java.io.FileWriter;
+import java.io.IOException;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -34,16 +49,23 @@ import com.hyperlogix.server.services.planification.PlanificationService;
 import com.hyperlogix.server.services.planification.PlanificationStatus;
 
 import lombok.Setter;
+import java.util.ArrayList;
+
+
 
 public class SimulationEngine implements Runnable {
   private static final Logger log = LoggerFactory.getLogger(SimulationEngine.class);
+  private static  String DEBUG_FILE = "engine_incident_debug.txt";
+  private static  DateTimeFormatter DEBUG_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
 
   private final ApplicationEventPublisher eventPublisher;
   private final PlanificationService planificationService;
   private final String sessionId;
   private final SimulationConfig simulationConfig;
   private final SimulationNotifier simulationNotifier;
-  private final List<Order> orderRepository;
+  private final List<Order> orderRepository;  
+
+
 
   public enum TruckMaintenanceState {
     NONE,
@@ -58,6 +80,8 @@ public class SimulationEngine implements Runnable {
   private final Object routesLock = new Object();
   private LocalDateTime nextPlanningTime;
   private LocalDateTime simulatedTime;
+
+  private List<Incident> incidentRepository = new ArrayList<>();
 
   private final AtomicBoolean running = new AtomicBoolean(false);
   private final AtomicBoolean paused = new AtomicBoolean(false);
@@ -74,9 +98,8 @@ public class SimulationEngine implements Runnable {
   private final Runnable onComplete;
   private int totalPlanificationRequests = 0;
   private Duration totalPlanificationTime = Duration.ZERO;
-  private LocalDateTime lastPlanificationStart;
-
-  // Order arrival rate tracking
+  private IncidentManagement incidentManager = null;
+  private LocalDateTime lastPlanificationStart;  // Order arrival rate tracking
   private final Map<LocalDateTime, Integer> orderArrivalHistory = new ConcurrentHashMap<>();
   private LocalDateTime lastOrderRateCheck = null;
   private static final Duration ORDER_RATE_CHECK_WINDOW = Duration.ofMinutes(10);
@@ -106,11 +129,14 @@ public class SimulationEngine implements Runnable {
         simulationConfig.getCurrentAlgorithmInterval(),
         simulationConfig.getConsumptionInterval(),
         simulationConfig.getAlgorithmTime());
-
-    simulatedTime = orderRepository.getFirst().getDate().plus(Duration.ofNanos(1));
+        simulatedTime = orderRepository.getFirst().getDate().plus(Duration.ofNanos(1));
     nextPlanningTime = simulatedTime;
     lastOrderRateCheck = simulatedTime;
 
+    // Initialize incident manager now that plgNetwork is available
+    incidentManager = new IncidentManagement(plgNetwork.getIncidents());
+
+    boolean incidentsOrganized = false;
     while (running.get()) {
       waitIfPaused();
 
@@ -149,6 +175,9 @@ public class SimulationEngine implements Runnable {
         }
 
         requestPlanification();
+        if (!incidentsOrganized && activeRoutes != null) {
+            incidentsOrganized = true;
+        }
         nextPlanningTime = nextPlanningTime
             .plus(simulationConfig.getConsumptionInterval());
         log.info("Next planning time: {} (interval: {})", nextPlanningTime,
@@ -280,14 +309,36 @@ public class SimulationEngine implements Runnable {
     }
     if (activeRoutes.getStops().isEmpty() || activeRoutes.getPaths().isEmpty()) {
       return;
-    }
-
-    synchronized (routesLock) {
+    }    synchronized (routesLock) {
       for (Truck truck : plgNetwork.getTrucks()) {
         if (truck.getStatus() == TruckState.BROKEN_DOWN) {
+          Incident recoveredIncident = incidentRepository.stream()
+            .filter(incident -> incident.getTruckCode().equals(truck.getCode()))
+            .findFirst()
+            .orElse(null);
+
+            if (recoveredIncident != null) {
+              boolean recovered = incidentManager.handleMaintenanceDelay(truck, simulatedTime, recoveredIncident );
+            }
+            continue;
+        }
+
+        if(truck.getStatus() == TruckState.MAINTENANCE){
+          Incident recoveredIncident = incidentRepository.stream()
+            .filter(incident -> incident.getTruckCode().equals(truck.getCode()))
+            .findFirst()
+            .orElse(null);
+
+            if (recoveredIncident != null) {
+                if (recoveredIncident.getExpectedRecovery().isAfter(simulatedTime)) {
+                    truck.endMaintenance(simulatedTime);
+                    recoveredIncident.setStatus(IncidentStatus.RESOLVED);    
+              }
+            }
           continue;
         }
 
+        // Get assigned route for this truck
         List<Stop> stops = activeRoutes.getStops().getOrDefault(truck.getId(), List.of());
         if (stops.size() <= 1) {
           log.trace("Truck {} has no assigned stops", truck.getId());
@@ -350,7 +401,50 @@ public class SimulationEngine implements Runnable {
     } else if (stop.getNode().getType() == NodeType.DELIVERY) {
       handleDeliveryArrival(truck, stop);
     }
+    else if (stop.getNode().getType() == NodeType.INCIDENT) {
+      handleIncidentArrival(truck, stop);
+    }
   }
+
+/**
+ * Maneja la llegada de un camión a un nodo de incidente
+ * Realiza la transferencia de carga entre camiones y actualiza los estados
+ */
+private void handleIncidentArrival(Truck truck, Stop stop) {
+    Incident incident = incidentRepository.stream()
+        .filter(i -> i.getId().equals(stop.getNode().getId()))
+        .findFirst().orElse(null);
+    
+    if (incident == null) {
+        return;
+    }
+    
+    Truck accidentedTruck = plgNetwork.getTrucks().stream()
+        .filter(t -> t.getCode().equals(incident.getTruckCode()))
+        .findFirst().orElse(null);
+    
+    if (accidentedTruck == null) {
+        return;
+    }
+    
+    int transferAmount = Math.min(
+        accidentedTruck.getCurrentCapacity(),  // Lo que tiene el camión accidentado
+        truck.getMaxCapacity() - truck.getCurrentCapacity()  // Espacio disponible en el camión rescatista
+    );
+    
+    if (transferAmount <= 0) {
+        return;
+    }
+    
+    // 4. Realizar la transferencia de carga
+    accidentedTruck.setCurrentCapacity(accidentedTruck.getCurrentCapacity() - transferAmount);
+    truck.setCurrentCapacity(truck.getCurrentCapacity() + transferAmount);
+    incident.setFuel(accidentedTruck.getCurrentCapacity());  // Actualizar combustible restante en el incidente
+    
+    writeDebugLog(String.format("Transferencia completada: %d unidades de GLP transferidas del camión %s al camión %s", 
+             transferAmount, accidentedTruck.getCode(), truck.getCode()));
+
+}
 
   private void handleStationArrival(Truck truck, Stop stop) {
     Station station = plgNetwork.getStations().stream()
@@ -376,6 +470,11 @@ public class SimulationEngine implements Runnable {
       log.info("Truck {} refilled {} GLP at station {}", truck.getId(), glpToRefill, station.getName());
     } else {
       log.warn("No GLP available at station {} for truck {}", station.getName(), truck.getId());
+    }
+    
+    if(truck.getStatus()== TruckState.RETURNING_TO_BASE){
+      truck.setStatus(TruckState.IDLE);
+      log.info("Truck {} returned to base and is now IDLE", truck.getId());
     }
   }
 
@@ -414,7 +513,6 @@ public class SimulationEngine implements Runnable {
 
       // Check if order is completed
       if (order.getDeliveredGLP() >= order.getRequestedGLP()) {
-        order.setStatus(OrderStatus.COMPLETED);
 
         // Calculate delivery time
         LocalDateTime startTime = orderStartTimes.get(order.getId());
@@ -424,20 +522,49 @@ public class SimulationEngine implements Runnable {
         }
 
         log.info("Order {} completed", order.getId());
+        order.setStatus(OrderStatus.COMPLETED);
       }
     } else {
       log.warn("Truck {} has no capacity to deliver to order {}", truck.getId(), order.getId());
     }
+
+    // Debug: Escribir estado de todas las órdenes después de cada entrega
+    try (java.io.FileWriter fw = new java.io.FileWriter("debug_deliveries_sim.txt", true)) {
+      fw.write("--- Estado de órdenes tras entrega ---\n");
+      for (Order o : orderRepository) {
+        fw.write("Order: " + o.getId()
+          + ", Requested: " + o.getRequestedGLP()
+          + ", Delivered: " + o.getDeliveredGLP()
+          + ", Assigned: " + o.getAssignedGLP() + "\n");
+      }
+      fw.write("------------------------------\n");
+    } catch (Exception e) { }
+
+    if(truck.getCurrentCapacity() == 0){
+      truck.setStatus(TruckState.RETURNING_TO_BASE);
+      // Limpiar rutas y paths pendientes, dejando solo la última parada alcanzada
+      List<Stop> currentRoute = activeRoutes.getStops().get(truck.getId());
+      if (currentRoute != null && currentRoute.size() > 0) {
+        Stop lastStop = currentRoute.get(Math.max(0, truckCurrentStopIndex.getOrDefault(truck.getId(), 0)));
+        activeRoutes.getStops().put(truck.getId(), new ArrayList<>(List.of(lastStop)));
+      }
+      List<Path> currentPaths = activeRoutes.getPaths().get(truck.getId());
+      if (currentPaths != null) {
+        activeRoutes.getPaths().put(truck.getId(), new ArrayList<>());
+      }
+      // Cambiar estado de las órdenes pendientes a CALCULATING
+      changeOrdersState(truck.getId(), OrderStatus.CALCULATING);
+      log.info("Truck {} set to RETURNING_TO_BASE, cleared pending routes and set orders to CALCULATING", truck.getId());
+    }
   }
 
-  private void updateTruckLocationDuringTravel(Truck truck, List<Stop> stops, List<Path> paths, int pathIndex) {
-    if (pathIndex < 0 || pathIndex >= paths.size() || pathIndex >= stops.size() - 1) {
-      return; // Invalid path index or no more paths to travel
+  private void updateTruckLocationDuringTravel(Truck truck, List<Stop> stops, List<Path> paths, int currentStopIndex) {
+    if (currentStopIndex >= stops.size() - 1 || currentStopIndex >= paths.size()) {
+      return; // No more paths to travel
     }
 
-    Stop fromStop = stops.get(pathIndex);
-    Stop toStop = stops.get(pathIndex + 1);
-    Path currentPath = paths.get(pathIndex);
+    Stop fromStop = stops.get(currentStopIndex);
+    Path currentPath = paths.get(currentStopIndex);
 
     // Calculate time elapsed since leaving the fromStop
     Duration timeElapsed = Duration.between(fromStop.getArrivalTime(), simulatedTime);
@@ -477,15 +604,38 @@ public class SimulationEngine implements Runnable {
     truck.setCurrentFuel(newFuelLevel);
 
     // Interpolate position along the path
-    Point interpolatedPosition = interpolateAlongPath(currentPath.points(), progress);
-
-    // Update truck location
+    Point interpolatedPosition = interpolateAlongPath(currentPath.points(), progress);    // Update truck location
     truck.setLocation(interpolatedPosition);
 
-    log.debug("Truck {} traveling from stop {} to stop {} - position: ({}, {}) - progress: {:.2f}%, fuel: {:.2f}gal",
-        truck.getId(), fromStop.getNode().getId(), toStop.getNode().getId(),
-        interpolatedPosition.x(), interpolatedPosition.y(), progress * 100, newFuelLevel);
+    // Check for incidents between 5% and 35% progress of current path
+    if (progress >= 0.05 && progress <= 0.35) {
+      Incident detectedIncident = incidentManager.checkAndHandleIncident(truck, simulatedTime);
+      if(detectedIncident != null){
+        changeOrdersState(truck.getId(), OrderStatus.CALCULATING);
+        incidentRepository.add(detectedIncident);
+      }
+    }
   }
+
+
+  private void changeOrdersState(String truckId, OrderStatus newStatus){
+      // Cambiar estado A todas las órdenes asignadas actualmente a este camión
+      List<Stop> assignedStops = activeRoutes.getStops().getOrDefault(truckId, List.of());
+      for (Stop stop : assignedStops) {
+        if (stop.getNode().getType() == NodeType.DELIVERY) {
+          Order order = orderRepository.stream()
+            .filter(o -> o.getId().equals(stop.getNode().getId()))
+            .findFirst().orElse(null);
+          if (order != null) {
+            order.setStatus(newStatus);
+          }
+        }
+      }
+        // Las órdenes deben ser prioridad para este camión en la próxima planificación
+        // (El planificador debe consultar truckPriorityOrders para forzar la asignación)
+  }
+  
+
 
   private Point interpolateAlongPath(List<Point> pathPoints, double progress) {
     if (pathPoints.isEmpty()) {
@@ -544,7 +694,7 @@ public class SimulationEngine implements Runnable {
 
       // Also recalculate existing IN_PROGRESS orders when new orders arrive
       List<Order> inProgressOrders = orderRepository.stream()
-          .filter(order -> order.getStatus() == OrderStatus.IN_PROGRESS)
+          .filter(order -> order.getStatus() == OrderStatus.IN_PROGRESS || order.getStatus() == OrderStatus.DELAYED)
           .toList();
 
       inProgressOrders.forEach(order -> {
@@ -576,15 +726,20 @@ public class SimulationEngine implements Runnable {
   }
 
   private void requestPlanification() {
-    // Only request planification if there are orders being calculated
     boolean hasCalculatingOrders = orderRepository.stream()
         .anyMatch(order -> order.getStatus() == OrderStatus.CALCULATING);
 
     if (hasCalculatingOrders) {
       lastPlanificationStart = LocalDateTime.now();
       totalPlanificationRequests++;
+
+      List<Incident> immobilizedIncidents = incidentRepository.stream()
+        .filter(incident -> incident.getStatus() == IncidentStatus.IMMOBILIZED)
+        .toList();
+      
+
       eventPublisher.publishEvent(
-          new PlanificationRequestEvent(sessionId, plgNetwork, simulatedTime, simulationConfig.getAlgorithmTime()));
+          new PlanificationRequestEvent(sessionId, plgNetwork, simulatedTime, simulationConfig.getAlgorithmTime(), immobilizedIncidents));
     } else {
     }
   }
@@ -784,4 +939,15 @@ public class SimulationEngine implements Runnable {
         totalDistance,
         deliveryEfficiency);
   }
+
+  //metodo para debuggear
+  private void writeDebugLog(String message) {
+    try (FileWriter writer = new FileWriter(DEBUG_FILE)) {
+      String timestamp = LocalDateTime.now().format(DEBUG_TIME_FORMAT);
+      writer.write("[" + timestamp + "] SIM - " + message + "\n");
+    } catch (IOException e) {
+      System.err.println("Error writing debug log: " + e.getMessage());
+    }
+  }
+
 }

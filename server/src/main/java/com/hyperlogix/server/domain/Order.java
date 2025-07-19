@@ -14,6 +14,7 @@ public class Order implements Cloneable {
   private LocalDateTime date;
   private Point location;
   private int requestedGLP;
+  private int assignedGLP;
   private int deliveredGLP;
   private Duration deliveryLimit;
   private OrderStatus status;

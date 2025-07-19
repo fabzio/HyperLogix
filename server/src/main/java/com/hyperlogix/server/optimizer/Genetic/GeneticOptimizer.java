@@ -26,6 +26,7 @@ public class GeneticOptimizer implements Optimizer {
   @Override
   public OptimizerResult run(OptimizerContext context, Duration timeLimit, Notifier notifier) {
     final PLGNetwork network = context.plgNetwork;
+    final List<Incident> incidents = context.incidents != null ? context.incidents : List.of();
     final LocalDateTime startTime = context.algorithmStartDate;
     int eliteSelection = (int) (config.POPULATION_SIZE() * config.ELITISM_RATE());
     final AntColonyConfig antColonyConfig = new AntColonyConfig(0, 0, 1, 2, 0, 0, 100);
@@ -34,7 +35,7 @@ public class GeneticOptimizer implements Optimizer {
 
     ThreadLocal<Ant> threadLocalAnt = ThreadLocal.withInitial(() -> {
       Graph graph = threadLocalGraph.get();
-      return new Ant(network, graph, antColonyConfig);
+      return new Ant(network, graph, antColonyConfig, incidents);
     });
 
     AtomicReference<Chromosome> bestOverallRef = new AtomicReference<>(null);

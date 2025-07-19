@@ -20,6 +20,7 @@ import java.util.Set;
 public class Graph implements Cloneable {
   private final PLGNetwork plgNetwork;
   private final AntColonyConfig antColonyConfig;
+  private final List<Incident> incidents;
   private LocalDateTime algorithmStartDate;
   @Setter
   private Map<Node, Map<Node, Double>> pheromoneMap;
@@ -32,6 +33,18 @@ public class Graph implements Cloneable {
     this.plgNetwork = network;
     this.algorithmStartDate = algorithmStartDate;
     this.antColonyConfig = antColonyConfig;
+    this.incidents = List.of();
+    this.pheromoneMap = createPheromoneMap();
+    this.adjacencyMapCache = null;
+    this.lastAdjacencyMapUpdateTime = null;
+    this.lastActiveRoadblocks = new HashSet<>(); // Initialize to empty set
+  }
+
+  public Graph(PLGNetwork network, LocalDateTime algorithmStartDate, AntColonyConfig antColonyConfig, List<Incident> incidents) {
+    this.plgNetwork = network;
+    this.algorithmStartDate = algorithmStartDate;
+    this.antColonyConfig = antColonyConfig;
+    this.incidents = incidents != null ? incidents : List.of();
     this.pheromoneMap = createPheromoneMap();
     this.adjacencyMapCache = null;
     this.lastAdjacencyMapUpdateTime = null;
@@ -45,9 +58,13 @@ public class Graph implements Cloneable {
     List<Node> stationsNodes = plgNetwork.getStations().stream()
         .map(Node::new)
         .toList();
+    List<Node> incidentNodes = incidents.stream()
+        .map(Node::new)
+        .toList();
 
     List<Node> allNodes = new java.util.ArrayList<>(ordersNode);
     allNodes.addAll(stationsNodes);
+    allNodes.addAll(incidentNodes);
     Map<Node, Map<Node, Path>> newAdjacencyMap = new HashMap<>();
 
     for (int i = 0; i < allNodes.size(); i++) {
@@ -168,8 +185,12 @@ public class Graph implements Cloneable {
     List<Node> stationsNodes = plgNetwork.getStations().stream()
         .map(Node::new)
         .toList();
+    List<Node> incidentNodes = incidents.stream()
+        .map(Node::new)
+        .toList();
     List<Node> allNodes = new java.util.ArrayList<>(ordersNode);
     allNodes.addAll(stationsNodes);
+    allNodes.addAll(incidentNodes);
     for (Node origin : allNodes) {
       pheromoneMap.put(origin, new HashMap<>());
       for (Node destination : allNodes) {

@@ -2,6 +2,7 @@ package com.hyperlogix.server.services.planification;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -13,6 +14,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
+import com.hyperlogix.server.domain.Incident;
 import com.hyperlogix.server.domain.PLGNetwork;
 import com.hyperlogix.server.features.planification.dtos.PlanificationResponseEvent;
 
@@ -35,6 +37,11 @@ public class PlanificationService {
 
   public void startPlanification(String planificationId, PLGNetwork network, LocalDateTime algorithmTime,
       Duration algorithmDuration) {
+    startPlanification(planificationId, network, algorithmTime, algorithmDuration, List.of());
+  }
+
+  public void startPlanification(String planificationId, PLGNetwork network, LocalDateTime algorithmTime,
+      Duration algorithmDuration, List<Incident> incidents) {
     PlanificationNotifier notifier = routes -> {
       PlanificationResponseEvent responseEvent = new PlanificationResponseEvent(planificationId, routes);
       messaging.convertAndSend("/topic/planification/response",
@@ -44,7 +51,7 @@ public class PlanificationService {
 
     // Usar el nuevo constructor que incluye eventPublisher y sessionId
     PlanificationEngine engine = new PlanificationEngine(network, notifier, algorithmTime, algorithmDuration,
-                                                         eventPublisher, planificationId,()->{
+                                                         incidents, eventPublisher, planificationId,()->{
       System.out.println("Removing");
       planification.remove(planificationId);
     });
