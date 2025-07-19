@@ -94,33 +94,26 @@ public class IncidentManagement {
    * Maneja un incidente usando las funciones encapsuladas de IncidentManagement
    */
   private void handleIncidentWithManagement(Truck truck, Incident incident, LocalDateTime simulatedTime) {
-    log.info("=== HANDLING INCIDENT WITH MANAGEMENT ===");
-    log.info("Truck: {}", truck.getCode());
-    log.info("Incident Type: {}", incident.getType());
-    log.info("Incident Turn: {}", incident.getTurn());
-    log.info("Truck Location: ({}, {})", truck.getLocation().x(), truck.getLocation().y());
-    log.info("Current Time: {}", simulatedTime);
     
     // Determinar el tipo de incidente usando el método de IncidentManagement
-    IncidentManagement.IncidentType incidentType = determineIncidentType(incident);
+    IncidentManagement.IncidentType incidentType = determineIncidentType(incident, simulatedTime);
     
     // Aplicar el incidente específico según su tipo
     TruckState previousStatus = truck.getStatus();
     applySpecificIncident(truck, incidentType, incident);
     TruckState newStatus = truck.getStatus();
-    
-    log.info("Incident applied: Status changed from {} to {}", previousStatus, newStatus);
-    log.info("=== INCIDENT HANDLING COMPLETED ===");
+  
   }
 
   /**
    * Determina el tipo de incidente basado en el objeto Incident del sistema
    * (Adaptado de IncidentManagement)
    */
-  private IncidentManagement.IncidentType determineIncidentType(Incident incident) {
+  private IncidentManagement.IncidentType determineIncidentType(Incident incident, LocalDateTime simulatedTime) {
     String incidentTypeStr = incident.getType().toUpperCase();
     
     if (incidentTypeStr.contains("TI1") || incidentTypeStr.equals("1")) {
+      incident.setExpectedRecovery(simulatedTime.plusHours(2)); // 2 horas de inmovilización
       return IncidentManagement.IncidentType.TYPE_1;
     } else if (incidentTypeStr.contains("TI2") || incidentTypeStr.equals("2")) {
       return IncidentManagement.IncidentType.TYPE_2;
@@ -142,6 +135,7 @@ public class IncidentManagement {
     
     // Actualizar la ubicación del incidente
     incident.setLocation(incidentLocation);
+    incident.setFuel(truck.getCurrentCapacity()); // Actualizar combustible del camión
     
     // Cambiar el estado del camión según el tipo de incidente
     switch (incidentType) {
