@@ -5,9 +5,16 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
+**id** | **string** |  | [optional] [default to undefined]
+**turn** | **string** |  | [optional] [default to undefined]
 **type** | **string** |  | [optional] [default to undefined]
-**date** | **string** |  | [optional] [default to undefined]
 **truckCode** | **string** |  | [optional] [default to undefined]
+**fuel** | **number** |  | [optional] [default to undefined]
+**location** | [**Point**](Point.md) |  | [optional] [default to undefined]
+**daysSinceIncident** | **number** |  | [optional] [default to undefined]
+**status** | **string** |  | [optional] [default to undefined]
+**incidentTime** | **string** |  | [optional] [default to undefined]
+**expectedRecovery** | **string** |  | [optional] [default to undefined]
 
 ## Example
 
@@ -15,9 +22,16 @@ Name | Type | Description | Notes
 import { Incident } from './api';
 
 const instance: Incident = {
+    id,
+    turn,
     type,
-    date,
     truckCode,
+    fuel,
+    location,
+    daysSinceIncident,
+    status,
+    incidentTime,
+    expectedRecovery,
 };
 ```
 

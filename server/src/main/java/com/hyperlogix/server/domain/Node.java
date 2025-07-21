@@ -24,4 +24,11 @@ public class Node {
     this.type = NodeType.DELIVERY;
     this.location = order.getLocation();
   }
+
+  public Node(Incident incident) {
+    this.id = incident.getTruckCode();
+    this.name = incident.getType().toString();
+    this.type = NodeType.INCIDENT;
+    this.location = incident.getLocation();
+  }
 }

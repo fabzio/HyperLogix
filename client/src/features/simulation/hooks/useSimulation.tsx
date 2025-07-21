@@ -172,16 +172,6 @@ export const useSimulationWebSocket = () => {
   const handleCollapseAlertRef = useRef<(alert: unknown) => void>()
   handleCollapseAlertRef.current = (alert: unknown) => {
     try {
-      const { simulationType } = useSimulationStore.getState()
-
-      // Solo procesar alertas de colapso si estamos en modo "collapse"
-      if (simulationType !== 'collapse') {
-        console.log(
-          'Alerta de colapso ignorada - simulación no es de tipo colapso',
-        )
-        return
-      }
-
       const typedAlert = alert as {
         type: string
         collapseType?: string
@@ -196,8 +186,7 @@ export const useSimulationWebSocket = () => {
         )
         handleCollapse({
           type: typedAlert.collapseType || 'unknown',
-          description:
-            typedAlert.description || 'Colapso logístico detectado',
+          description: typedAlert.description || 'Colapso logístico detectado',
         })
       }
     } catch (error) {

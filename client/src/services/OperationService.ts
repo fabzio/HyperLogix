@@ -65,3 +65,15 @@ export const cancelOrder = async (orderId: string) => {
   const { data } = await repository.cancelOrder(orderId)
   return data
 }
+
+export const reportIncident = async (
+  truckCode: string,
+  incidentType: 'TI1' | 'TI2' | 'TI3',
+  incidentTrun: 'T1' | 'T2' | 'T3',
+) => {
+  await repository.reportIncident(truckCode, {
+    incidentType,
+    truckCode,
+    turn: incidentTrun,
+  })
+}

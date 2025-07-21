@@ -45,7 +45,7 @@ import {
   Square,
   AlertTriangle,
 } from 'lucide-react'
-import React, { useCallback , useEffect} from 'react'
+import React, { useCallback, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import {
@@ -84,7 +84,9 @@ export default function Run() {
     plgNetwork,
   } = useSimulationStore()
 
-  const [validationError, setValidationError] = React.useState<string | null>(null)
+  const [validationError, setValidationError] = React.useState<string | null>(
+    null,
+  )
 
   const getInitialValues = useCallback(() => {
     const isRunning = status?.running || false
@@ -111,9 +113,12 @@ export default function Run() {
       if (saved) {
         try {
           const parsed = JSON.parse(saved)
-          if (parsed.absolute?.from) parsed.absolute.from = new Date(parsed.absolute.from)
-          if (parsed.absolute?.to) parsed.absolute.to = new Date(parsed.absolute.to)
-          if (parsed.relative?.startDate) parsed.relative.startDate = new Date(parsed.relative.startDate)
+          if (parsed.absolute?.from)
+            parsed.absolute.from = new Date(parsed.absolute.from)
+          if (parsed.absolute?.to)
+            parsed.absolute.to = new Date(parsed.absolute.to)
+          if (parsed.relative?.startDate)
+            parsed.relative.startDate = new Date(parsed.relative.startDate)
           return parsed
         } catch {}
       }
@@ -135,32 +140,35 @@ export default function Run() {
     }
   }, [status?.running, activeSimulationType, originalStartDate])
 
-  const validateOrdersForMonth = useCallback((startDate: Date): boolean => {
-    if (!plgNetwork) {
+  const validateOrdersForMonth = useCallback(
+    (startDate: Date): boolean => {
+      if (!plgNetwork) {
+        setValidationError(null)
+        return true
+      }
+
+      if (!plgNetwork.orders || plgNetwork.orders.length === 0) {
+        setValidationError('No hay pedidos disponibles en el sistema')
+        return false
+      }
+
+      const hasOrdersForMonth = plgNetwork.orders.some((order) => {
+        const orderDate = new Date(order.date)
+        return isSameMonth(orderDate, startDate)
+      })
+
+      if (!hasOrdersForMonth) {
+        const monthName = format(startDate, 'MMMM yyyy', { locale: es })
+        const errorMessage = `No hay pedidos disponibles para ${monthName}. Por favor, seleccione una fecha diferente.`
+        setValidationError(errorMessage)
+        return false
+      }
+
       setValidationError(null)
       return true
-    }
-
-    if (!plgNetwork.orders || plgNetwork.orders.length === 0) {
-      setValidationError('No hay pedidos disponibles en el sistema')
-      return false
-    }
-
-    const hasOrdersForMonth = plgNetwork.orders.some((order) => {
-      const orderDate = new Date(order.date)
-      return isSameMonth(orderDate, startDate)
-    })
-
-    if (!hasOrdersForMonth) {
-      const monthName = format(startDate, 'MMMM yyyy', { locale: es })
-      const errorMessage = `No hay pedidos disponibles para ${monthName}. Por favor, seleccione una fecha diferente.`
-      setValidationError(errorMessage)
-      return false
-    }
-
-    setValidationError(null)
-    return true
-  }, [plgNetwork])
+    },
+    [plgNetwork],
+  )
 
   const form = useForm<FormSchema>({
     resolver: zodResolver(formSchema),
@@ -222,7 +230,6 @@ export default function Run() {
     getInitialValues,
     form,
   ])
-
 
   const onSubmit = form.handleSubmit((data) => {
     let startDate: Date

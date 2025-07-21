@@ -11,6 +11,7 @@ All URIs are relative to *http://localhost:8080/api/v1*
 |[**manualReplanification**](#manualreplanification) | **POST** /operation/replan | |
 |[**pauseSimulation**](#pausesimulation) | **POST** /operation/simulation/pause | |
 |[**registerOrder**](#registerorder) | **POST** /operation/orders | |
+|[**reportIncident**](#reportincident) | **POST** /operation/trucks/{truckCode}/incident | |
 |[**reportTruckBreakdown**](#reporttruckbreakdown) | **POST** /operation/trucks/{truckId}/breakdown | |
 |[**reportTruckMaintenance**](#reporttruckmaintenance) | **POST** /operation/trucks/{truckId}/maintenance | |
 |[**restoreTruckToIdle**](#restoretrucktoidle) | **POST** /operation/trucks/{truckId}/restore | |
@@ -310,6 +311,60 @@ const { status, data } = await apiInstance.registerOrder(
 |Name | Type | Description  | Notes|
 |------------- | ------------- | ------------- | -------------|
 | **registerOrderRequest** | **RegisterOrderRequest**|  | |
+
+
+### Return type
+
+void (empty response body)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: Not defined
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+|**200** | OK |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **reportIncident**
+> reportIncident(reportIncidentRequest)
+
+
+### Example
+
+```typescript
+import {
+    OperationControllerApi,
+    Configuration,
+    ReportIncidentRequest
+} from './api';
+
+const configuration = new Configuration();
+const apiInstance = new OperationControllerApi(configuration);
+
+let truckCode: string; // (default to undefined)
+let reportIncidentRequest: ReportIncidentRequest; //
+
+const { status, data } = await apiInstance.reportIncident(
+    truckCode,
+    reportIncidentRequest
+);
+```
+
+### Parameters
+
+|Name | Type | Description  | Notes|
+|------------- | ------------- | ------------- | -------------|
+| **reportIncidentRequest** | **ReportIncidentRequest**|  | |
+| **truckCode** | [**string**] |  | defaults to undefined|
 
 
 ### Return type

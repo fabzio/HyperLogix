@@ -53,47 +53,63 @@ export default function OperationMap() {
   const polylines: MapPolyline[] = useMemo(() => {
     const pathPolylines = routes?.paths
       ? Object.entries(routes.paths).flatMap(([truckId, paths]) => {
-          const truck = network?.trucks.find((t) => t.id === truckId)
-          return paths.map((path, pathIndex) => {
-            let points =
-              path.points?.map(
-                (location) => [location.x, location.y] as [number, number],
-              ) || []
+          const truckLocation = network?.trucks.find(
+            (t) => t.id === truckId,
+          )?.location
 
-            // If we have the truck's current position, start from there
-            if (truck?.location && points.length > 0) {
-              const truckPoint: [number, number] = [
-                truck.location.x,
-                truck.location.y,
-              ]
+          // Junta todos los puntos en un solo path lineal
+          const fullPath: [number, number][][] = paths.map(
+            (path) =>
+              path.points?.map((p) => [p.x, p.y] as [number, number]) || [],
+          )
+          for (let i = 1; i < fullPath.length; i++) {
+            fullPath[i].shift()
+          }
+          const startPath = [truckLocation?.x, truckLocation?.y] as [
+            number,
+            number,
+          ]
 
-              // Find the closest point in the path to the truck's current position
-              let closestIndex = 0
-              let minDistance = Number.POSITIVE_INFINITY
-
-              points.forEach((point, index) => {
-                const distance = Math.sqrt(
-                  (point[0] - truckPoint[0]) ** 2 +
-                    (point[1] - truckPoint[1]) ** 2,
-                )
-                if (distance < minDistance) {
-                  minDistance = distance
-                  closestIndex = index
-                }
-              })
-
-              // Create the path from truck position to the end of the route
-              points = [truckPoint, ...points.slice(closestIndex)]
+          let startIndex = 0
+          console.log('fullPath', fullPath)
+          for (let i = 0; i < fullPath.length; i++) {
+            const pathPoints = fullPath[i] || []
+            if (routes.stops[truckId]?.[i + 1].arrived) {
+              startIndex += pathPoints[i].length
+              continue
             }
+            for (let j = 0; j < pathPoints.length - 1; j++) {
+              if (pathPoints[j][0] === pathPoints[j + 1][0]) {
+                const isInsegment =
+                  truckLocation?.x === pathPoints[j][0] &&
+                  truckLocation?.y >= pathPoints[j][1] &&
+                  truckLocation?.y <= pathPoints[j + 1][1]
+                if (isInsegment) {
+                  startIndex += j
+                  break
+                }
+              } else if (pathPoints[j][1] === pathPoints[j + 1][1]) {
+                const isInsegment =
+                  truckLocation?.y === pathPoints[j][1] &&
+                  truckLocation?.x >= pathPoints[j][0] &&
+                  truckLocation?.x <= pathPoints[j + 1][0]
+                if (isInsegment) {
+                  startIndex += j
+                  break
+                }
+              }
+            }
+          }
 
-            return {
-              id: `${truckId}-path-${pathIndex}`,
-              points,
+          return [
+            {
+              id: `${truckId}-full-path`,
+              points: [startPath, ...fullPath.flat().slice(startIndex + 1)],
               stroke: getTruckColorById(truckId),
               strokeWidth: 0.7,
               type: 'path' as const,
-            }
-          })
+            },
+          ]
         })
       : []
 
@@ -110,7 +126,13 @@ export default function OperationMap() {
       })) || []
 
     return [...pathPolylines, ...roadblockPolylines]
-  }, [routes?.paths, network?.roadblocks, network?.trucks, getTruckColorById])
+  }, [
+    routes?.paths,
+    network?.roadblocks,
+    network?.trucks,
+    routes?.stops,
+    getTruckColorById,
+  ])
 
   return (
     <div className="flex h-full w-full">

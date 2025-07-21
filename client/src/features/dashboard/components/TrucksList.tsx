@@ -38,10 +38,10 @@ import {
 import { useState } from 'react'
 import { toast } from 'sonner'
 import {
-  useReportTruckBreakdown,
   useReportTruckMaintenance,
   useRestoreTruckToIdle,
 } from '../hooks/useOperationMutations'
+import BreakdownForm from './BreakdownForm'
 
 interface TrucksListProps {
   trucks: Truck[]
@@ -92,29 +92,13 @@ const generatePaginationNumbers = (currentPage: number, totalPages: number) => {
 }
 
 export default function TrucksList({ trucks }: TrucksListProps) {
+  const [openBreakdownForm, setOpenBreakdownForm] = useState(false)
+  const [selectedTruckCode, setSelectedTruckCode] = useState<string>('')
   const [page, setPage] = useState(1)
   const [pageSize] = useState(8)
 
-  const { mutate: reportBreakdown, isPending: isReportingBreakdown } =
-    useReportTruckBreakdown()
-  const { mutate: reportMaintenance, isPending: isReportingMaintenance } =
-    useReportTruckMaintenance()
-  const { mutate: restoreToIdle, isPending: isRestoringToIdle } =
-    useRestoreTruckToIdle()
-
-  const handleReportBreakdown = (truckId: string) => {
-    reportBreakdown(
-      { truckId, request: { reason: 'Avería reportada manualmente' } },
-      {
-        onSuccess: () => {
-          toast.success('Avería reportada exitosamente')
-        },
-        onError: (error) => {
-          toast.error(`Error al reportar avería: ${error.message}`)
-        },
-      },
-    )
-  }
+  const { mutate: reportMaintenance } = useReportTruckMaintenance()
+  const { mutate: restoreToIdle } = useRestoreTruckToIdle()
 
   const handleReportMaintenance = (truckId: string) => {
     reportMaintenance(
@@ -142,6 +126,11 @@ export default function TrucksList({ trucks }: TrucksListProps) {
         },
       },
     )
+  }
+
+  const handleOpenBreakdownForm = (truckCode: string) => {
+    setSelectedTruckCode(truckCode)
+    setOpenBreakdownForm(true)
   }
 
   // Sort trucks by capacity utilization (lowest first)
@@ -294,9 +283,9 @@ export default function TrucksList({ trucks }: TrucksListProps) {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem
-                              onClick={() =>
-                                handleReportBreakdown(truck.id || '')
-                              }
+                              onClick={() => {
+                                handleOpenBreakdownForm(truck.code)
+                              }}
                               disabled={truck.status === TruckState.BROKEN_DOWN}
                             >
                               <AlertTriangle className="mr-2 h-4 w-4" />
@@ -393,6 +382,11 @@ export default function TrucksList({ trucks }: TrucksListProps) {
           )}
         </div>
       </CardContent>
+      <BreakdownForm
+        open={openBreakdownForm}
+        onClose={() => setOpenBreakdownForm(false)}
+        truckCode={selectedTruckCode}
+      />
     </Card>
   )
 }
