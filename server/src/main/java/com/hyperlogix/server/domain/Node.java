@@ -26,8 +26,8 @@ public class Node {
   }
 
   public Node(Incident incident) {
-    this.id = incident.getId();
-    this.name = incident.getTruckCode();
+    this.id = incident.getTruckCode();
+    this.name = incident.getType().toString();
     this.type = NodeType.INCIDENT;
     this.location = incident.getLocation();
   }

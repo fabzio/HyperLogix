@@ -30,9 +30,6 @@ public class OrderEntity {
     @Column(name = "requested_glp", nullable = false)
     private int requestedGLP;
 
-    @Column(name = "assigned_glp", nullable = false)
-    private int assignedGLP;
-
     @Column(name = "delivered_glp", nullable = false)
     private int deliveredGLP;
 

@@ -8,7 +8,7 @@ public class OrderMapper {
     if (entity == null)
       return null;
     Order order = new Order(entity.getId(), entity.getClientId(), entity.getDate(), entity.getLocation(),
-        entity.getRequestedGLP(), entity.getAssignedGLP(), entity.getDeliveredGLP(), entity.getDeliveryLimit(), entity.getStatus());
+        entity.getRequestedGLP(), entity.getDeliveredGLP(), entity.getDeliveryLimit(), entity.getStatus());
     return order;
   }
 
@@ -21,7 +21,6 @@ public class OrderMapper {
     entity.setDate(station.getDate());
     entity.setLocation(station.getLocation());
     entity.setRequestedGLP(station.getRequestedGLP());
-    entity.setAssignedGLP(station.getAssignedGLP());
     entity.setDeliveredGLP(station.getDeliveredGLP());
     entity.setDeliveryLimit(station.getDeliveryLimit());
     entity.setStatus(station.getStatus());

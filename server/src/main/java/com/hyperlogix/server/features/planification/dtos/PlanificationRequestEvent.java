@@ -20,13 +20,4 @@ public class PlanificationRequestEvent {
   private LocalDateTime simulatedTime;
   private Duration algorithmDuration;
   private List<Incident> incidents;
-
-    public PlanificationRequestEvent(String sessionId, PLGNetwork plgNetwork, 
-                                  LocalDateTime simulatedTime, Duration algorithmDuration) {
-    this.sessionId = sessionId;
-    this.plgNetwork = plgNetwork;
-    this.simulatedTime = simulatedTime;
-    this.algorithmDuration = algorithmDuration;
-    this.incidents = new ArrayList<>();  // Inicializa como lista vacía por defecto
-  }
 }

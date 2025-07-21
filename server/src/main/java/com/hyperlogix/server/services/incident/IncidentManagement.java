@@ -61,9 +61,6 @@ public class IncidentManagement {
       if (incident.getTruckCode().equals(truck.getCode()) &&
           incident.getTurn().equals(currentTurn)) {
         targetIncident = incident;
-        targetIncident.setDaysSinceIncident(0);
-        targetIncident.setStatus(IncidentStatus.IMMOBILIZED);
-        targetIncident.setIncidentTime(simulatedTime);
         break;
       }
     }
@@ -99,9 +96,8 @@ public class IncidentManagement {
 
     // Determinar el tipo de incidente usando el método de IncidentManagement
     IncidentType incidentType = determineIncidentType(incident, simulatedTime);
-
-    // Aplicar el incidente específico según su tipo
-
+    
+    incident.setIncidentTime(simulatedTime);
     applySpecificIncident(truck, incident);
 
   }
@@ -137,6 +133,9 @@ public class IncidentManagement {
     Point incidentLocation = validateIncidentLocation(truck.getLocation());
 
     // Actualizar la ubicación del incidente
+
+    incident.setDaysSinceIncident(0);
+    incident.setStatus(IncidentStatus.IMMOBILIZED);
     incident.setLocation(incidentLocation);
     incident.setFuel(truck.getCurrentCapacity());
     truck.setStatus(TruckState.BROKEN_DOWN);

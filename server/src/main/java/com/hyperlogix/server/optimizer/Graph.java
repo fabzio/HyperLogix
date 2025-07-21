@@ -126,8 +126,8 @@ public class Graph implements Cloneable {
       // Process each subsequent stop with A* pathfinding
       for (int i = 1; i < originalRoute.size(); i++) {
         Stop nextStop = originalRoute.get(i);
-        Point fromLocation = currentStop.getNode().getLocation();
-        Point toLocation = nextStop.getNode().getLocation();
+        Point fromLocation = currentStop.getNode().getLocation().integerPoint();
+        Point toLocation = nextStop.getNode().getLocation().integerPoint();
 
         // Use A* to find the actual path considering roadblocks
         List<Point> actualPath = AStar.encontrarRuta(

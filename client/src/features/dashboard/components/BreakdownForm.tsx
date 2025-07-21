@@ -86,8 +86,12 @@ export default function BreakdownForm({ onClose, open, truckCode }: Props) {
                         <SelectValue placeholder="Selecciona un tipo" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="TI1">Llanta desinflada (TI1)</SelectItem>
-                        <SelectItem value="TI2">Fallo de motor (TI2)</SelectItem>
+                        <SelectItem value="TI1">
+                          Llanta desinflada (TI1)
+                        </SelectItem>
+                        <SelectItem value="TI2">
+                          Fallo de motor (TI2)
+                        </SelectItem>
                         <SelectItem value="TI3">Choque (TI3)</SelectItem>
                       </SelectContent>
                     </Select>

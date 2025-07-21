@@ -12,6 +12,6 @@ export interface Truck {
   currentCapacity: number // Replaces currentGLP for consistency with Java; currentGLP might be an alias or derived
   fuelCapacity: number
   currentFuel: number
-  nextMaintenance: string // ISO date-time string
+  nextMaintenance?: string // ISO date-time string
   location: Location
 }

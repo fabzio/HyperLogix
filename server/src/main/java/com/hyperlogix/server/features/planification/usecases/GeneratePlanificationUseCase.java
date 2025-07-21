@@ -17,11 +17,6 @@ public class GeneratePlanificationUseCase {
   @Autowired
   private PlanificationService planificationService;
 
-    public void generateRoutes(String sessionId, PLGNetwork network, LocalDateTime algorithmTime,
-      Duration algorithmDuration) {
-    planificationService.startPlanification(sessionId, network, algorithmTime, algorithmDuration, List.of());
-  }
-
   public void generateRoutes(String sessionId, PLGNetwork network, LocalDateTime algorithmTime,
       Duration algorithmDuration, List<Incident> incidents) {
     planificationService.startPlanification(sessionId, network, algorithmTime, algorithmDuration, incidents);

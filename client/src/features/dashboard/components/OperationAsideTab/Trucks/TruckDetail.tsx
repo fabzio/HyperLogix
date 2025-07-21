@@ -61,12 +61,16 @@ export default function TruckDetail() {
   }
 
   // Calculate maintenance status
-  const nextMaintenanceDate = new Date(truck.nextMaintenance)
+  const nextMaintenanceDate = truck.nextMaintenance
+    ? new Date(truck.nextMaintenance)
+    : null
   const currentDate = new Date()
-  const daysUntilMaintenance = Math.ceil(
-    (nextMaintenanceDate.getTime() - currentDate.getTime()) /
-      (1000 * 60 * 60 * 24),
-  )
+  const daysUntilMaintenance = nextMaintenanceDate
+    ? Math.ceil(
+        (nextMaintenanceDate.getTime() - currentDate.getTime()) /
+          (1000 * 60 * 60 * 24),
+      )
+    : null
 
   return (
     <Card className="w-full">
@@ -220,24 +224,28 @@ export default function TruckDetail() {
                 </span>
                 <div className="text-right">
                   <div className="text-sm">
-                    {nextMaintenanceDate.toLocaleDateString()}
+                    {nextMaintenanceDate
+                      ? nextMaintenanceDate.toLocaleDateString()
+                      : 'No hay mantenimiento programado'}
                   </div>
-                  <div
-                    className={cn(
-                      'text-xs',
-                      daysUntilMaintenance <= 7
-                        ? 'text-red-500'
-                        : daysUntilMaintenance <= 14
-                          ? 'text-yellow-500'
-                          : 'text-green-500',
-                    )}
-                  >
-                    {daysUntilMaintenance > 0
-                      ? `${daysUntilMaintenance} días`
-                      : daysUntilMaintenance === 0
-                        ? 'Hoy'
-                        : `${Math.abs(daysUntilMaintenance)} días atrasado`}
-                  </div>
+                  {daysUntilMaintenance && (
+                    <div
+                      className={cn(
+                        'text-xs',
+                        daysUntilMaintenance <= 7
+                          ? 'text-red-500'
+                          : daysUntilMaintenance <= 14
+                            ? 'text-yellow-500'
+                            : 'text-green-500',
+                      )}
+                    >
+                      {daysUntilMaintenance > 0
+                        ? `${daysUntilMaintenance} días`
+                        : daysUntilMaintenance === 0
+                          ? 'Hoy'
+                          : `${Math.abs(daysUntilMaintenance)} días atrasado`}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

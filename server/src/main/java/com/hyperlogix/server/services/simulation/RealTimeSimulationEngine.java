@@ -16,6 +16,7 @@ import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -112,6 +113,11 @@ public class RealTimeSimulationEngine implements Runnable {
     incident.setDaysSinceIncident(0);
     incident.setStatus(IncidentStatus.IMMOBILIZED);
     incident.setIncidentTime(simulatedTime);
+    incident.setFuel(plgNetwork.getTrucks().stream()
+        .filter(t -> t.getCode().equals(truckCode))
+        .findFirst()
+        .map(t -> (int) t.getCurrentFuel())
+        .orElse(0));
     incidentRepository.add(incident);
     if (incidentManager == null) {
       incidentManager = new IncidentManagement(incidentRepository);
@@ -129,6 +135,8 @@ public class RealTimeSimulationEngine implements Runnable {
         log.warn("Truck with code {} not found in PLGNetwork for incident", truckCode);
       }
     }
+    realTimeOrderRepository.getAllOrders().stream()
+        .forEach(o -> o.setStatus(OrderStatus.PENDING));
     plgNetwork.setIncidents(incidentRepository);
     triggerImmediateUpdate();
   }
@@ -310,6 +318,11 @@ public class RealTimeSimulationEngine implements Runnable {
           trucksInMaintenance.remove(truck.getId());
           log.info("Truck {} ended maintenance at simulation time {}, next maintenance: {}",
               truck.getCode(), simulatedTime, truck.getNextMaintenance());
+        } else if (newState == TruckState.IDLE && oldState == TruckState.BROKEN_DOWN) {
+          incidentRepository.remove(
+              incidentRepository.stream()
+                  .filter(i -> i.getTruckCode().equals(truck.getCode()) && i.getStatus() == IncidentStatus.IMMOBILIZED)
+                  .findFirst().orElse(null));
         }
       } else {
         log.warn("Truck with ID {} not found when trying to update state to {}", truckId, newState);
@@ -719,7 +732,28 @@ public class RealTimeSimulationEngine implements Runnable {
       handleStationArrival(truck, stop);
     } else if (stop.getNode().getType() == NodeType.DELIVERY) {
       handleDeliveryArrival(truck, stop);
+    } else if (stop.getNode().getType() == NodeType.INCIDENT) {
+      handleIncidentArrival(truck, stop);
     }
+    stop.setArrived(true);
+  }
+
+  private void handleIncidentArrival(Truck truck, Stop stop) {
+    // Handle incident arrival logic here
+    log.info("Truck {} arrived at incident stop {}", truck.getId(), stop.getNode().getId());
+    Truck incidentedTruck = plgNetwork.getTrucks().stream()
+        .filter(t -> t.getCode().equals(stop.getNode().getId()))
+        .findFirst().orElse(null);
+
+    int availableGLP = Math.min(incidentedTruck.getCurrentCapacity(),
+        truck.getMaxCapacity() - truck.getCurrentCapacity());
+    int avaibleFuel = (int) Math.min(incidentedTruck.getCurrentFuel(),
+        truck.getFuelCapacity() - truck.getCurrentFuel());
+
+    truck.setCurrentCapacity(availableGLP);
+    truck.setCurrentFuel(avaibleFuel);
+    incidentedTruck.setCurrentCapacity(incidentedTruck.getCurrentCapacity() - availableGLP);
+    incidentedTruck.setCurrentFuel(incidentedTruck.getCurrentFuel() - avaibleFuel);
   }
 
   private void handleStationArrival(Truck truck, Stop stop) {
@@ -954,7 +988,7 @@ public class RealTimeSimulationEngine implements Runnable {
 
       eventPublisher.publishEvent(
           new PlanificationRequestEvent(sessionId, networkForPlanification, simulatedTime,
-              simulationConfig.getAlgorithmTime()));
+              simulationConfig.getAlgorithmTime(), plgNetwork.getIncidents()));
     } else {
       log.debug("No planification requested - no orders in CALCULATING state");
     }

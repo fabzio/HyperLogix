@@ -24,7 +24,6 @@ public class GetOrdersUseCaseImpl implements GetOrdersUseCase {
             orderEntity.getDate(),
             orderEntity.getLocation(),
             orderEntity.getRequestedGLP(),
-            orderEntity.getAssignedGLP(),
             orderEntity.getDeliveredGLP(),
             orderEntity.getDeliveryLimit(),
             OrderStatus.PENDING))

@@ -160,7 +160,7 @@ export const useSimulationWebSocket = () => {
   const { handleCollapse } = useCollapseHandler()
 
   // Stable message handler
-  const handleMessageRef = useRef<(message: unknown) => void>()
+  const handleMessageRef = useRef<(message: unknown) => void>(() => {})
   handleMessageRef.current = (message: unknown) => {
     try {
       const typedMessage = message as MesaggeResponse
@@ -171,7 +171,7 @@ export const useSimulationWebSocket = () => {
   }
 
   // Stable collapse handler
-  const handleCollapseAlertRef = useRef<(alert: unknown) => void>()
+  const handleCollapseAlertRef = useRef<(alert: unknown) => void>(() => {})
   handleCollapseAlertRef.current = (alert: unknown) => {
     try {
       const typedAlert = alert as {

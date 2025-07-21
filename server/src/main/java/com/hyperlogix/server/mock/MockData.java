@@ -65,7 +65,6 @@ public class MockData {
                   new Point(Integer.parseInt(orderLineMatcher.group(4)), Integer.parseInt(orderLineMatcher.group(5))),
                   Integer.parseInt(orderLineMatcher.group(7)),
                   0,
-                  0,
                   Duration.ofHours(Long.parseLong(orderLineMatcher.group(8))),
                   OrderStatus.PENDING));
 
