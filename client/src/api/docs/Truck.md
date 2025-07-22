@@ -15,6 +15,7 @@ Name | Type | Description | Notes
 **fuelCapacity** | **number** |  | [optional] [default to undefined]
 **currentFuel** | **number** |  | [optional] [default to undefined]
 **nextMaintenance** | **string** |  | [optional] [default to undefined]
+**maintenanceStartTime** | **string** |  | [optional] [default to undefined]
 **location** | [**Point**](Point.md) |  | [optional] [default to undefined]
 
 ## Example
@@ -33,6 +34,7 @@ const instance: Truck = {
     fuelCapacity,
     currentFuel,
     nextMaintenance,
+    maintenanceStartTime,
     location,
 };
 ```

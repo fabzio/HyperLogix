@@ -23,6 +23,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 @Service
 public class RealTimeOperationService {
+  public void reportIncident(com.hyperlogix.server.features.operation.dtos.ReportIncidentRequest request) {
+    RealTimeSimulationEngine engine = simulationService.getRealTimeSimulationEngines().get(MAIN_SESSION_ID);
+    if (engine != null) {
+      engine.handleIncidentReport(request.getTruckCode(), request.getIncidentType(), request.getTurn());
+    } else {
+      log.warn("No real-time simulation engine found for session: {}", MAIN_SESSION_ID);
+    }
+  }
+
   private static final Logger log = LoggerFactory.getLogger(RealTimeOperationService.class);
   private static final String MAIN_SESSION_ID = "main";
   private static final int MAX_RETRY_ATTEMPTS = 10;

@@ -2,6 +2,7 @@ package com.hyperlogix.server.services.simulation;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -350,6 +351,7 @@ public class SimulationEngine implements Runnable {
     } else if (stop.getNode().getType() == NodeType.DELIVERY) {
       handleDeliveryArrival(truck, stop);
     }
+    stop.setArrived(true);
   }
 
   private void handleStationArrival(Truck truck, Stop stop) {
@@ -584,7 +586,7 @@ public class SimulationEngine implements Runnable {
       lastPlanificationStart = LocalDateTime.now();
       totalPlanificationRequests++;
       eventPublisher.publishEvent(
-          new PlanificationRequestEvent(sessionId, plgNetwork, simulatedTime, simulationConfig.getAlgorithmTime()));
+          new PlanificationRequestEvent(sessionId, plgNetwork, simulatedTime, simulationConfig.getAlgorithmTime(),new ArrayList<>()));
     } else {
     }
   }
