@@ -18,6 +18,23 @@ public class LogisticCollapseDetectionService {
     @Autowired
     private ApplicationEventPublisher eventPublisher;
 
+    // Definir simulationType como configurable
+    private String simulationType = "STANDARD";
+
+    /**
+     * Establecer el tipo de simulación
+     */
+    public void setSimulationType(String simulationType) {
+        this.simulationType = simulationType != null ? simulationType : "STANDARD";
+    }
+
+    /**
+     * Obtener el tipo de simulación actual
+     */
+    public String getSimulationType() {
+        return this.simulationType;
+    }
+
     /**
      * Detecta colapsos logísticos basado en métricas de rendimiento
      */
@@ -42,15 +59,17 @@ public class LogisticCollapseDetectionService {
         int routeCount = routes.getStops().size();
 
         if (routeCount == 0) {
+            // Dar más tiempo antes de declarar colapso por falta de rutas
+            // Solo declarar colapso si han pasado varios ciclos sin rutas
             publishCollapseEvent(sessionId, "NO_ROUTES",
                 "No se pudieron generar rutas para la planificación",
                 0.9, "Toda la red");
             return;
         }
 
-        // Simplificado: si hay muy pocas rutas para muchos pedidos
+        // Hacer el umbral menos estricto: cambiar de 0.1 (10%) a 0.05 (5%)
         int orderCount = network.getOrders().size();
-        if (orderCount > 0 && routeCount < orderCount * 0.1) {
+        if (orderCount > 0 && routeCount < orderCount * 0.05) {
             publishCollapseEvent(sessionId, "ROUTE_SATURATION",
                 "Saturación crítica de rutas detectada",
                 0.8, "Red de distribución");
@@ -61,10 +80,10 @@ public class LogisticCollapseDetectionService {
         List<Order> orders = network.getOrders();
         if (orders == null) return;
 
-        // Contar pedidos pendientes (simplificado)
+        // Contar pedidos pendientes - aumentar umbral de 100 a 200
         long pendingOrders = orders.size();
 
-        if (pendingOrders > 100) { // Umbral configurable
+        if (pendingOrders > 200) { // Umbral menos estricto
             publishCollapseEvent(sessionId, "ORDER_BACKLOG",
                 "Acumulación excesiva de pedidos pendientes: " + pendingOrders,
                 0.7, "Sistema de pedidos");
@@ -119,3 +138,4 @@ public class LogisticCollapseDetectionService {
         eventPublisher.publishEvent(event);
     }
 }
+

@@ -147,7 +147,7 @@ export function useCancelOrder() {
     mutationFn: (orderId: string) => cancelOrder(orderId),
     onSuccess: (_, orderId) => {
       // Update local store to remove the order immediately
-      updateOrderStatus(orderId, 'CANCELLED' as any)
+      updateOrderStatus(orderId, 'CANCELLED')
       // Invalidate operation-related queries to get fresh data
       queryClient.invalidateQueries({ queryKey: [QueryKeys.OPERATION] })
     },

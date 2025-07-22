@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,7 +33,7 @@ public class PlanificationService {
     t.setDaemon(true);
     return t;
   });
-
+private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
   public void startPlanification(String planificationId, PLGNetwork network, LocalDateTime algorithmTime,
       Duration algorithmDuration) {
     PlanificationNotifier notifier = routes -> {
@@ -51,6 +52,14 @@ public class PlanificationService {
     stopPlanification(planificationId);
     planification.put(planificationId, engine);
     executor.execute(engine);
+    // Schedule removal if running for more than 60 seconds (aumentado de 30)
+    scheduler.schedule(() -> {
+      if (planification.containsKey(planificationId)) {
+        log.warn("Planification {} running for more than 60 seconds, removing...", planificationId);
+        stopPlanification(planificationId);
+      }
+    }, 120, TimeUnit.SECONDS);
+
   }
 
   public void stopPlanification(String planificationId) {

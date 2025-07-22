@@ -9,7 +9,7 @@ import {
 import { useSessionStore } from '@/store/session'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Download, FileText } from 'lucide-react'
+import { Download } from 'lucide-react'
 import { useState } from 'react'
 import { useSimulationStore } from '../store/simulation'
 import { downloadSimulationReport } from './SimulationReportPDF'

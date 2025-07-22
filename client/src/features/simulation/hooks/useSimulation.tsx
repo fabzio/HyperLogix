@@ -107,7 +107,27 @@ export const useCollapseHandler = () => {
 
         // Guardar métricas finales antes de detener
         if (metrics) {
+          console.log('=== GUARDANDO MÉTRICAS FINALES ===')
+          console.log('Timestamp de colapso para métricas:', collapseTimestamp)
+          const currentState = useSimulationStore.getState()
+          console.log(
+            'simulationStartTime original:',
+            currentState.simulationStartTime,
+          )
+          console.log('originalStartDate:', currentState.originalStartDate)
+
+          // Usar originalStartDate (que es la fecha de inicio de la simulación) como simulationStartTime
+          const correctedStartTime =
+            currentState.originalStartDate || currentState.simulationStartTime
+          console.log('Usando como inicio:', correctedStartTime)
+
+          // Actualizar el simulationStartTime para que sea consistente
+          setState({
+            simulationStartTime: correctedStartTime,
+          })
+
           saveFinalMetrics(metrics, collapseTimestamp, plgNetwork || undefined)
+          console.log('Métricas finales guardadas correctamente')
         }
 
         if (!username) {
@@ -157,10 +177,12 @@ export const useSimulationWebSocket = () => {
   const { subscribe, unsubscribe, connected, client } = useWebSocketStore()
   const { handleCollapse } = useCollapseHandler()
   // Stable message handler con logs y setState
-  const handleMessageRef = useRef<(message: unknown) => void>()
+  const handleMessageRef = useRef<((message: unknown) => void) | null>(null)
   handleMessageRef.current = (message: unknown) => {
     try {
       const typedMessage = message as MesaggeResponse
+      console.log('=== MENSAJE WEBSOCKET RECIBIDO ===')
+      console.log('Mensaje completo:', typedMessage)
       console.log('Roadblocks received:', typedMessage.plgNetwork.roadblocks)
       setState(typedMessage)
     } catch (error) {
@@ -169,7 +191,7 @@ export const useSimulationWebSocket = () => {
   }
 
   // Stable collapse handler con validación de tipo
-  const handleCollapseAlertRef = useRef<(alert: unknown) => void>()
+  const handleCollapseAlertRef = useRef<(alert: unknown) => void>(null)
   handleCollapseAlertRef.current = (alert: unknown) => {
     try {
       const { simulationType } = useSimulationStore.getState()
@@ -188,7 +210,10 @@ export const useSimulationWebSocket = () => {
         description?: string
       }
 
+      console.log('Tipo de alerta:', typedAlert.type)
+
       if (typedAlert.type === 'logistic_collapse') {
+        console.log('¡ES UNA ALERTA DE COLAPSO!')
         console.log(
           'Colapso detectado:',
           typedAlert.collapseType,
@@ -196,9 +221,10 @@ export const useSimulationWebSocket = () => {
         )
         handleCollapse({
           type: typedAlert.collapseType || 'unknown',
-          description:
-            typedAlert.description || 'Colapso logístico detectado',
+          description: typedAlert.description || 'Colapso logístico detectado',
         })
+      } else {
+        console.log('No es una alerta de colapso, tipo:', typedAlert.type)
       }
     } catch (error) {
       console.error('Error parsing collapse alert:', error)
@@ -237,8 +263,14 @@ export const useStatusSimulation = () => {
 
 export const useStopSimulation = () => {
   const navigate = useNavigate({ from: '/simulacion' })
-  const { setState, metrics, plgNetwork, saveFinalMetrics } =
-    useSimulationStore()
+  const {
+    setState,
+    metrics,
+    plgNetwork,
+    saveFinalMetrics,
+    collapseDetected,
+    simulationTime,
+  } = useSimulationStore()
   const { username } = useSessionStore()
   const queryClient = useQueryClient()
   return useMutation({
@@ -249,13 +281,34 @@ export const useStopSimulation = () => {
       return stopSimulation(username)
     },
     onSuccess: () => {
-      // Save final metrics before clearing state
-      if (metrics) {
+      // Solo guardar métricas si NO fue por colapso (para evitar sobrescribir)
+      if (metrics && !collapseDetected) {
+        console.log('=== GUARDANDO MÉTRICAS STOP MANUAL ===')
+        const currentState = useSimulationStore.getState()
+        console.log('simulationTime actual:', simulationTime)
+        console.log('originalStartDate:', currentState.originalStartDate)
+
+        // Para stop manual: usar originalStartDate como inicio y simulationTime como fin
+        const correctedStartTime =
+          currentState.originalStartDate || currentState.simulationStartTime
+        const stopTimestamp = simulationTime || new Date().toISOString()
+
+        console.log('Usando como inicio (stop manual):', correctedStartTime)
+        console.log('Usando como fin (stop manual):', stopTimestamp)
+
+        // Actualizar el simulationStartTime para que sea consistente con la fecha de inicio de simulación
+        setState({
+          simulationStartTime: correctedStartTime,
+        })
+
         saveFinalMetrics(
           metrics,
-          new Date().toISOString(),
+          stopTimestamp, // Usar el tiempo actual de la simulación como fin
           plgNetwork || undefined,
         )
+        console.log('Métricas stop manual guardadas correctamente')
+      } else if (collapseDetected) {
+        console.log('=== NO GUARDANDO MÉTRICAS - YA GUARDADAS POR COLAPSO ===')
       }
 
       setState({
@@ -280,8 +333,15 @@ export const useSimulationEndDialog = (network: PLGNetwork | null) => {
   const [endReason, setEndReason] = useState<
     'completed' | 'manual' | 'collapse' | null
   >(null)
-  const { metrics, plgNetwork, saveFinalMetrics, collapseDetected } =
-    useSimulationStore()
+  const {
+    metrics,
+    plgNetwork,
+    saveFinalMetrics,
+    collapseDetected,
+    simulationType,
+  } = useSimulationStore()
+  const { mutate: stopSimulation } = useStopSimulation()
+  const { username } = useSessionStore()
 
   const wasActiveRef = useRef(false)
   const prevAllCompletedRef = useRef(false)
@@ -290,9 +350,71 @@ export const useSimulationEndDialog = (network: PLGNetwork | null) => {
   useEffect(() => {
     const isActive = !!network
 
+    console.log('=== DEBUG useSimulationEndDialog ===')
+    console.log('collapseDetected:', collapseDetected)
+    console.log('simulationType:', simulationType)
+    console.log(
+      'Condición se cumple:',
+      collapseDetected &&
+        !prevCollapseDetectedRef.current &&
+        simulationType === 'collapse',
+    )
+
     // Check for collapse detection change
-    if (collapseDetected && !prevCollapseDetectedRef.current) {
+    if (
+      collapseDetected &&
+      !prevCollapseDetectedRef.current &&
+      simulationType === 'collapse'
+    ) {
+      console.log('=== DETECTADO COLAPSO EN DIALOG ===')
+      console.log('metrics disponible:', !!metrics)
+      console.log('collapseDetected tipo:', typeof collapseDetected)
+      console.log('collapseDetected.timestamp:', collapseDetected?.timestamp)
+
+      // Guardar métricas finales con el timestamp correcto del colapso
+      if (
+        metrics &&
+        collapseDetected &&
+        typeof collapseDetected === 'object' &&
+        collapseDetected.timestamp
+      ) {
+        console.log('=== GUARDANDO MÉTRICAS DESDE DIALOG COLAPSO ===')
+        console.log('Timestamp del colapso:', collapseDetected.timestamp)
+        console.log(
+          'simulationStartTime:',
+          useSimulationStore.getState().simulationStartTime,
+        )
+        saveFinalMetrics(
+          metrics,
+          collapseDetected.timestamp,
+          network || plgNetwork || undefined,
+        )
+        console.log('Métricas finales guardadas desde dialog')
+      } else {
+        console.log('=== NO SE PUEDEN GUARDAR MÉTRICAS ===')
+        console.log(
+          'Razón: metrics =',
+          !!metrics,
+          ', collapseDetected =',
+          !!collapseDetected,
+          ', timestamp =',
+          collapseDetected?.timestamp,
+        )
+      }
+
       setEndReason('collapse')
+      setIsOpen(true)
+      prevCollapseDetectedRef.current = collapseDetected
+      return
+    }
+
+    // Check for collapse in simple simulation - treat as manual stop
+    if (
+      collapseDetected &&
+      !prevCollapseDetectedRef.current &&
+      simulationType === 'simple'
+    ) {
+      setEndReason('manual')
       setIsOpen(true)
       prevCollapseDetectedRef.current = collapseDetected
       return
@@ -318,6 +440,15 @@ export const useSimulationEndDialog = (network: PLGNetwork | null) => {
             network || plgNetwork || undefined,
           )
         }
+
+        // Detener la simulación automáticamente cuando se complete
+        if (username) {
+          console.log(
+            'Todos los pedidos completados - deteniendo simulación automáticamente',
+          )
+          stopSimulation()
+        }
+
         setEndReason('completed')
         setIsOpen(true)
       }
@@ -326,7 +457,16 @@ export const useSimulationEndDialog = (network: PLGNetwork | null) => {
 
     wasActiveRef.current = isActive
     prevCollapseDetectedRef.current = collapseDetected
-  }, [network, metrics, saveFinalMetrics, plgNetwork, collapseDetected])
+  }, [
+    network,
+    metrics,
+    saveFinalMetrics,
+    plgNetwork,
+    collapseDetected,
+    simulationType,
+    stopSimulation,
+    username,
+  ])
 
   const closeDialog = () => {
     setIsOpen(false)
