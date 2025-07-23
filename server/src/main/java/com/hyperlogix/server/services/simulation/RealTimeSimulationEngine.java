@@ -17,6 +17,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -221,7 +222,7 @@ public class RealTimeSimulationEngine implements Runnable {
         log.info("Next planning time: {} (interval: {})", nextPlanningTime,
             simulationConfig.getCurrentAlgorithmInterval());
       }
-      updateSystemState(timeStep);
+      var truckProgress = updateSystemState(timeStep);
 
       // Calculate metrics and notify with snapshot
       SimulationMetrics metrics = calculateMetrics();
@@ -232,7 +233,8 @@ public class RealTimeSimulationEngine implements Runnable {
 
       simulationNotifier
           .notifySnapshot(
-              new SimulationSnapshot(LocalDateTime.now(), simulatedTime, updatedNetwork, activeRoutes, metrics,
+              new SimulationSnapshot(LocalDateTime.now(), simulatedTime, updatedNetwork, activeRoutes, truckProgress,
+                  metrics,
                   planificationStatus));
 
       // Calculate sleep duration based on acceleration - higher acceleration means
@@ -458,7 +460,7 @@ public class RealTimeSimulationEngine implements Runnable {
       PLGNetwork updatedNetwork = updatePLGNetworkWithCurrentOrders();
 
       simulationNotifier.notifySnapshot(
-          new SimulationSnapshot(LocalDateTime.now(), simulatedTime, updatedNetwork, activeRoutes, metrics,
+          new SimulationSnapshot(LocalDateTime.now(), simulatedTime, updatedNetwork, activeRoutes,null, metrics,
               planificationStatus));
     }
   }
@@ -558,7 +560,7 @@ public class RealTimeSimulationEngine implements Runnable {
   }
 
   // Copy necessary methods from SimulationEngine for real-time operations
-  private void updateSystemState(Duration timeStep) {
+  private HashMap<String,Double> updateSystemState(Duration timeStep) {
     // Incident processing for real-time simulation
     if (plgNetwork != null && incidentManager != null) {
       for (Truck truck : plgNetwork.getTrucks()) {
@@ -596,12 +598,13 @@ public class RealTimeSimulationEngine implements Runnable {
     }
     // Continue with normal system state update
     if (activeRoutes == null) {
-      return;
+      return null;
     }
     if (activeRoutes.getStops().isEmpty() || activeRoutes.getPaths().isEmpty()) {
-      return;
+      return null;
     }
-
+    
+    HashMap<String, Double> truckProgress = new HashMap<>();
     synchronized (routesLock) {
       for (Truck truck : plgNetwork.getTrucks()) {
         if (truck.getStatus() == TruckState.MAINTENANCE || truck.getStatus() == TruckState.BROKEN_DOWN) {
@@ -644,7 +647,8 @@ public class RealTimeSimulationEngine implements Runnable {
 
         // Update truck location during travel
         if (currentStopIndex < stops.size()) {
-          updateTruckLocationDuringTravel(truck, stops, paths, currentStopIndex - 1);
+          double progress = updateTruckLocationDuringTravel(truck, stops, paths, currentStopIndex - 1);
+          truckProgress.put(truck.getId(), progress);
         }
       }
 
@@ -652,6 +656,7 @@ public class RealTimeSimulationEngine implements Runnable {
       // needed
       checkAndClearCompletedRoutes();
     }
+    return truckProgress;
   }
 
   /**
@@ -836,9 +841,10 @@ public class RealTimeSimulationEngine implements Runnable {
     }
   }
 
-  private void updateTruckLocationDuringTravel(Truck truck, List<Stop> stops, List<Path> paths, int currentStopIndex) {
+  private double updateTruckLocationDuringTravel(Truck truck, List<Stop> stops, List<Path> paths,
+      int currentStopIndex) {
     if (currentStopIndex >= stops.size() - 1 || currentStopIndex >= paths.size()) {
-      return; // No more paths to travel
+      return 0; // No more paths to travel
     }
 
     Stop currentStop = stops.get(currentStopIndex);
@@ -884,6 +890,7 @@ public class RealTimeSimulationEngine implements Runnable {
 
     log.trace("Truck {} at position ({}, {}) - progress: {:.2f}%, fuel: {:.2f}gal",
         truck.getId(), interpolatedPosition.x(), interpolatedPosition.y(), progress * 100, newFuelLevel);
+    return progress;
   }
 
   private Point interpolateAlongPath(List<Point> pathPoints, double progress) {

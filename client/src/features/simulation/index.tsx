@@ -28,7 +28,12 @@ export default function Simulation() {
 
   // Centralizar la suscripción WebSocket aquí
   useSimulationWebSocket()
-  const { plgNetwork: network, simulationTime, routes } = useWatchSimulation()
+  const {
+    plgNetwork: network,
+    simulationTime,
+    routes,
+    truckProgress,
+  } = useWatchSimulation()
   const { data: status } = useStatusSimulation()
 
   // Get selected truck info
@@ -57,54 +62,143 @@ export default function Simulation() {
           const truckLocation = network?.trucks.find(
             (t) => t.id === truckId,
           )?.location
+          const progress = truckProgress?.[truckId] ?? 1
 
-          // Junta todos los puntos en un solo path lineal
           const fullPath: [number, number][][] = paths.map(
             (path) =>
               path.points?.map((p) => [p.x, p.y] as [number, number]) || [],
           ) ?? [[]]
+
+          // Remover el primer punto de cada segmento
           for (let i = 0; i < fullPath.length; i++) {
             fullPath[i].shift()
           }
-          const startPath = [truckLocation?.x, truckLocation?.y] as [
-            number,
-            number,
-          ]
 
-          let startIndex = 0
-          for (let i = 0; i < fullPath.length; i++) {
-            const pathPoints = fullPath[i] || []
-            if (routes.stops[truckId]?.[i + 1].arrived) {
-              startIndex += pathPoints?.length + 1
-              continue
+          const formattedPath = fullPath.flat()
+
+          // Función para calcular distancia entre dos puntos
+          const getDistance = (p1: [number, number], p2: [number, number]) => {
+            return Math.sqrt(
+              Math.pow(p2[0] - p1[0], 2) + Math.pow(p2[1] - p1[1], 2),
+            )
+          }
+
+          // Función para interpolar entre dos puntos
+          const interpolatePoint = (
+            p1: [number, number],
+            p2: [number, number],
+            ratio: number,
+          ): [number, number] => {
+            return [
+              p1[0] + (p2[0] - p1[0]) * ratio,
+              p1[1] + (p2[1] - p1[1]) * ratio,
+            ]
+          }
+
+          let currentPosition: [number, number] = truckLocation
+            ? [truckLocation.x, truckLocation.y]
+            : [0, 0]
+          let remainingPoints: [number, number][] = [...formattedPath]
+
+          if (formattedPath.length > 0 && progress > 0 && progress < 1) {
+            // Calcular distancias acumuladas de cada segmento
+            const segmentDistances: number[] = []
+            let totalDistance = 0
+
+            for (let i = 0; i < formattedPath.length - 1; i++) {
+              const segmentDistance = getDistance(
+                formattedPath[i],
+                formattedPath[i + 1],
+              )
+              segmentDistances.push(segmentDistance)
+              totalDistance += segmentDistance
             }
-            for (let j = 0; j < pathPoints.length - 1; j++) {
-              if (pathPoints[j][0] === pathPoints[j + 1][0]) {
-                const isInsegment =
-                  truckLocation?.x === pathPoints[j][0] &&
-                  truckLocation?.y >= pathPoints[j][1] &&
-                  truckLocation?.y <= pathPoints[j + 1][1]
-                if (isInsegment) {
-                  startIndex += j
-                  break
-                }
-              } else if (pathPoints[j][1] === pathPoints[j + 1][1]) {
-                const isInsegment =
-                  truckLocation?.y === pathPoints[j][1] &&
-                  truckLocation?.x >= pathPoints[j][0] &&
-                  truckLocation?.x <= pathPoints[j + 1][0]
-                if (isInsegment) {
-                  startIndex += j
-                  break
+
+            // Encontrar la posición exacta basada en el progreso
+            const targetDistance = progress * totalDistance
+            let accumulatedDistance = 0
+            let currentSegmentIndex = -1
+            let remainingDistanceInSegment = 0
+
+            // Buscar en qué segmento está el camión
+            for (let i = 0; i < segmentDistances.length; i++) {
+              if (accumulatedDistance + segmentDistances[i] >= targetDistance) {
+                currentSegmentIndex = i
+                remainingDistanceInSegment =
+                  targetDistance - accumulatedDistance
+                break
+              }
+              accumulatedDistance += segmentDistances[i]
+            }
+
+            if (
+              currentSegmentIndex >= 0 &&
+              currentSegmentIndex < formattedPath.length - 1
+            ) {
+              // Calcular la posición exacta dentro del segmento
+              const segmentProgress =
+                remainingDistanceInSegment /
+                segmentDistances[currentSegmentIndex]
+
+              // Interpolar la posición actual
+              currentPosition = interpolatePoint(
+                formattedPath[currentSegmentIndex],
+                formattedPath[currentSegmentIndex + 1],
+                segmentProgress,
+              )
+
+              // Los puntos restantes incluyen el próximo vértice y todos los siguientes
+              remainingPoints = formattedPath.slice(currentSegmentIndex + 1)
+            } else if (progress >= 1) {
+              // El camión llegó al final
+              currentPosition = formattedPath[formattedPath.length - 1]
+              remainingPoints = []
+            }
+          } else if (progress >= 1) {
+            // Progreso completo
+            currentPosition =
+              formattedPath[formattedPath.length - 1] || currentPosition
+            remainingPoints = []
+          }
+
+          // En caso de cruces, usar la posición del truck como referencia
+          // Si el truck está significativamente desviado del path calculado, usar su posición real
+          if (truckLocation && formattedPath.length > 0) {
+            const distanceToCalculatedPosition = getDistance(
+              [truckLocation.x, truckLocation.y],
+              currentPosition,
+            )
+
+            // Si la distancia es mayor a un umbral, usar la posición real del truck
+            const DEVIATION_THRESHOLD = 3.5 // Ajusta según tu escala
+            if (distanceToCalculatedPosition > DEVIATION_THRESHOLD) {
+              currentPosition = [truckLocation.x, truckLocation.y]
+
+              // Recalcular remaining points desde la posición real
+              // Encontrar el punto más cercano en el path
+              let closestPointIndex = 0
+              let minDistance = Number.POSITIVE_INFINITY
+
+              for (let i = 0; i < formattedPath.length; i++) {
+                const distance = getDistance(
+                  [truckLocation.x, truckLocation.y],
+                  formattedPath[i],
+                )
+                if (distance < minDistance) {
+                  minDistance = distance
+                  closestPointIndex = i
                 }
               }
+
+              // Usar los puntos restantes desde el punto más cercano
+              remainingPoints = formattedPath.slice(closestPointIndex)
             }
           }
 
           return [
             {
               id: `${truckId}-full-path`,
-              points: [startPath, ...fullPath.flat().slice(startIndex)],
+              points: [currentPosition, ...remainingPoints],
               stroke: getTruckColorById(truckId),
               strokeWidth: 0.7,
               type: 'path' as const,

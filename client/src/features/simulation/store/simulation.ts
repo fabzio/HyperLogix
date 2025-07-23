@@ -28,6 +28,7 @@ export interface SimulationStore {
   planificationStatus: PlanificationStatus | null
   simulationTime: string | null
   routes: Routes | null
+  truckProgress: Record<string, number> | null
   metrics: SimulationMetrics | null
   finalMetrics: SimulationMetrics | null
   finalPlgNetwork: PLGNetwork | null
@@ -56,6 +57,7 @@ export const useSimulationStore = create<SimulationStore>((set) => ({
   planificationStatus: null,
   simulationTime: null,
   routes: null,
+  truckProgress: null,
   metrics: null,
   finalMetrics: null,
   finalPlgNetwork: null,

@@ -3,6 +3,7 @@ package com.hyperlogix.server.services.simulation;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -156,14 +157,15 @@ public class SimulationEngine implements Runnable {
             simulationConfig.getCurrentAlgorithmInterval());
       }
 
-      updateSystemState(timeStep);
+      var truckProgress = updateSystemState(timeStep);
 
       // Calculate metrics and notify with snapshot
       SimulationMetrics metrics = calculateMetrics();
       PlanificationStatus planificationStatus = planificationService.getPlanificationStatus(sessionId);
       simulationNotifier
           .notifySnapshot(
-              new SimulationSnapshot(LocalDateTime.now(), simulatedTime, plgNetwork, activeRoutes, metrics,
+              new SimulationSnapshot(LocalDateTime.now(), simulatedTime, plgNetwork, activeRoutes, truckProgress,
+                  metrics,
                   planificationStatus));
 
       sleep(simulationConfig.getSimulationResolution());
@@ -275,13 +277,14 @@ public class SimulationEngine implements Runnable {
     }
   }
 
-  private void updateSystemState(Duration timeStep) {
+  private HashMap<String, Double> updateSystemState(Duration timeStep) {
     if (activeRoutes == null) {
-      return;
+      return null;
     }
     if (activeRoutes.getStops().isEmpty() || activeRoutes.getPaths().isEmpty()) {
-      return;
+      return null;
     }
+    HashMap<String, Double> truckProgress = new HashMap<>();
 
     synchronized (routesLock) {
       for (Truck truck : plgNetwork.getTrucks()) {
@@ -334,13 +337,15 @@ public class SimulationEngine implements Runnable {
             simulatedTime.isBefore(currentStop.getArrivalTime())) {
           log.trace("Truck {} traveling to stop {}, current time: {}, arrival time: {}",
               truck.getId(), currentStop.getNode().getId(), simulatedTime, currentStop.getArrivalTime());
-          updateTruckLocationDuringTravel(truck, stops, paths, currentStopIndex - 1);
+          double progress = updateTruckLocationDuringTravel(truck, stops, paths, currentStopIndex - 1);
+          truckProgress.put(truck.getId(), progress);
         } else {
           log.trace("Truck {} not traveling - stopIndex: {}, totalStops: {}, currentTime: {}, arrivalTime: {}",
               truck.getId(), currentStopIndex, stops.size(), simulatedTime, currentStop.getArrivalTime());
         }
       }
     }
+    return truckProgress;
   }
 
   private void handleStopArrival(Truck truck, Stop stop) {
@@ -432,9 +437,9 @@ public class SimulationEngine implements Runnable {
     }
   }
 
-  private void updateTruckLocationDuringTravel(Truck truck, List<Stop> stops, List<Path> paths, int pathIndex) {
+  private double updateTruckLocationDuringTravel(Truck truck, List<Stop> stops, List<Path> paths, int pathIndex) {
     if (pathIndex < 0 || pathIndex >= paths.size() || pathIndex >= stops.size() - 1) {
-      return; // Invalid path index or no more paths to travel
+      return 0; // Invalid path index or no more paths to travel
     }
 
     Stop fromStop = stops.get(pathIndex);
@@ -447,7 +452,7 @@ public class SimulationEngine implements Runnable {
 
     // Don't move backward in time
     if (hoursElapsed < 0) {
-      return;
+      return 0;
     }
 
     // Calculate distance traveled based on truck speed
@@ -487,6 +492,7 @@ public class SimulationEngine implements Runnable {
     log.debug("Truck {} traveling from stop {} to stop {} - position: ({}, {}) - progress: {:.2f}%, fuel: {:.2f}gal",
         truck.getId(), fromStop.getNode().getId(), toStop.getNode().getId(),
         interpolatedPosition.x(), interpolatedPosition.y(), progress * 100, newFuelLevel);
+    return progress;
   }
 
   private Point interpolateAlongPath(List<Point> pathPoints, double progress) {
@@ -586,7 +592,8 @@ public class SimulationEngine implements Runnable {
       lastPlanificationStart = LocalDateTime.now();
       totalPlanificationRequests++;
       eventPublisher.publishEvent(
-          new PlanificationRequestEvent(sessionId, plgNetwork, simulatedTime, simulationConfig.getAlgorithmTime(),new ArrayList<>()));
+          new PlanificationRequestEvent(sessionId, plgNetwork, simulatedTime, simulationConfig.getAlgorithmTime(),
+              new ArrayList<>()));
     } else {
     }
   }

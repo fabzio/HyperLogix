@@ -60,12 +60,14 @@ export const useStartSimulation = () => {
 }
 
 export const useWatchSimulation = () => {
-  const { plgNetwork, simulationTime, routes } = useSimulationStore()
+  const { plgNetwork, simulationTime, routes, truckProgress } =
+    useSimulationStore()
 
   return {
     plgNetwork,
     simulationTime,
     routes,
+    truckProgress,
   }
 }
 
