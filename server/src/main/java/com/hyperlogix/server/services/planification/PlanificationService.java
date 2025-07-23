@@ -60,13 +60,13 @@ private final ScheduledExecutorService scheduler = Executors.newScheduledThreadP
     stopPlanification(planificationId);
     planification.put(planificationId, engine);
     executor.execute(engine);
-    // Schedule removal if running for more than 60 seconds (aumentado de 30)
+    // Schedule removal if running for more than 180 seconds (aumentado de 120)
     scheduler.schedule(() -> {
       if (planification.containsKey(planificationId)) {
-        log.warn("Planification {} running for more than 60 seconds, removing...", planificationId);
+        log.warn("Planification {} running for more than 180 seconds, removing...", planificationId);
         stopPlanification(planificationId);
       }
-    }, 120, TimeUnit.SECONDS);
+    }, 180, TimeUnit.SECONDS);
   }
 
   public void stopPlanification(String planificationId) {
@@ -99,10 +99,10 @@ private final ScheduledExecutorService scheduler = Executors.newScheduledThreadP
     // Shutdown executor service
     executor.shutdown();
     try {
-      if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+      if (!executor.awaitTermination(15, TimeUnit.SECONDS)) {
         log.warn("Executor did not terminate gracefully, forcing shutdown");
         executor.shutdownNow();
-        if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+        if (!executor.awaitTermination(15, TimeUnit.SECONDS)) {
           log.error("Executor did not terminate after forced shutdown");
         }
       }
@@ -115,10 +115,10 @@ private final ScheduledExecutorService scheduler = Executors.newScheduledThreadP
     // Shutdown scheduler
     scheduler.shutdown();
     try {
-      if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
+      if (!scheduler.awaitTermination(15, TimeUnit.SECONDS)) {
         log.warn("Scheduler did not terminate gracefully, forcing shutdown");
         scheduler.shutdownNow();
-        if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
+        if (!scheduler.awaitTermination(15, TimeUnit.SECONDS)) {
           log.error("Scheduler did not terminate after forced shutdown");
         }
       }
