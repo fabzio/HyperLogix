@@ -60,13 +60,6 @@ private final ScheduledExecutorService scheduler = Executors.newScheduledThreadP
     stopPlanification(planificationId);
     planification.put(planificationId, engine);
     executor.execute(engine);
-    // Schedule removal if running for more than 180 seconds (aumentado de 120)
-    scheduler.schedule(() -> {
-      if (planification.containsKey(planificationId)) {
-        log.warn("Planification {} running for more than 180 seconds, removing...", planificationId);
-        stopPlanification(planificationId);
-      }
-    }, 180, TimeUnit.SECONDS);
   }
 
   public void stopPlanification(String planificationId) {
