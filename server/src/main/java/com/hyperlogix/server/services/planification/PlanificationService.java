@@ -35,7 +35,7 @@ public class PlanificationService {
     t.setDaemon(true);
     return t;
   });
-  private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
   public void startPlanification(String planificationId, PLGNetwork network, LocalDateTime algorithmTime,
       Duration algorithmDuration) {
@@ -60,14 +60,6 @@ public class PlanificationService {
     stopPlanification(planificationId);
     planification.put(planificationId, engine);
     executor.execute(engine);
-
-    // Schedule removal if running for more than 5 seconds
-    scheduler.schedule(() -> {
-      if (planification.containsKey(planificationId)) {
-        log.warn("Planification {} running for more than 5 seconds, removing...", planificationId);
-        stopPlanification(planificationId);
-      }
-    }, 5, TimeUnit.SECONDS);
   }
 
   public void stopPlanification(String planificationId) {
@@ -100,10 +92,10 @@ public class PlanificationService {
     // Shutdown executor service
     executor.shutdown();
     try {
-      if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+      if (!executor.awaitTermination(15, TimeUnit.SECONDS)) {
         log.warn("Executor did not terminate gracefully, forcing shutdown");
         executor.shutdownNow();
-        if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+        if (!executor.awaitTermination(15, TimeUnit.SECONDS)) {
           log.error("Executor did not terminate after forced shutdown");
         }
       }
@@ -116,10 +108,10 @@ public class PlanificationService {
     // Shutdown scheduler
     scheduler.shutdown();
     try {
-      if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
+      if (!scheduler.awaitTermination(15, TimeUnit.SECONDS)) {
         log.warn("Scheduler did not terminate gracefully, forcing shutdown");
         scheduler.shutdownNow();
-        if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
+        if (!scheduler.awaitTermination(15, TimeUnit.SECONDS)) {
           log.error("Scheduler did not terminate after forced shutdown");
         }
       }

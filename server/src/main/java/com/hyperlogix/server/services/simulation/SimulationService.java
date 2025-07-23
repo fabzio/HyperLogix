@@ -63,7 +63,7 @@ public class SimulationService {
       config = new SimulationConfig(
           Duration.ofSeconds(3),
           Duration.ofSeconds(5),
-          256.0,
+          256.0,  // Mantener la aceleración original
           Duration.ofMillis(300));
     }
     SimulationNotifier notifier = snapshot -> {
@@ -261,3 +261,14 @@ public class SimulationService {
     messaging.convertAndSend("/topic/simulation/" + simulationId + "/alerts", collapseAlert);
   }
 }
+
+
+
+
+
+
+
+
+
+
+

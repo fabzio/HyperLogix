@@ -10,6 +10,7 @@ import lombok.Setter;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,12 +36,16 @@ import com.hyperlogix.server.domain.Stop;
 import com.hyperlogix.server.domain.Truck;
 import com.hyperlogix.server.domain.TruckState;
 import com.hyperlogix.server.domain.Incident;
+import com.hyperlogix.server.domain.Roadblock;
+import com.hyperlogix.server.util.AStar;
 import com.hyperlogix.server.features.planification.dtos.LogisticCollapseEvent;
 
 public class Ant {
   private PLGNetwork network;
   private final PLGNetwork originalNetwork;
   private List<Incident> incidentList;
+  private List<Roadblock> roadblocks; // Para detectar zonas bloqueadas
+  private Map<String, Point> relocatedOrders; // Para trackear pedidos reubicados
   @Getter
   @Setter
   private Graph graph;
@@ -60,6 +65,8 @@ public class Ant {
     this.graph = graph;
     this.antColonyConfig = antColonyConfig;
     this.incidentList = incidents;
+    this.roadblocks = new ArrayList<>(); // Inicializar lista vacía
+    this.relocatedOrders = new HashMap<>(); // Trackear reubicaciones
 
     network.getTrucksCapacity();
     resetState();
@@ -73,6 +80,10 @@ public class Ant {
     this.sessionId = sessionId;
   }
 
+  public void setRoadblocks(List<Roadblock> roadblocks) {
+    this.roadblocks = roadblocks != null ? roadblocks : new ArrayList<>();
+  }
+
   public Routes findSolution() {
 
     for (Truck truck : network.getTrucks()) {
@@ -81,7 +92,7 @@ public class Ant {
         continue;
       }
       Stop firstNode = new Stop(
-          new Node(truck.getCode(), truck.getType().toString(), NodeType.LOCATION, truck.getLocation().integerPoint()),
+          new Node(truck.getId(), truck.getType().toString(), NodeType.LOCATION, truck.getLocation().integerPoint()),
           graph.getAlgorithmStartDate());
       routes.put(truck.getId(), new ArrayList<>(List.of(firstNode)));
       List<Stop> availableNodes = getAvailableNodes(truck, firstNode);
@@ -446,6 +457,21 @@ public class Ant {
     } else {
       path = adjacencyMap.get(currentNode.getNode()).get(nextNode.getNode());
     }
+    
+    // CRITICAL FIX: Validate path is not null to prevent NullPointerException
+    if (path == null) {
+      System.out.println("WARNING: NULL PATH detected from " + currentNode.getNode().getId() + 
+                        " to " + nextNode.getNode().getId() + ". Creating emergency path.");
+      
+      // Create emergency direct path with Manhattan distance
+      var from = currentNode.getNode().getLocation();
+      var to = nextNode.getNode().getLocation();
+      int emergencyDistance = (int)(Math.abs(from.x() - to.x()) + Math.abs(from.y() - to.y()) * Constants.EDGE_LENGTH);
+      
+      // Create simple emergency path with just start and end points
+      path = new Path(List.of(from, to), emergencyDistance);
+    }
+    
     this.paths.get(truck.getId())
         .add(path.points().getFirst() == currentNode.getNode().getLocation() ? path : path.reverse());
     int distance = path.length();

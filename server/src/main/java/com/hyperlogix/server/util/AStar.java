@@ -33,7 +33,7 @@ public class AStar {
         double hours = Constants.EDGE_LENGTH / Constants.TRUCK_SPEED;
         long seconds = (long) (hours * 3600); // convierte a segundos
         LocalDateTime nuevoTiempo = actual.tiempo.plusSeconds(seconds);
-        if (esBloqueado(actual.punto, vecino, nuevoTiempo, bloqueosTemporales)) {
+        if (vecino != fin && esBloqueado(actual.punto, vecino, nuevoTiempo, bloqueosTemporales)) {
           continue;
         }
 

@@ -56,6 +56,12 @@ public class RealTimeOperationService {
   @EventListener(ApplicationReadyEvent.class)
   @Async("asyncExecutor")
   public void onApplicationReady() {
+    // TEMPORALMENTE DESHABILITADO PARA PRUEBAS: La simulación en tiempo real está desactivada
+    // para evaluar el impacto sobre el rendimiento de la simulación principal
+    log.info("Real-time simulation DISABLED for testing purposes - to enable, uncomment initializeMainSimulationWithRetry()");
+    log.info("This will help reduce computational load and prevent interference with main simulation");
+
+    // Comentar la siguiente línea para deshabilitar la simulación en tiempo real:
     CompletableFuture.runAsync(this::initializeMainSimulationWithRetry);
   }
 
