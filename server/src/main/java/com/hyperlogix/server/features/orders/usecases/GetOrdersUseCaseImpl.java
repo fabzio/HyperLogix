@@ -26,7 +26,8 @@ public class GetOrdersUseCaseImpl implements GetOrdersUseCase {
             orderEntity.getRequestedGLP(),
             orderEntity.getDeliveredGLP(),
             orderEntity.getDeliveryLimit(),
-            OrderStatus.PENDING))
+            OrderStatus.PENDING,
+            null))
         .toList();
   }
 }

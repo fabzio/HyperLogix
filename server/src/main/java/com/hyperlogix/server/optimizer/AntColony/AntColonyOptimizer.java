@@ -9,8 +9,6 @@ import com.hyperlogix.server.domain.NodeType;
 import com.hyperlogix.server.domain.Path;
 import com.hyperlogix.server.domain.TruckState;
 import com.hyperlogix.server.domain.OrderStatus;
-import com.hyperlogix.server.domain.Roadblock;
-import com.hyperlogix.server.domain.Point;
 import com.hyperlogix.server.optimizer.Graph;
 import com.hyperlogix.server.optimizer.Notifier;
 import com.hyperlogix.server.optimizer.Optimizer;
@@ -21,12 +19,8 @@ import com.hyperlogix.server.features.planification.dtos.LogisticCollapseEvent;
 import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.LocalDateTime;
-import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -56,6 +50,49 @@ public class AntColonyOptimizer implements Optimizer {
   @Override
   public OptimizerResult run(OptimizerContext ctx, Duration maxDuration, Notifier notifier) {
     this.currentContext = ctx; // Guardar contexto para solución de emergencia
+    
+    // Debug crítico para el día 3 de enero 2025 a las 4:30+ AM - VERIFICACIÓN INICIAL
+    if (ctx.algorithmStartDate.getYear() == 2025 && ctx.algorithmStartDate.getMonthValue() == 1 && 
+        ctx.algorithmStartDate.getDayOfMonth() == 3 && ctx.algorithmStartDate.getHour() >= 4 && ctx.algorithmStartDate.getMinute() >= 30) {
+      
+      System.err.println("=== CRITICAL OPTIMIZER ENTRY === Time: " + ctx.algorithmStartDate);
+      System.err.println("=== NETWORK INTEGRITY CHECK ===");
+      System.err.println("Total orders received: " + ctx.plgNetwork.getOrders().size());
+      System.err.println("Total trucks received: " + ctx.plgNetwork.getTrucks().size());
+      System.err.println("Total stations received: " + ctx.plgNetwork.getStations().size());
+      
+      // Verificar órdenes CALCULATING
+      long calculatingOrders = ctx.plgNetwork.getOrders().stream()
+          .filter(order -> order.getStatus() == OrderStatus.CALCULATING)
+          .count();
+      System.err.println("Orders in CALCULATING state: " + calculatingOrders);
+      
+      // Verificar camiones disponibles
+      long availableTrucks = ctx.plgNetwork.getTrucks().stream()
+          .filter(truck -> truck.getStatus() == TruckState.IDLE || truck.getStatus() == TruckState.ACTIVE)
+          .count();
+      System.err.println("Available trucks: " + availableTrucks);
+      
+      // CRITICAL: Si no hay órdenes CALCULATING, esto explicaría el fallo
+      if (calculatingOrders == 0) {
+        System.err.println("=== CRITICAL ERROR === NO CALCULATING ORDERS FOUND!");
+      }
+      
+      // CRITICAL: Si no hay camiones disponibles, esto explicaría el fallo  
+      if (availableTrucks == 0) {
+        System.err.println("=== CRITICAL ERROR === NO AVAILABLE TRUCKS FOUND!");
+      }
+      
+      // Log detalles de cada orden CALCULATING
+      ctx.plgNetwork.getOrders().stream()
+          .filter(order -> order.getStatus() == OrderStatus.CALCULATING)
+          .forEach(order -> {
+            System.err.println("CALCULATING Order: " + order.getId() + 
+                              " at (" + order.getLocation().x() + "," + order.getLocation().y() + 
+                              ") GLP=" + order.getRequestedGLP() + "m3 Client=" + order.getClientId());
+          });
+    }
+    
     graph = new Graph(ctx.plgNetwork, ctx.algorithmStartDate, antColonyConfig, ctx.incidents);
 
     ants = new ArrayList<>();
@@ -64,9 +101,6 @@ public class AntColonyOptimizer implements Optimizer {
       // Configurar el evento publisher y sessionId para cada hormiga
       ant.setEventPublisher(eventPublisher);
       ant.setSessionId(sessionId);
-      
-      // TEMPORAL: Agregar roadblocks simulados basados en patrones típicos
-      ant.setRoadblocks(createSimulatedRoadblocks());
       
       ants.add(ant);
     }
@@ -81,6 +115,15 @@ public class AntColonyOptimizer implements Optimizer {
     
     for (int iteration = 0; iteration < antColonyConfig.NUM_ITERATIONS(); iteration++) {
       long elapsedTime = System.currentTimeMillis() - startTime;
+      
+      // Debug crítico para el día 3 de enero 2025 a las 4:30+ AM
+      if (ctx.algorithmStartDate.getYear() == 2025 && ctx.algorithmStartDate.getMonthValue() == 1 && 
+          ctx.algorithmStartDate.getDayOfMonth() == 3 && ctx.algorithmStartDate.getHour() >= 4 && ctx.algorithmStartDate.getMinute() >= 30) {
+        
+        System.err.println("=== CRITICAL ANT DEBUG === Time: " + ctx.algorithmStartDate + ", Iteration: " + iteration);
+        System.err.println("=== ANT BATCH START === Iteration: " + iteration + ", Orders: " + ctx.plgNetwork.getOrders().size() + 
+                          ", Trucks: " + ctx.plgNetwork.getTrucks().size() + ", Timeout: 30s");
+      }
       
       // EARLY EXIT: Si hemos usado más del 80% del tiempo y tenemos una solución, salir
       if (elapsedTime >= maxDurationMillis * 0.85 && bestSolution != null) {
@@ -133,6 +176,15 @@ public class AntColonyOptimizer implements Optimizer {
                 solutions.add(result);
               }
             } catch (TimeoutException e) {
+              // Debug crítico para el día 3 de enero 2025 a las 4:30+ AM
+              if (ctx.algorithmStartDate.getYear() == 2025 && ctx.algorithmStartDate.getMonthValue() == 1 && 
+                  ctx.algorithmStartDate.getDayOfMonth() == 3 && ctx.algorithmStartDate.getHour() >= 4 && ctx.algorithmStartDate.getMinute() >= 30) {
+                System.err.println("=== CRITICAL ANT TIMEOUT === Time: " + ctx.algorithmStartDate + 
+                                  ", Iteration: " + currentIteration + ", Batch: " + currentBatchStart);
+                System.err.println("=== ANT TIMEOUT DETAIL === Ant took >30s, Orders: " + ctx.plgNetwork.getOrders().size() + 
+                                  ", Network complexity: trucks=" + ctx.plgNetwork.getTrucks().size() + 
+                                  ", stations=" + ctx.plgNetwork.getStations().size());
+              }
               System.err.println("Ant execution timeout, cancelling...");
               future.cancel(true);
             } catch (InterruptedException e) {
@@ -247,6 +299,13 @@ public class AntColonyOptimizer implements Optimizer {
   private Routes createEmergencySolution() {
     System.out.println("Creating emergency solution due to algorithm timeout");
     
+    // Debug crítico para el día 3 de enero 2025 a las 4:30+ AM
+    if (currentContext.algorithmStartDate.getYear() == 2025 && currentContext.algorithmStartDate.getMonthValue() == 1 && 
+        currentContext.algorithmStartDate.getDayOfMonth() == 3 && currentContext.algorithmStartDate.getHour() >= 4 && currentContext.algorithmStartDate.getMinute() >= 30) {
+      
+      System.err.println("=== CRITICAL EMERGENCY SOLUTION === Time: " + currentContext.algorithmStartDate);
+    }
+    
     Map<String, List<Stop>> emergencyStops = new HashMap<>();
     Map<String, List<Path>> emergencyPaths = new HashMap<>();
     
@@ -260,6 +319,22 @@ public class AntColonyOptimizer implements Optimizer {
         .toList();
     
     System.out.println("Emergency solution: " + calculatingOrders.size() + " orders, " + availableTrucks.size() + " trucks");
+    
+    // Debug crítico para el día 3 de enero 2025 a las 4:30+ AM
+    if (currentContext.algorithmStartDate.getYear() == 2025 && currentContext.algorithmStartDate.getMonthValue() == 1 && 
+        currentContext.algorithmStartDate.getDayOfMonth() == 3 && currentContext.algorithmStartDate.getHour() >= 4 && currentContext.algorithmStartDate.getMinute() >= 30) {
+      
+      System.err.println("=== EMERGENCY SOLUTION DEBUG === Available trucks: " + availableTrucks.size() + 
+                        ", Calculating orders: " + calculatingOrders.size());
+      
+      calculatingOrders.forEach(order -> 
+          System.err.println("  Emergency order: " + order.getId() + " at (" + order.getLocation().x() + "," + order.getLocation().y() + 
+                            ") requested: " + order.getRequestedGLP() + "m3"));
+      
+      availableTrucks.forEach(truck -> 
+          System.err.println("  Available truck: " + truck.getId() + " at (" + truck.getLocation().x() + "," + truck.getLocation().y() + 
+                            ") capacity: " + truck.getCurrentCapacity() + "/" + truck.getMaxCapacity()));
+    }
     
     for (int i = 0; i < Math.min(calculatingOrders.size(), availableTrucks.size()); i++) {
         Order order = calculatingOrders.get(i);
@@ -290,58 +365,5 @@ public class AntColonyOptimizer implements Optimizer {
     return new Routes(emergencyStops, emergencyPaths, 999.0); // Alto costo para indicar que es subóptima
   }
 
-  /**
-   * TEMPORAL: Crea roadblocks simulados basados en patrones típicos de la red.
-   * En producción, esto debería venir del OptimizerContext.
-   */
-  private List<Roadblock> createSimulatedRoadblocks() {
-    List<Roadblock> roadblocks = new ArrayList<>();
-    
-    // Tiempo actual para simulación
-    LocalDateTime now = LocalDateTime.now();
-    LocalDateTime futureTime = now.plusHours(24); // Roadblocks activos por 24 horas
-    
-    // Basado en la imagen mostrada por el usuario, simular roadblocks típicos
-    // Crear roadblocks en intersecciones críticas
-    
-    // Roadblock 1: Centro de la red
-    roadblocks.add(new Roadblock(now, futureTime, List.of(
-        new Point(50, 50),
-        new Point(51, 50),
-        new Point(50, 51)
-    )));
-    
-    // Roadblock 2: Zona norte-oeste
-    roadblocks.add(new Roadblock(now, futureTime, List.of(
-        new Point(25, 75),
-        new Point(26, 75),
-        new Point(25, 76)
-    )));
-    
-    // Roadblock 3: Zona sur-este
-    roadblocks.add(new Roadblock(now, futureTime, List.of(
-        new Point(75, 25),
-        new Point(76, 25),
-        new Point(75, 26)
-    )));
-    
-    // Roadblock 4: Zona centro-norte
-    roadblocks.add(new Roadblock(now, futureTime, List.of(
-        new Point(40, 60),
-        new Point(41, 60),
-        new Point(40, 61)
-    )));
-    
-    // Roadblock 5: Zona centro-sur
-    roadblocks.add(new Roadblock(now, futureTime, List.of(
-        new Point(60, 40),
-        new Point(61, 40),
-        new Point(60, 41)
-    )));
-    
-    System.out.println("✅ ROADBLOCKS SIMULADOS: Se crearon " + roadblocks.size() + " roadblocks simulados para activar el sistema de reubicación de órdenes");
-    
-    return roadblocks;
-  }
 
 }
