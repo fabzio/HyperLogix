@@ -53,6 +53,7 @@ export const useStartSimulation = () => {
         simulationType: variables.simulationType || 'simple',
         originalStartDate:
           variables.originalStartDate || variables.startTimeOrders,
+        realStartSimulation: new Date()
       })
       queryClient.invalidateQueries({ queryKey: ['simulation'] })
     },
@@ -308,6 +309,7 @@ export const useStopSimulation = () => {
         simulationTime: null,
         routes: null,
         metrics: null,
+        realStartSimulation: null,
       })
       navigate({
         to: '/simulacion',

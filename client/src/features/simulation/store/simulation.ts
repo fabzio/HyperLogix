@@ -38,6 +38,7 @@ export interface SimulationStore {
   collapseInfo: { type: string; description: string; timestamp?: string } | null
   simulationType: 'simple' | 'collapse' | null
   originalStartDate: string | null // Nueva propiedad para la fecha original
+  realStartSimulation: Date | null
 
   setState: (state: Partial<SimulationStore> | null) => void
   saveFinalMetrics: (
@@ -67,6 +68,7 @@ export const useSimulationStore = create<SimulationStore>((set) => ({
   collapseInfo: null,
   simulationType: null,
   originalStartDate: null, // Inicializar la nueva propiedad
+  realStartSimulation: null,
   setState: (state) => set((prev) => ({ ...prev, ...state })),
   saveFinalMetrics: (metrics, endTime, plgNetwork) =>
     set((prev) => ({

@@ -389,26 +389,6 @@ public class SimulationService {
     log.info("SimulationService cleanup completed");
   }
 
-  // Agregar método para monitorear planificaciones perdidas
-  @Scheduled(fixedDelay = 30000) // Cada 30 segundos
-  public void monitorPlanifications() {
-    LocalDateTime now = LocalDateTime.now();
-    
-    lastPlanificationTime.forEach((simulationId, lastTime) -> {
-      Duration timeSinceLastPlan = Duration.between(lastTime, now);
-      
-      if (timeSinceLastPlan.compareTo(Duration.ofMinutes(2)) > 0) {
-        log.warn("STALE PLANIFICATION WARNING: Simulation {} hasn't received planification for {} minutes",
-            simulationId, timeSinceLastPlan.toMinutes());
-            
-        // Check if simulation is still running
-        if (simulation.containsKey(simulationId) || realTimeSimulation.containsKey(simulationId)) {
-          log.warn("Simulation {} is still active but planifications are stale", simulationId);
-        }
-      }
-    });
-  }
-
   public void sendLogisticCollapseAlert(String simulationId, String collapseType, String description,
       double severityLevel, String affectedArea) {
     log.error("=== LOGISTIC COLLAPSE ALERT === Simulation: {}, Type: {}, Severity: {}, Area: {}, Description: {}",
