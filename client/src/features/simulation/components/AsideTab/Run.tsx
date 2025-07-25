@@ -36,6 +36,7 @@ import {
 } from 'date-fns'
 import { es } from 'date-fns/locale'
 import {
+  AlertTriangle,
   CalendarIcon,
   FastForward,
   Loader2,
@@ -43,7 +44,6 @@ import {
   Play,
   Rewind,
   Square,
-  AlertTriangle,
 } from 'lucide-react'
 import React, { useCallback, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
@@ -269,11 +269,11 @@ export default function Run() {
     }
 
     startSimulation({
-      startTimeOrders: startDate.toISOString(),
-      endTimeOrders: endDate.toISOString(),
+      startTimeOrders: getLocalDateISOString(startDate),
+      endTimeOrders: getLocalDateISOString(endDate),
       mode: data.executionMode,
       simulationType: data.simulationType,
-      originalStartDate: startDate.toISOString(),
+      originalStartDate: getLocalDateISOString(startDate),
     })
   })
 
@@ -371,6 +371,7 @@ export default function Run() {
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
                         <Calendar
+                          timeZone="UTC"
                           mode="single"
                           autoFocus
                           selected={field.value}
@@ -488,6 +489,7 @@ export default function Run() {
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">
                           <Calendar
+                            timeZone="UTC"
                             mode="range"
                             defaultMonth={field.value?.from}
                             selected={field.value}
@@ -530,6 +532,7 @@ export default function Run() {
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">
                           <Calendar
+                            timeZone="UTC"
                             mode="single"
                             autoFocus
                             selected={field.value}
@@ -664,4 +667,10 @@ export default function Run() {
       </Form>
     </article>
   )
+}
+
+function getLocalDateISOString(date) {
+  const offsetMs = date.getTimezoneOffset() * 60 * 1000
+  const localDate = new Date(date.getTime() - offsetMs)
+  return localDate.toISOString().slice(0, 19) // Remove the 'Z'
 }
