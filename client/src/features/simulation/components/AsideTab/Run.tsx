@@ -27,6 +27,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
+  add,
   addDays,
   addMonths,
   addWeeks,
@@ -241,8 +242,8 @@ export default function Run() {
     } else if (data.simulationType === 'collapse') {
       // For "Hasta el colapso": use selected start date
       startDate = data.relative.startDate
-      const daysUntilSunday = 7 - startDate.getDay()
-      endDate = addDays(startDate, daysUntilSunday === 7 ? 0 : daysUntilSunday)
+      const daysUntilSunday = (7 - startDate.getDay()) % 7 || 7
+      endDate = addDays(startDate, 2)
     } else if (data.mode === 'absolute') {
       startDate = data.absolute.from
       endDate = data.absolute.to

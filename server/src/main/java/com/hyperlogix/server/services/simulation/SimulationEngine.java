@@ -92,9 +92,9 @@ public class SimulationEngine implements Runnable {
   private Set<String> trucksInMaintenance = new HashSet<>();
 
   // Order accumulation control fields
-  private static final int MAX_CALCULATING_ORDERS = 20; // Límite máximo de órdenes en cálculo
+  private static final int MAX_CALCULATING_ORDERS = 10; // Límite máximo de órdenes en cálculo
   private static final int MAX_PENDING_ORDERS = 50; // Límite máximo de órdenes pendientes
-  private static final Duration ORDER_PROCESSING_TIMEOUT = Duration.ofSeconds(80);
+  private static final Duration ORDER_PROCESSING_TIMEOUT = Duration.ofSeconds(120);
   private final Map<String, LocalDateTime> orderCalculatingStartTime = new ConcurrentHashMap<>();
   private final Map<String, Integer> orderRetryCount = new ConcurrentHashMap<>();
   private int consecutiveFailures = 0;
@@ -170,45 +170,6 @@ public class SimulationEngine implements Runnable {
             .multipliedBy((long) simulationConfig.getTimeAcceleration());
 
         simulatedTime = simulatedTime.plus(timeStep);
-
-        // Monitor crítico específico para el día 3 de enero 2025 entre 4:30 y 5:00 AM
-        if (simulatedTime.getYear() == 2025 && simulatedTime.getMonthValue() == 1 && 
-            simulatedTime.getDayOfMonth() == 3 && simulatedTime.getHour() >= 4 && simulatedTime.getMinute() >= 30) {
-          
-          log.error("=== CRITICAL TIME MONITORING === Day 3, {}:{}, Orders in system: {}", 
-                   simulatedTime.getHour(), String.format("%02d", simulatedTime.getMinute()),
-                   orderRepository.size());
-          
-          // Log memoria y recursos del sistema
-          Runtime runtime = Runtime.getRuntime();
-          long usedMemory = runtime.totalMemory() - runtime.freeMemory();
-          log.error("=== SYSTEM RESOURCES === Used Memory: {}MB, Active Routes: {}", 
-                   usedMemory / 1024 / 1024, 
-                   activeRoutes != null ? activeRoutes.getStops().size() : 0);
-          
-          // Snapshot de estado pre-falla a las 4:50
-          if (simulatedTime.getHour() == 4 && simulatedTime.getMinute() >= 50) {
-            log.error("=== PRE-FAILURE SNAPSHOT === Time: {}", simulatedTime);
-            logDetailedState("PRE_FAILURE_" + simulatedTime.getMinute());
-            
-            // Estado detallado de camiones
-            plgNetwork.getTrucks().forEach(truck -> 
-                log.error("Truck {}: Status={}, Location=({},{}), Fuel={}/{}, Capacity={}/{}", 
-                          truck.getId(), truck.getStatus(), truck.getLocation().x(), truck.getLocation().y(),
-                          truck.getCurrentFuel(), truck.getFuelCapacity(),
-                          truck.getCurrentCapacity(), truck.getMaxCapacity()));
-          }
-          
-          // Debug específico para el pedido crítico a las 4:14 (22m3)
-          if (simulatedTime.getHour() == 4 && simulatedTime.getMinute() >= 10 && simulatedTime.getMinute() <= 20) {
-            log.error("=== CRITICAL ORDER PERIOD === Time: {}, Looking for large orders (>20m3)", simulatedTime);
-            orderRepository.stream()
-                .filter(order -> order.getRequestedGLP() >= 20)
-                .forEach(order -> log.error("  Large order: {} {}m3 status={} at ({},{})", 
-                                          order.getId(), order.getRequestedGLP(), order.getStatus(),
-                                          order.getLocation().x(), order.getLocation().y()));
-          }
-        }
 
         boolean needsReplaning = checkScheduledMaintenances();
 
@@ -762,11 +723,31 @@ public class SimulationEngine implements Runnable {
   private boolean isRoadblockActiveInTimeRange(Roadblock roadblock, LocalDateTime startTime, LocalDateTime endTime) {
     // El roadblock debe haber comenzado ya (startTime del roadblock <= tiempo actual de simulación)
     // y debe tener superposición temporal con el período de disponibilidad de la orden
+    Duration GRACE_PERIOD = Duration.ofHours(1);
+    LocalDateTime bufferedStartTime = startTime.minus(GRACE_PERIOD);
+
+    // El roadblock debe haber comenzado ya (startTime del roadblock <= tiempo actual de simulación)
+    // PERO también verificar si el bloqueo aparecerá durante el período de gracia
     boolean roadblockHasStarted = !roadblock.start().isAfter(simulatedTime);
-    boolean hasTemporalOverlap = !(roadblock.end().isBefore(startTime) || roadblock.start().isAfter(endTime));
+    boolean roadblockWillStartSoon = roadblock.start().isAfter(simulatedTime) && 
+                                    roadblock.start().isBefore(simulatedTime.plus(GRACE_PERIOD));
     
-    return roadblockHasStarted && hasTemporalOverlap;
-  }
+        // Verificar superposición temporal con el período de disponibilidad EXTENDIDO
+    boolean hasTemporalOverlap = !(roadblock.end().isBefore(bufferedStartTime) || 
+                                  roadblock.start().isAfter(endTime));
+    
+    boolean isActiveOrWillBeActive = (roadblockHasStarted || roadblockWillStartSoon) && hasTemporalOverlap;
+    
+    // Debug específico para roadblocks que aparecen durante el período de gracia
+    if (isActiveOrWillBeActive && roadblockWillStartSoon) {
+        log.info("GRACE PERIOD PROTECTION: Roadblock starting at {} (in {} minutes) affects order starting at {}", 
+                roadblock.start(), 
+                Duration.between(simulatedTime, roadblock.start()).toMinutes(),
+                startTime);
+    }
+    
+    return isActiveOrWillBeActive;
+}
   
   /**
    * Verifica si una orden intersecta geográficamente con los segmentos bloqueados de un roadblock
@@ -853,47 +834,7 @@ public class SimulationEngine implements Runnable {
   /**
    * Log detallado de estados de órdenes para debugging crítico
    */
-  private void logDetailedOrderStates() {
-    Map<OrderStatus, List<Order>> ordersByStatus = orderRepository.stream()
-        .collect(Collectors.groupingBy(Order::getStatus));
-    
-    ordersByStatus.forEach((status, orders) -> {
-      log.error("=== ORDER STATUS: {} === Count: {}", status, orders.size());
-      if (status == OrderStatus.CALCULATING) {
-        orders.forEach(order -> {
-          LocalDateTime startTime = orderCalculatingStartTime.get(order.getId());
-          Duration processingTime = startTime != null ? 
-              Duration.between(startTime, LocalDateTime.now()) : Duration.ZERO;
-          log.error("  Calculating order: {} for {}s, Date: {}, Location: ({},{})", 
-                   order.getId(), processingTime.getSeconds(), order.getDate(),
-                   order.getLocation().x(), order.getLocation().y());
-        });
-      }
-      if (status == OrderStatus.BLOCKED && orders.size() > 0) {
-        orders.forEach(order -> {
-          log.error("  Blocked order: {} until {}, Date: {}, Location: ({},{})", 
-                   order.getId(), order.getBlockEndTime(), order.getDate(),
-                   order.getLocation().x(), order.getLocation().y());
-        });
-      }
-      if (status == OrderStatus.IN_PROGRESS && orders.size() > 0) {
-        orders.forEach(order -> {
-          log.error("  In-Progress order: {} Date: {}, Location: ({},{}), Delivered: {}/{}m3", 
-                   order.getId(), order.getDate(),
-                   order.getLocation().x(), order.getLocation().y(),
-                   order.getDeliveredGLP(), order.getRequestedGLP());
-        });
-      }
-    });
-    
-    // Resumen crítico del sistema
-    log.error("=== SYSTEM SUMMARY === Time: {}", simulatedTime != null ? simulatedTime : "UNKNOWN");
-    log.error("Total Orders: {}, Active Routes: {}, Ant Timeouts: {}", 
-             orderRepository.size(), 
-             activeRoutes != null ? activeRoutes.getStops().size() : 0,
-             antTimeoutCount);
-  }
-  
+
   /**
    * Revisa órdenes bloqueadas y las desbloquea automáticamente cuando el tiempo de bloqueo ha terminado
    */
@@ -960,8 +901,6 @@ public class SimulationEngine implements Runnable {
                  truck.getCurrentCapacity(), truck.getMaxCapacity(),
                  truck.getLocation().x(), truck.getLocation().y());
       });
-      
-      logDetailedOrderStates();
     }
     
     // Verificar límites antes de procesar nuevas órdenes
@@ -1017,7 +956,7 @@ public class SimulationEngine implements Runnable {
       if (currentCalculatingCount + newOrders.size() < MAX_CALCULATING_ORDERS / 2) {
         List<Order> inProgressOrders = orderRepository.stream()
             .filter(order -> order.getStatus() == OrderStatus.IN_PROGRESS)
-            .limit(5) // Límite pequeño para reoptimización
+            .limit(3) // Límite pequeño para reoptimización
             .toList();
 
         inProgressOrders.forEach(order -> {
