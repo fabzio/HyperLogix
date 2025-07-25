@@ -30,7 +30,7 @@ public class Order implements Cloneable {
    * @return Fecha mínima de entrega
    */
   public LocalDateTime getMinDeliveryDate() {
-    return date.minus(Constants.MIN_DELIVERY_TIME);
+    return date.plus(Constants.MIN_DELIVERY_TIME);
   }
 
   // Add clone method using the copy constructor

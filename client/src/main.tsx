@@ -15,7 +15,7 @@ import reportWebVitals from './reportWebVitals.ts'
 
 setDefaultOptions({
   locale: es,
-  weekStartsOn: 1
+  weekStartsOn: 1,
 })
 
 export const router = createRouter({

@@ -135,6 +135,14 @@ public class SimulationEngine implements Runnable {
         simulationConfig.getConsumptionInterval(),
         simulationConfig.getAlgorithmTime());
 
+    if (orderRepository.isEmpty()) {
+        running.set(false);
+        if (onComplete != null) {
+            onComplete.run();
+        }
+        return;
+    }
+
     simulatedTime = orderRepository.getFirst().getDate().plus(Duration.ofNanos(1));
     nextPlanningTime = simulatedTime;
     lastOrderRateCheck = simulatedTime;
@@ -680,7 +688,7 @@ public class SimulationEngine implements Runnable {
       // Verificar si el roadblock está activo durante el tiempo de disponibilidad de la orden
       if (isRoadblockActiveInTimeRange(roadblock, orderStartTime, orderEndTime)) {
         // Verificar si la orden intersecta geográficamente con el roadblock
-        if (orderIntersectsWithRoadblock(order, roadblock)) {
+        if (locationIntersectsWithRoadblock(order.getLocation(), roadblock)) {
           log.info("Order {} is blocked by roadblock active from {} to {}", 
                    order.getId(), roadblock.start(), roadblock.end());
           return true;
@@ -690,6 +698,8 @@ public class SimulationEngine implements Runnable {
     
     return false;
   }
+  
+
   
   /**
    * Marca una orden como bloqueada y establece el tiempo de fin del bloqueo
@@ -702,21 +712,42 @@ public class SimulationEngine implements Runnable {
     LocalDateTime orderStartTime = order.getDate();
     LocalDateTime orderEndTime = order.getMaxDeliveryDate();
     LocalDateTime earliestBlockEnd = null;
+    Roadblock rdblock =  null;
     
     for (Roadblock roadblock : plgNetwork.getRoadblocks()) {
       // Verificar si el roadblock está activo durante el tiempo de disponibilidad de la orden
       if (isRoadblockActiveInTimeRange(roadblock, orderStartTime, orderEndTime)) {
         // Verificar si la orden intersecta geográficamente con el roadblock
-        if (orderIntersectsWithRoadblock(order, roadblock)) {
+        if (locationIntersectsWithRoadblock(order.getLocation(), roadblock)) {
           // Encontrar el tiempo de fin más temprano entre todos los roadblocks que bloquean esta orden
           if (earliestBlockEnd == null || roadblock.end().isBefore(earliestBlockEnd)) {
             earliestBlockEnd = roadblock.end();
+            rdblock = roadblock;
           }
         }
       }
     }
     
     if (earliestBlockEnd != null) {
+      if(order.getMaxDeliveryDate().isBefore(earliestBlockEnd)) {
+        // Buscar coordenadas adyacentes disponibles
+        Point originalLocation = order.getLocation();
+        Point[] adjacentPoints = {
+          new Point(originalLocation.x() - 1, originalLocation.y()),
+          new Point(originalLocation.x() + 1, originalLocation.y()),
+          new Point(originalLocation.x(), originalLocation.y() - 1),
+          new Point(originalLocation.x(), originalLocation.y() + 1)
+        };
+        
+        for (Point adjacent : adjacentPoints) {
+          if (!locationIntersectsWithRoadblock(adjacent, rdblock)) {
+            order.setLocation(adjacent);
+            return;
+          }
+        }
+
+        return;
+      }
       order.setStatus(OrderStatus.BLOCKED);
       order.setBlockEndTime(earliestBlockEnd);
       log.info("Order {} set to BLOCKED due to active roadblocks, will be unblocked at {}", 
@@ -740,8 +771,7 @@ public class SimulationEngine implements Runnable {
   /**
    * Verifica si una orden intersecta geográficamente con los segmentos bloqueados de un roadblock
    */
-  private boolean orderIntersectsWithRoadblock(Order order, Roadblock roadblock) {
-    Point orderLocation = order.getLocation();
+  private boolean locationIntersectsWithRoadblock(Point orderLocation, Roadblock roadblock) {
     Set<Edge> blockedEdges = roadblock.parseRoadlock();
     
     // Distancia mínima para considerar que una orden está afectada por un bloqueo (en km)
@@ -749,11 +779,8 @@ public class SimulationEngine implements Runnable {
     
     for (Edge blockedEdge : blockedEdges) {
       double distance = calculateDistancePointToSegment(orderLocation, blockedEdge);
-      if (distance <= INTERSECTION_THRESHOLD) {
-        log.debug("Order {} intersects with blocked edge {} - distance: {} km", 
-                 order.getId(), blockedEdge, distance);
-        return true;
-      }
+      if (distance <= INTERSECTION_THRESHOLD) 
+        return true;    
     }
     
     return false;
@@ -1164,73 +1191,62 @@ public class SimulationEngine implements Runnable {
   }
   
   /**
-   * Crea un PLGNetwork filtrado que excluye órdenes IN_PROGRESS para reducir la complejidad
-   * del algoritmo de hormigas cuando hay riesgo de timeout
+   * Crea un network altamente optimizado que envía SOLO las órdenes que el optimizador necesita procesar
+   * Esta es la solución al problema crítico detectado: el algoritmo colapsa cuando recibe 98 órdenes
+   * pero solo necesita procesar 2 CALCULATING
    */
-  private PLGNetwork createFilteredNetworkForPlanification() {
+  private PLGNetwork createOptimizedNetworkForPlanification() {
     // Clonar el network original
-    PLGNetwork filteredNetwork = plgNetwork.clone();
+    PLGNetwork optimizedNetwork = plgNetwork.clone();
     
-    // Filtrar órdenes basado en la estrategia de reducción de complejidad
-    List<Order> filteredOrders = new ArrayList<>();
+    // Filtrar SOLO las órdenes que el optimizador necesita procesar
+    List<Order> relevantOrders = new ArrayList<>();
     
-    // SIEMPRE incluir órdenes CALCULATING (estas son la prioridad)
+    // 1. SIEMPRE incluir órdenes CALCULATING (estas son las prioritarias)
     List<Order> calculatingOrders = orderRepository.stream()
         .filter(order -> order.getStatus() == OrderStatus.CALCULATING)
         .map(Order::clone)
         .toList();
-    filteredOrders.addAll(calculatingOrders);
+    relevantOrders.addAll(calculatingOrders);
     
-    // Incluir órdenes PENDING solo si no hay demasiadas CALCULATING
-    if (calculatingOrders.size() < 5) {
-      List<Order> pendingOrders = orderRepository.stream()
-          .filter(order -> order.getStatus() == OrderStatus.PENDING)
-          .limit(Math.max(0, 7 - calculatingOrders.size())) // Límite total de ~7 órdenes
-          .map(Order::clone)
-          .toList();
-      filteredOrders.addAll(pendingOrders);
-    }
-    
-    // NO incluir órdenes IN_PROGRESS en modo de reducción de complejidad
-    // Esto evita que el algoritmo trate de re-optimizar rutas que ya están siendo ejecutadas
-    
-    // EXCEPCIÓN: Incluir órdenes IN_PROGRESS que están "atascadas" (más de 30 minutos)
-    List<Order> stuckInProgressOrders = orderRepository.stream()
+    // 2. Incluir órdenes IN_PROGRESS solo si están realmente siendo re-optimizadas
+    List<Order> reoptimizingOrders = orderRepository.stream()
         .filter(order -> order.getStatus() == OrderStatus.IN_PROGRESS)
-        .filter(order -> {
-          // Verificar si esta orden lleva mucho tiempo en IN_PROGRESS
-          // (esto podría indicar que el camión está atascado o perdido)
-          return simulatedTime.minusMinutes(30).isAfter(order.getDate());
-        })
-        .limit(2) // Solo máximo 2 órdenes atascadas para no sobrecargar
+        .filter(order -> needsReoptimization(order))
+        .limit(3) // Máximo 3 para evitar sobrecarga
         .map(Order::clone)
         .toList();
+    relevantOrders.addAll(reoptimizingOrders);
     
-    if (!stuckInProgressOrders.isEmpty()) {
-      filteredOrders.addAll(stuckInProgressOrders);
-      log.warn("Including {} stuck IN_PROGRESS orders in filtered network for re-planning", 
-               stuckInProgressOrders.size());
+    // NO incluir órdenes COMPLETED, PENDING, o BLOCKED
+    // El algoritmo NO necesita estas para procesar las órdenes CALCULATING
+    
+    optimizedNetwork.setOrders(relevantOrders);
+    
+    // Debug crítico específico para el día 3 4:50+
+    if (simulatedTime.getYear() == 2025 && simulatedTime.getMonthValue() == 1 && 
+        simulatedTime.getDayOfMonth() == 3 && simulatedTime.getHour() >= 4 && simulatedTime.getMinute() >= 50) {
+      
+      log.error("=== NETWORK OPTIMIZATION APPLIED ===");
+      log.error("Original network orders: {}, Optimized network orders: {}", 
+               plgNetwork.getOrders().size(), relevantOrders.size());
+      log.error("Calculating orders: {}, Reoptimizing orders: {}", 
+               calculatingOrders.size(), reoptimizingOrders.size());
     }
     
-    // Actualizar las órdenes en el network clonado
-    filteredNetwork.setOrders(filteredOrders);
+    log.info("NETWORK OPTIMIZATION: Reduced from {} to {} orders for optimizer (CALCULATING: {}, REOPT: {})", 
+             plgNetwork.getOrders().size(), relevantOrders.size(), 
+             calculatingOrders.size(), reoptimizingOrders.size());
     
-    // Logging detallado
-    int originalCount = plgNetwork.getOrders().size();
-    int filteredCount = filteredOrders.size();
-    int excludedInProgress = (int) orderRepository.stream()
-        .filter(order -> order.getStatus() == OrderStatus.IN_PROGRESS)
-        .count() - stuckInProgressOrders.size();
-    
-    log.warn("COMPLEXITY REDUCTION: Created filtered network - Original: {} orders, Filtered: {} orders", 
-             originalCount, filteredCount);
-    log.warn("COMPLEXITY REDUCTION: Included {} CALCULATING, {} PENDING, {} stuck IN_PROGRESS", 
-             calculatingOrders.size(), filteredOrders.size() - calculatingOrders.size() - stuckInProgressOrders.size(),
-             stuckInProgressOrders.size());
-    log.warn("COMPLEXITY REDUCTION: Excluded {} healthy IN_PROGRESS orders to reduce algorithm load", 
-             excludedInProgress);
-    
-    return filteredNetwork;
+    return optimizedNetwork;
+  }
+
+  /**
+   * Determina si una orden IN_PROGRESS necesita reoptimización
+   */
+  private boolean needsReoptimization(Order order) {
+    // Solo reoptimizar órdenes IN_PROGRESS que llevan mucho tiempo estancadas
+    return simulatedTime.minusMinutes(30).isAfter(order.getDate());
   }
 
   /**
@@ -1457,10 +1473,12 @@ public class SimulationEngine implements Runnable {
       lastPlanificationStart = LocalDateTime.now();
       totalPlanificationRequests++;
       
-      // Debug crítico específico para el día 3 4:50+
+      // Ajustar tiempo de algoritmo basado en historial de timeouts
+      Duration algorithmTime = calculateOptimalAlgorithmTime(calculatingCount);
+      
+      // Debug crítico para el día 3 de enero 2025 a las 4:50 AM
       if (simulatedTime.getYear() == 2025 && simulatedTime.getMonthValue() == 1 && 
           simulatedTime.getDayOfMonth() == 3 && simulatedTime.getHour() >= 4 && simulatedTime.getMinute() >= 50) {
-        
         log.error("=== CRITICAL PLANIFICATION REQUEST === Time: {}", simulatedTime);
         log.error("=== PRE-OPTIMIZER NETWORK STATE ===");
         log.error("Orders in repository: {}", orderRepository.size());
@@ -1471,17 +1489,15 @@ public class SimulationEngine implements Runnable {
         log.error("Risk of timeout: {}", riskOfTimeout);
         log.error("Ant timeout count: {}", antTimeoutCount);
         
-        // Log el estado exacto de las órdenes CALCULATING que van al optimizador
         orderRepository.stream()
             .filter(order -> order.getStatus() == OrderStatus.CALCULATING)
             .forEach(order -> {
               log.error("CALCULATING Order {}: GLP={}m3, Location=({},{}), Date={}, Client={}", 
-                       order.getId(), order.getRequestedGLP(),
+                       order.getId(), order.getRequestedGLP(), 
                        order.getLocation().x(), order.getLocation().y(),
                        order.getDate(), order.getClientId());
             });
         
-        // Log estado de camiones disponibles
         plgNetwork.getTrucks().stream()
             .filter(truck -> truck.getStatus() == TruckState.IDLE || truck.getStatus() == TruckState.ACTIVE)
             .forEach(truck -> {
@@ -1492,35 +1508,28 @@ public class SimulationEngine implements Runnable {
             });
       }
       
-      // Ajustar tiempo de algoritmo basado en historial de timeouts
-      Duration algorithmTime = calculateOptimalAlgorithmTime(calculatingCount);
-      
-      // Crear PLGNetwork filtrado si hay riesgo de timeout
-      PLGNetwork networkToSend = riskOfTimeout ? 
-          createFilteredNetworkForPlanification() : plgNetwork;
+      // CAMBIO CRÍTICO: Usar network optimizado en lugar del network completo o filtrado
+      PLGNetwork networkToSend = createOptimizedNetworkForPlanification();
       
       int totalOrdersInNetwork = networkToSend.getOrders().size();
       
-      log.info("Requesting planification with {} calculating orders, {} total orders in network, algorithm time: {}, filtered: {}", 
-              calculatingCount, totalOrdersInNetwork, algorithmTime, riskOfTimeout);
-      
-      // Debug final antes de enviar al optimizador (día 3 4:50+)
+      // Debug crítico específico para el día 3 4:50+
       if (simulatedTime.getYear() == 2025 && simulatedTime.getMonthValue() == 1 && 
           simulatedTime.getDayOfMonth() == 3 && simulatedTime.getHour() >= 4 && simulatedTime.getMinute() >= 50) {
         
         log.error("=== FINAL NETWORK TO OPTIMIZER ===");
         log.error("Network being sent - Orders: {}, Trucks: {}, Stations: {}", 
-                 networkToSend.getOrders().size(), 
-                 networkToSend.getTrucks().size(), 
-                 networkToSend.getStations().size());
+                 totalOrdersInNetwork, networkToSend.getTrucks().size(), networkToSend.getStations().size());
         
-        // Log TODAS las órdenes que van al optimizador
         networkToSend.getOrders().forEach(order -> {
           log.error("Network Order {}: Status={}, GLP={}m3, Location=({},{})", 
                    order.getId(), order.getStatus(), order.getRequestedGLP(),
                    order.getLocation().x(), order.getLocation().y());
         });
       }
+      
+      log.info("Requesting planification with {} calculating orders, {} total orders in network (optimized), algorithm time: {}, filtered: {}", 
+              calculatingCount, totalOrdersInNetwork, algorithmTime, riskOfTimeout);
       
       eventPublisher.publishEvent(
           new PlanificationRequestEvent(sessionId, networkToSend, simulatedTime, algorithmTime,

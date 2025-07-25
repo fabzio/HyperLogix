@@ -669,8 +669,6 @@ export default function Run() {
   )
 }
 
-function getLocalDateISOString(date) {
-  const offsetMs = date.getTimezoneOffset() * 60 * 1000
-  const localDate = new Date(date.getTime() - offsetMs)
-  return localDate.toISOString().slice(0, 19) // Remove the 'Z'
+function getLocalDateISOString(date: Date) {
+  return date.toISOString().slice(0, 19) // Remove the 'Z'
 }
