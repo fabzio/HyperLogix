@@ -53,7 +53,7 @@ export const useStartSimulation = () => {
         simulationType: variables.simulationType || 'simple',
         originalStartDate:
           variables.originalStartDate || variables.startTimeOrders,
-        realStartSimulation: new Date()
+        realStartSimulation: new Date(),
       })
       queryClient.invalidateQueries({ queryKey: ['simulation'] })
     },

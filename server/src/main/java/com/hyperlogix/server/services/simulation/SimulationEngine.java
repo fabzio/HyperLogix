@@ -81,6 +81,10 @@ public class SimulationEngine implements Runnable {
   private final Map<String, Duration> customerDeliveryTimes = new ConcurrentHashMap<>();
   private final Map<String, LocalDateTime> orderStartTimes = new ConcurrentHashMap<>();
   private final Runnable onComplete;
+  
+  // Pause timeout management
+  private volatile LocalDateTime pauseStartTime = null;
+  private static final Duration PAUSE_TIMEOUT = Duration.ofSeconds(20);
   private int totalPlanificationRequests = 0;
   private Duration totalPlanificationTime = Duration.ZERO;
   private LocalDateTime lastPlanificationStart;
@@ -977,6 +981,45 @@ public class SimulationEngine implements Runnable {
     });
   }
 
+    //manejo para forzar el fin de pausa con max 20 segundos
+  private void handleStuckPlanification() {
+    List<Order> calculatingOrders = orderRepository.stream()
+        .filter(order -> order.getStatus() == OrderStatus.CALCULATING)
+        .toList();
+    
+    if (!calculatingOrders.isEmpty()) {
+      if (calculatingOrders.size() <= 5) {
+        processOrdersWithGreedyAlgorithm(calculatingOrders);
+      } else {
+        List<Order> urgentOrders = calculatingOrders.stream()
+            .filter(this::isUrgentOrder)
+            .limit(3)
+            .toList();
+        
+        List<Order> postponableOrders = calculatingOrders.stream()
+            .filter(order -> !urgentOrders.contains(order))
+            .toList();
+        
+        if (!urgentOrders.isEmpty()) {
+          processOrdersWithGreedyAlgorithm(urgentOrders);
+        }
+        
+        if (!postponableOrders.isEmpty()) {
+          postponeOrders(postponableOrders);
+        }
+      }
+      
+      calculatingOrders.forEach(order -> orderCalculatingStartTime.remove(order.getId()));
+    }
+    
+    consecutiveFailures++;
+    
+    if (consecutiveFailures >= 3) {
+      double newAcceleration = Math.max(1.0, simulationConfig.getTimeAcceleration() / 2);
+      simulationConfig.setTimeAcceleration(newAcceleration);
+    }
+  }
+
   private void requestPlanification() {
 
     // Solo request planification if there are orders being calculated
@@ -987,6 +1030,7 @@ public class SimulationEngine implements Runnable {
       lastPlanificationStart = simulatedTime;
       totalPlanificationRequests++;
 
+      pauseStartTime = LocalDateTime.now();
       paused.set(true);
       //Fit
       orderRepository.forEach(o -> {
@@ -1023,7 +1067,23 @@ public class SimulationEngine implements Runnable {
     lock.lock();
     try {
       while (paused.get() && running.get()) {
-        condition.await();
+        if (pauseStartTime != null) {
+          Duration pauseDuration = Duration.between(pauseStartTime, LocalDateTime.now());
+          
+          if (pauseDuration.compareTo(PAUSE_TIMEOUT) > 0) {
+            paused.set(false);
+            pauseStartTime = null;
+            handleStuckPlanification();
+            break;
+          }
+          
+          long remainingMs = PAUSE_TIMEOUT.toMillis() - pauseDuration.toMillis();
+          if (remainingMs > 0) {
+            condition.await(Math.min(remainingMs, 1000), TimeUnit.MILLISECONDS);
+          }
+        } else {
+          condition.await(1000, TimeUnit.MILLISECONDS);
+        }
       }
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
@@ -1034,6 +1094,11 @@ public class SimulationEngine implements Runnable {
   }
 
   public void onPlanificationResult(Routes routes) {
+
+    if (pauseStartTime != null) {
+      pauseStartTime = null;
+      consecutiveFailures = 0;
+    }
 
     synchronized (routesLock) {
       this.activeRoutes = routes;

@@ -242,7 +242,7 @@ export default function Run() {
       // For "Hasta el colapso": use selected start date
       startDate = data.relative.startDate
       const daysUntilSunday = 7 - startDate.getDay()
-      endDate = addDays(startDate, daysUntilSunday === 7 ? 0 : daysUntilSunday)
+      endDate = addWeeks(startDate, 3)
     } else if (data.mode === 'absolute') {
       startDate = data.absolute.from
       endDate = data.absolute.to
