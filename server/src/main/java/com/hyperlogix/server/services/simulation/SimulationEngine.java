@@ -1086,7 +1086,25 @@ public class SimulationEngine implements Runnable {
       order.setStatus(OrderStatus.IN_PROGRESS);
     });
     paused.set(false);
+    lock.lock();
+    try {
+        condition.signalAll();
+    } finally {
+        lock.unlock();
+    }
     log.info("Received updated routes from Planificator");
+    try {
+        SimulationMetrics metrics = calculateMetrics();
+        PlanificationStatus planificationStatus = planificationService.getPlanificationStatus(sessionId);
+        
+        simulationNotifier.notifySnapshot(
+            new SimulationSnapshot(LocalDateTime.now(), simulatedTime, plgNetwork, activeRoutes, null,
+                metrics, planificationStatus));
+        
+        log.info("Immediate snapshot sent after planification result");
+    } catch (Exception e) {
+        log.error("Error sending immediate snapshot after planification: {}", e.getMessage(), e);
+    }
   }
 
   public SimulationStatus getStatus() {

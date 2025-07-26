@@ -188,91 +188,108 @@ public class SimulationService {
 
   public void sendPlanification(String simulationId, Routes route) {
     try {
-      MDC.put("sessionId", simulationId);
-      MDC.put("operation", "sendPlanification");
-      
-      int planificationNumber = planificationCounter.incrementAndGet();
-      LocalDateTime now = LocalDateTime.now();
-      
-      log.info("=== PLANIFICATION #{} RECEIVED === Simulation: {}, Routes: {}, Timestamp: {}",
-          planificationNumber, simulationId, route != null ? "VALID" : "NULL", now);
-      
-      if (route != null) {
-        log.info("Route details - Trucks with routes: {}, Total stops: {}, Total paths: {}",
-            route.getStops().size(),
-            route.getStops().values().stream().mapToInt(List::size).sum(),
-            route.getPaths().values().stream().mapToInt(List::size).sum());
+        MDC.put("sessionId", simulationId);
+        MDC.put("operation", "sendPlanification");
         
-        // Log detallado de cada ruta
-        route.getStops().forEach((truckId, stops) -> {
-          log.info("  Truck {}: {} stops", truckId, stops.size());
-          if (log.isDebugEnabled()) {
-            for (int i = 0; i < stops.size(); i++) {
-              Stop stop = stops.get(i);
-              log.debug("    Stop {}: ({}, {}) at {}", i,
-                  stop.getNode().getLocation().x(), stop.getNode().getLocation().y(),
-                  stop.getArrivalTime());
+        int planificationNumber = planificationCounter.incrementAndGet();
+        LocalDateTime now = LocalDateTime.now();
+        
+        log.info("=== PLANIFICATION #{} RECEIVED === Simulation: {}, Routes: {}, Timestamp: {}",
+            planificationNumber, simulationId, route != null ? "VALID" : "NULL", now);
+        
+        if (route != null) {
+            log.info("Route details - Trucks with routes: {}, Total stops: {}, Total paths: {}",
+                route.getStops().size(),
+                route.getStops().values().stream().mapToInt(List::size).sum(),
+                route.getPaths().values().stream().mapToInt(List::size).sum());
+            
+            // Log detallado de cada ruta
+            route.getStops().forEach((truckId, stops) -> {
+                log.info("  Truck {}: {} stops", truckId, stops.size());
+                if (log.isDebugEnabled()) {
+                    for (int i = 0; i < stops.size(); i++) {
+                        Stop stop = stops.get(i);
+                        log.debug("    Stop {}: ({}, {}) at {}", i,
+                            stop.getNode().getLocation().x(), stop.getNode().getLocation().y(),
+                            stop.getArrivalTime());
+                    }
+                }
+            });
+        } else {
+            log.error("NULL ROUTE received for simulation {}", simulationId);
+            planificationFailureCount.merge(simulationId, 1, Integer::sum);
+            
+            int failures = planificationFailureCount.get(simulationId);
+            log.error("Consecutive planification failures for {}: {}", simulationId, failures);
+            
+            if (failures >= 5) {
+                log.error("CRITICAL: Too many planification failures for simulation {}", simulationId);
+                sendLogisticCollapseAlert(simulationId, "PLANIFICATION_FAILURE", 
+                    "Multiple consecutive planification failures", 0.9, "System-wide");
             }
-          }
-        });
-      } else {
-        log.error("NULL ROUTE received for simulation {}", simulationId);
-        planificationFailureCount.merge(simulationId, 1, Integer::sum);
-        
-        int failures = planificationFailureCount.get(simulationId);
-        log.error("Consecutive planification failures for {}: {}", simulationId, failures);
-        
-        if (failures >= 5) {
-          log.error("CRITICAL: Too many planification failures for simulation {}", simulationId);
-          sendLogisticCollapseAlert(simulationId, "PLANIFICATION_FAILURE", 
-              "Multiple consecutive planification failures", 0.9, "System-wide");
         }
-      }
 
-      SimulationEngine engine = simulation.get(simulationId);
-      if (engine != null) {
-        log.info("Sending planification to standard engine for {}", simulationId);
-        lastPlanificationTime.put(simulationId, now);
-        
-        if (route != null) {
-          planificationFailureCount.remove(simulationId); // Reset failure count on success
+        SimulationEngine engine = simulation.get(simulationId);
+        if (engine != null) {
+            log.info("Sending planification to standard engine for {} - ENGINE FOUND", simulationId);
+            lastPlanificationTime.put(simulationId, now);
+            
+            if (route != null) {
+                planificationFailureCount.remove(simulationId); // Reset failure count on success
+            }
+            
+            // CRÍTICO: Log del estado antes y después
+            SimulationStatus statusBefore = engine.getStatus();
+            log.info("Engine status BEFORE planification: running={}, paused={}, acceleration={}", 
+                statusBefore.running(), statusBefore.paused(), statusBefore.timeAcceleration());
+            
+            engine.onPlanificationResult(route);
+            
+            // Pequeña pausa para permitir que el estado se actualice
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            
+            SimulationStatus statusAfter = engine.getStatus();
+            log.info("Engine status AFTER planification: running={}, paused={}, acceleration={}", 
+                statusAfter.running(), statusAfter.paused(), statusAfter.timeAcceleration());
+            
+        } else {
+            log.warn("No standard simulation engine found for {}", simulationId);
         }
-        
-        engine.onPlanificationResult(route);
-      } else {
-        log.warn("No standard simulation engine found for {}", simulationId);
-      }
 
-      RealTimeSimulationEngine realTimeEngine = realTimeSimulation.get(simulationId);
-      if (realTimeEngine != null) {
-        log.info("Sending planification to real-time engine for {}", simulationId);
-        lastPlanificationTime.put(simulationId, now);
-        
-        if (route != null) {
-          planificationFailureCount.remove(simulationId); // Reset failure count on success
+        RealTimeSimulationEngine realTimeEngine = realTimeSimulation.get(simulationId);
+        if (realTimeEngine != null) {
+            log.info("Sending planification to real-time engine for {}", simulationId);
+            lastPlanificationTime.put(simulationId, now);
+            
+            if (route != null) {
+                planificationFailureCount.remove(simulationId); // Reset failure count on success
+            }
+            
+            realTimeEngine.onPlanificationResult(route);
+        } else {
+            log.warn("No real-time simulation engine found for {}", simulationId);
         }
         
-        realTimeEngine.onPlanificationResult(route);
-      } else {
-        log.warn("No real-time simulation engine found for {}", simulationId);
-      }
-      
-      if (engine == null && realTimeEngine == null) {
-        log.error("NO SIMULATION ENGINE FOUND for ID: {}. Available: standard={}, realTime={}",
-            simulationId, simulation.keySet(), realTimeSimulation.keySet());
-      }
-      
+        if (engine == null && realTimeEngine == null) {
+            log.error("NO SIMULATION ENGINE FOUND for ID: {}. Available: standard={}, realTime={}",
+                simulationId, simulation.keySet(), realTimeSimulation.keySet());
+        }
+        
     } catch (Exception e) {
-      log.error("ERROR in sendPlanification for simulation {}: {}", simulationId, e.getMessage(), e);
-      
-      // Log state for debugging
-      log.error("Current simulations - Standard: {}, RealTime: {}", 
-          simulation.keySet(), realTimeSimulation.keySet());
-          
+        log.error("ERROR in sendPlanification for simulation {}: {}", simulationId, e.getMessage(), e);
+        
+        // Log state for debugging
+        log.error("Current simulations - Standard: {}, RealTime: {}", 
+            simulation.keySet(), realTimeSimulation.keySet());
+            
     } finally {
-      MDC.clear();
+        MDC.clear();
     }
-  }
+}
 
   public SimulationStatus getSimulationStatus(String simulationId) {
     SimulationEngine engine = simulation.get(simulationId);

@@ -251,6 +251,12 @@ export const useStatusSimulation = () => {
       }
       return getSimulationStatus(username)
     },
+    // Reducir el tiempo de refetch para actualizaciones más rápidas
+    refetchInterval: 500, // 500ms en lugar del default
+    refetchIntervalInBackground: true,
+    // Asegurar que siempre obtenga datos frescos
+    staleTime: 0,
+    gcTime: 1000 * 10, // 10 segundos de cache
   })
 }
 
