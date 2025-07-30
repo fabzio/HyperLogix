@@ -38,6 +38,7 @@ import com.hyperlogix.server.domain.Station;
 import com.hyperlogix.server.domain.Stop;
 import com.hyperlogix.server.domain.Truck;
 import com.hyperlogix.server.domain.TruckState;
+import com.hyperlogix.server.features.planification.dtos.LogisticCollapseEvent;
 import com.hyperlogix.server.features.planification.dtos.PlanificationRequestEvent;
 import com.hyperlogix.server.services.planification.PlanificationService;
 import com.hyperlogix.server.services.planification.PlanificationStatus;
@@ -67,7 +68,8 @@ public class SimulationEngine implements Runnable {
   private final Object routesLock = new Object();
   private LocalDateTime nextPlanningTime;
   private LocalDateTime simulatedTime;
-
+  private LocalDateTime lastCall;
+  private boolean hasCalled = false;
   private final AtomicBoolean running = new AtomicBoolean(false);
   private final AtomicBoolean paused = new AtomicBoolean(false);
   private final Lock lock = new ReentrantLock();
@@ -81,7 +83,7 @@ public class SimulationEngine implements Runnable {
   private final Map<String, Duration> customerDeliveryTimes = new ConcurrentHashMap<>();
   private final Map<String, LocalDateTime> orderStartTimes = new ConcurrentHashMap<>();
   private final Runnable onComplete;
-  
+
   // Pause timeout management
   private volatile LocalDateTime pauseStartTime = null;
   private static final Duration PAUSE_TIMEOUT = Duration.ofSeconds(20);
@@ -120,7 +122,16 @@ public class SimulationEngine implements Runnable {
     while (running.get()) {
       try {
         waitIfPaused();
-
+        if (hasCalled && lastCall.plus(Duration.ofSeconds(15)).isBefore(LocalDateTime.now())) {
+          eventPublisher.publishEvent(new LogisticCollapseEvent(
+              sessionId,
+              "PLANIFICATION_ENGINE_TIMEOUT",
+              "Planification engine did not respond in time",
+              LocalDateTime.now(),
+              0.7,
+              "Simulador"));
+          break;
+        }
         if (!running.get()) {
           log.info("Simulation stopped by external request");
           break;
@@ -981,12 +992,12 @@ public class SimulationEngine implements Runnable {
     });
   }
 
-    //manejo para forzar el fin de pausa con max 20 segundos
+  // manejo para forzar el fin de pausa con max 20 segundos
   private void handleStuckPlanification() {
     List<Order> calculatingOrders = orderRepository.stream()
         .filter(order -> order.getStatus() == OrderStatus.CALCULATING)
         .toList();
-    
+
     if (!calculatingOrders.isEmpty()) {
       if (calculatingOrders.size() <= 5) {
         processOrdersWithGreedyAlgorithm(calculatingOrders);
@@ -995,25 +1006,25 @@ public class SimulationEngine implements Runnable {
             .filter(this::isUrgentOrder)
             .limit(3)
             .toList();
-        
+
         List<Order> postponableOrders = calculatingOrders.stream()
             .filter(order -> !urgentOrders.contains(order))
             .toList();
-        
+
         if (!urgentOrders.isEmpty()) {
           processOrdersWithGreedyAlgorithm(urgentOrders);
         }
-        
+
         if (!postponableOrders.isEmpty()) {
           postponeOrders(postponableOrders);
         }
       }
-      
+
       calculatingOrders.forEach(order -> orderCalculatingStartTime.remove(order.getId()));
     }
-    
+
     consecutiveFailures++;
-    
+
     if (consecutiveFailures >= 3) {
       double newAcceleration = Math.max(1.0, simulationConfig.getTimeAcceleration() / 2);
       simulationConfig.setTimeAcceleration(newAcceleration);
@@ -1032,7 +1043,7 @@ public class SimulationEngine implements Runnable {
 
       pauseStartTime = LocalDateTime.now();
       paused.set(true);
-      //Fit
+      // Fit
       orderRepository.forEach(o -> {
         boolean delayed = o.getMaxDeliveryDate().isBefore(simulatedTime.plus(Duration.ofHours(1)));
         if (delayed) {
@@ -1043,7 +1054,8 @@ public class SimulationEngine implements Runnable {
       eventPublisher.publishEvent(
           new PlanificationRequestEvent(sessionId, plgNetwork, simulatedTime, Duration.ofSeconds(4),
               new ArrayList<>()));
-
+      lastCall = LocalDateTime.now();
+      hasCalled = true;
     } else {
       log.trace("No orders to calculate, skipping planification request");
     }
@@ -1069,14 +1081,14 @@ public class SimulationEngine implements Runnable {
       while (paused.get() && running.get()) {
         if (pauseStartTime != null) {
           Duration pauseDuration = Duration.between(pauseStartTime, LocalDateTime.now());
-          
+
           if (pauseDuration.compareTo(PAUSE_TIMEOUT) > 0) {
             paused.set(false);
             pauseStartTime = null;
             handleStuckPlanification();
             break;
           }
-          
+
           long remainingMs = PAUSE_TIMEOUT.toMillis() - pauseDuration.toMillis();
           if (remainingMs > 0) {
             condition.await(Math.min(remainingMs, 1000), TimeUnit.MILLISECONDS);
@@ -1094,7 +1106,7 @@ public class SimulationEngine implements Runnable {
   }
 
   public void onPlanificationResult(Routes routes) {
-
+    hasCalled = false;
     if (pauseStartTime != null) {
       pauseStartTime = null;
       consecutiveFailures = 0;
@@ -1153,22 +1165,22 @@ public class SimulationEngine implements Runnable {
     paused.set(false);
     lock.lock();
     try {
-        condition.signalAll();
+      condition.signalAll();
     } finally {
-        lock.unlock();
+      lock.unlock();
     }
     log.info("Received updated routes from Planificator");
     try {
-        SimulationMetrics metrics = calculateMetrics();
-        PlanificationStatus planificationStatus = planificationService.getPlanificationStatus(sessionId);
-        
-        simulationNotifier.notifySnapshot(
-            new SimulationSnapshot(LocalDateTime.now(), simulatedTime, plgNetwork, activeRoutes, null,
-                metrics, planificationStatus));
-        
-        log.info("Immediate snapshot sent after planification result");
+      SimulationMetrics metrics = calculateMetrics();
+      PlanificationStatus planificationStatus = planificationService.getPlanificationStatus(sessionId);
+
+      simulationNotifier.notifySnapshot(
+          new SimulationSnapshot(LocalDateTime.now(), simulatedTime, plgNetwork, activeRoutes, null,
+              metrics, planificationStatus));
+
+      log.info("Immediate snapshot sent after planification result");
     } catch (Exception e) {
-        log.error("Error sending immediate snapshot after planification: {}", e.getMessage(), e);
+      log.error("Error sending immediate snapshot after planification: {}", e.getMessage(), e);
     }
   }
 

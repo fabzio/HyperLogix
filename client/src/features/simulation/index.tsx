@@ -81,7 +81,7 @@ export default function Simulation() {
           // Función para calcular distancia entre dos puntos
           const getDistance = (p1: [number, number], p2: [number, number]) => {
             return Math.sqrt(
-              Math.pow(p2[0] - p1[0], 2) + Math.pow(p2[1] - p1[1], 2),
+              (p2[0] - p1[0]) ** 2 + (p2[1] - p1[1]) ** 2,
             )
           }
 
