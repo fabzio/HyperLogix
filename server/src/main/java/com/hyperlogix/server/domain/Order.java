@@ -17,6 +17,7 @@ public class Order implements Cloneable {
   private int deliveredGLP;
   private Duration deliveryLimit;
   private OrderStatus status;
+  private LocalDateTime blockEndTime; // Tiempo en que termina el bloqueo que afecta esta orden
 
   /**
    * @return Fecha máxima de entrega

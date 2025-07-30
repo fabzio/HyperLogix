@@ -14,193 +14,197 @@ import com.hyperlogix.server.domain.Point;
 import com.hyperlogix.server.domain.Roadblock;
 
 public class AStar {
-  public static List<Point> encontrarRuta(Point inicio, Point fin, LocalDateTime tiempoInicio,
-      List<Roadblock> bloqueosTemporales) {
-    PriorityQueue<Nodo> open = new PriorityQueue<>();
-    Map<String, Nodo> allNodes = new HashMap<>();
+    public static List<Point> encontrarRuta(Point inicio, Point fin, LocalDateTime tiempoInicio,
+            List<Roadblock> bloqueosTemporales) {
+        PriorityQueue<Nodo> open = new PriorityQueue<>();
+        Map<String, Nodo> allNodes = new HashMap<>();
 
-    Nodo start = new Nodo(inicio, tiempoInicio, null, 0, heuristic(inicio, fin));
-    open.add(start);
-    allNodes.put(clave(start), start);
+        Nodo start = new Nodo(inicio, tiempoInicio, null, 0, heuristic(inicio, fin));
+        open.add(start);
+        allNodes.put(clave(start), start);
+        if (fin.equals(new Point(5, 18))) {
+            System.out.println("Starting A* search from " + inicio + " to " + fin);
+        }
+        while (!open.isEmpty()) {
+            Nodo actual = open.poll();
+            if (actual.punto.equals(fin)) {
+                return reconstruirRuta(actual);
+            }
 
-    while (!open.isEmpty()) {
-      Nodo actual = open.poll();
-      if (actual.punto.equals(fin)) {
-        return reconstruirRuta(actual);
-      }
+            for (Point vecino : getVecinos(actual.punto)) {
+                double hours = Constants.EDGE_LENGTH / Constants.TRUCK_SPEED;
+                long seconds = (long) (hours * 3600); // convierte a segundos
+                LocalDateTime nuevoTiempo = actual.tiempo.plusSeconds(seconds);
+                if (!vecino.equals(fin) && esBloqueado(actual.punto, vecino, nuevoTiempo, bloqueosTemporales)) {
+                    continue;
+                }
 
-      for (Point vecino : getVecinos(actual.punto)) {
-        double hours = Constants.EDGE_LENGTH / Constants.TRUCK_SPEED;
-        long seconds = (long) (hours * 3600); // convierte a segundos
-        LocalDateTime nuevoTiempo = actual.tiempo.plusSeconds(seconds);
-        if (vecino != fin && esBloqueado(actual.punto, vecino, nuevoTiempo, bloqueosTemporales)) {
-          continue;
+                double nuevoCosto = actual.costo + 1;
+                Nodo vecinoNodo = allNodes.getOrDefault(clave(vecino), new Nodo(vecino, nuevoTiempo));
+                if (nuevoCosto < vecinoNodo.costo) {
+
+                    vecinoNodo.parent = actual;
+                    vecinoNodo.costo = nuevoCosto;
+                    vecinoNodo.fCost = nuevoCosto + heuristic(vecino, fin);
+                    if (!open.contains(vecinoNodo)) {
+                        open.add(vecinoNodo);
+                    }
+                    allNodes.put(clave(vecinoNodo), vecinoNodo);
+                }
+            }
         }
 
-        double nuevoCosto = actual.costo + 1;
-        Nodo vecinoNodo = allNodes.getOrDefault(clave(vecino, nuevoTiempo), new Nodo(vecino, nuevoTiempo));
-        if (nuevoCosto < vecinoNodo.costo) {
-          vecinoNodo.parent = actual;
-          vecinoNodo.costo = nuevoCosto;
-          vecinoNodo.heuristic = nuevoCosto + heuristic(vecino, fin);
-          if (!open.contains(vecinoNodo)) {
-            open.add(vecinoNodo);
-          }
-          allNodes.put(clave(vecinoNodo), vecinoNodo);
-        }
-      }
+        return Collections.emptyList();
     }
 
-    return Collections.emptyList();
-  }
-  private static boolean esBloqueado(Point a, Point b, LocalDateTime tiempo, List<Roadblock> bloqueos) {
-    for (Roadblock rb : bloqueos) {
-      if (!tiempo.isBefore(rb.start()) && !tiempo.isAfter(rb.end())) {
-        Edge movimiento = new Edge(a, b);
-        for (Edge bloqueado : rb.parseRoadlock()) {
-          if (intersect(movimiento, bloqueado)) {
+    private static boolean esBloqueado(Point a, Point b, LocalDateTime tiempo, List<Roadblock> bloqueos) {
+        for (Roadblock rb : bloqueos) {
+            if (!tiempo.isBefore(rb.start()) && !tiempo.isAfter(rb.end())) {
+                Edge movimiento = new Edge(a, b);
+                for (Edge bloqueado : rb.parseRoadlock()) {
+                    if (intersect(movimiento, bloqueado)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    // Chequear si el movimiento crua entre tras un bloqueo
+    private static boolean intersect(Edge e1, Edge e2) {
+        Point p1 = e1.from();
+        Point p2 = e1.to();
+        Point p3 = e2.from();
+        Point p4 = e2.to();
+
+        if (p1.equals(p3) || p1.equals(p4) || p2.equals(p3) || p2.equals(p4)) {
             return true;
-          }
         }
-      }
-    }
-    return false;
-  }
-  
-  //Chequear si el movimiento crua entre tras un bloqueo
-  private static boolean intersect(Edge e1, Edge e2) {
-    Point p1 = e1.from();
-    Point p2 = e1.to();
-    Point p3 = e2.from();
-    Point p4 = e2.to();
-    
-    if (p1.equals(p3) || p1.equals(p4) || p2.equals(p3) || p2.equals(p4)) {
-      return true;
-    }
-    
-    boolean e1Vertical = Math.abs(p1.x() - p2.x()) < 0.0001;
-    boolean e2Vertical = Math.abs(p3.x() - p4.x()) < 0.0001;
-    
-    if (e1Vertical == e2Vertical) {
-      return false;
-    }
-    
-    // At this point, one is vertical and one is horizontal
-    Edge vertical = e1Vertical ? e1 : e2;
-    Edge horizontal = e1Vertical ? e2 : e1;
-    
-    // Check if the vertical line's x is between the horizontal line's x range
-    // and if the horizontal line's y is between the vertical line's y range
-    double vx = vertical.from().x();
-    double minx = Math.min(horizontal.from().x(), horizontal.to().x());
-    double maxx = Math.max(horizontal.from().x(), horizontal.to().x());
-    
-    double hy = horizontal.from().y();
-    double miny = Math.min(vertical.from().y(), vertical.to().y());
-    double maxy = Math.max(vertical.from().y(), vertical.to().y());
-    
-    return vx >= minx && vx <= maxx && hy >= miny && hy <= maxy;
-  }
 
-  private static List<Point> getVecinos(Point p) {
-    List<Point> vecinos = new ArrayList<>();
-    if (p.x() + 1 >= 0)
-      vecinos.add(new Point(p.x() + 1, p.y()));
-    if (p.x() - 1 >= 0)
-      vecinos.add(new Point(p.x() - 1, p.y()));
-    if (p.y() + 1 >= 0)
-      vecinos.add(new Point(p.x(), p.y() + 1));
-    if (p.y() - 1 >= 0)
-      vecinos.add(new Point(p.x(), p.y() - 1));
-    return vecinos;
-  }
+        boolean e1Vertical = Math.abs(p1.x() - p2.x()) < 0.0001;
+        boolean e2Vertical = Math.abs(p3.x() - p4.x()) < 0.0001;
 
-  private static double heuristic(Point a, Point b) {
-    return Math.abs(a.x() - b.x()) + Math.abs(a.y() - b.y());
-  }
+        if (e1Vertical == e2Vertical) {
+            return false;
+        }
 
-  private static List<Point> reconstruirRuta(Nodo nodo) {
-    List<Point> ruta = new ArrayList<>();
-    while (nodo != null) {
-      ruta.add(0, nodo.punto);
-      nodo = nodo.parent;
-    }
-    return simplificarRuta(ruta);
-  }
+        // At this point, one is vertical and one is horizontal
+        Edge vertical = e1Vertical ? e1 : e2;
+        Edge horizontal = e1Vertical ? e2 : e1;
 
-  /**
-   * Simplifies the route by removing redundant points that lie on straight lines.
-   * Only keeps points where direction changes occur.
-   */
-  private static List<Point> simplificarRuta(List<Point> rutaCompleta) {
-    if (rutaCompleta.size() <= 2) {
-      return rutaCompleta;
+        // Check if the vertical line's x is between the horizontal line's x range
+        // and if the horizontal line's y is between the vertical line's y range
+        double vx = vertical.from().x();
+        double minx = Math.min(horizontal.from().x(), horizontal.to().x());
+        double maxx = Math.max(horizontal.from().x(), horizontal.to().x());
+
+        double hy = horizontal.from().y();
+        double miny = Math.min(vertical.from().y(), vertical.to().y());
+        double maxy = Math.max(vertical.from().y(), vertical.to().y());
+
+        return vx >= minx && vx <= maxx && hy >= miny && hy <= maxy;
     }
 
-    List<Point> rutaSimplificada = new ArrayList<>();
-    rutaSimplificada.add(rutaCompleta.get(0)); // Always keep the start point
-
-    for (int i = 1; i < rutaCompleta.size() - 1; i++) {
-      Point anterior = rutaCompleta.get(i - 1);
-      Point actual = rutaCompleta.get(i);
-      Point siguiente = rutaCompleta.get(i + 1);
-
-      // Calculate direction vectors
-      double dx1 = actual.x() - anterior.x();
-      double dy1 = actual.y() - anterior.y();
-      double dx2 = siguiente.x() - actual.x();
-      double dy2 = siguiente.y() - actual.y();
-
-      // If direction changes, keep this point
-      if (Math.abs(dx1 - dx2) > 0.0001 || Math.abs(dy1 - dy2) > 0.0001) {
-        rutaSimplificada.add(actual);
-      }
+    private static List<Point> getVecinos(Point p) {
+        List<Point> vecinos = new ArrayList<>();
+        if (p.x() + 1 <= Constants.MAP_WIDTH)
+            vecinos.add(new Point(p.x() + 1, p.y()));
+        if (p.x() - 1 >= 0)
+            vecinos.add(new Point(p.x() - 1, p.y()));
+        if (p.y() + 1 <= Constants.MAP_HEIGHT)
+            vecinos.add(new Point(p.x(), p.y() + 1));
+        if (p.y() - 1 >= 0)
+            vecinos.add(new Point(p.x(), p.y() - 1));
+        return vecinos;
     }
 
-    rutaSimplificada.add(rutaCompleta.get(rutaCompleta.size() - 1)); // Always keep the end point
-    return rutaSimplificada;
-  }
-
-  private static String clave(Nodo n) {
-    return clave(n.punto, n.tiempo);
-  }
-
-  private static String clave(Point p, LocalDateTime t) {
-    return p.x() + "," + p.y() + "," + t.toString();
-  }
-
-  private static class Nodo implements Comparable<Nodo> {
-    Point punto;
-    LocalDateTime tiempo;
-    Nodo parent;
-    double costo; // g-cost
-    double heuristic; // f-cost (g-cost + h-cost)
-
-    Nodo(Point punto, LocalDateTime tiempo, Nodo parent, double costo, double heuristic) {
-      this.punto = punto;
-      this.tiempo = tiempo;
-      this.parent = parent;
-      this.costo = costo;
-      this.heuristic = heuristic;
+    private static double heuristic(Point a, Point b) {
+        return Math.abs(a.x() - b.x()) + Math.abs(a.y() - b.y());
     }
 
-    Nodo(Point punto, LocalDateTime tiempo) {
-      this(punto, tiempo, null, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY);
+    private static List<Point> reconstruirRuta(Nodo nodo) {
+        List<Point> ruta = new ArrayList<>();
+        while (nodo != null) {
+            ruta.add(0, nodo.punto);
+            nodo = nodo.parent;
+        }
+        return simplificarRuta(ruta);
     }
 
-    @Override
-    public int compareTo(Nodo o) {
-      // Compare f-costs (this.heuristic field stores f-cost)
-      int fCompare = Double.compare(this.heuristic, o.heuristic);
-      if (fCompare == 0) {
-        // f-costs are equal, tie-break by h-cost.
-        // h-cost = f-cost - g-cost
-        double hThis = this.heuristic - this.costo;
-        double hOther = o.heuristic - o.costo;
-        // Prefer node with smaller h-cost
-        return Double.compare(hThis, hOther);
-      }
-      return fCompare;
+    /**
+     * Simplifies the route by removing redundant points that lie on straight lines.
+     * Only keeps points where direction changes occur.
+     */
+    private static List<Point> simplificarRuta(List<Point> rutaCompleta) {
+        if (rutaCompleta.size() <= 2) {
+            return rutaCompleta;
+        }
+
+        List<Point> rutaSimplificada = new ArrayList<>();
+        rutaSimplificada.add(rutaCompleta.get(0)); // Always keep the start point
+
+        for (int i = 1; i < rutaCompleta.size() - 1; i++) {
+            Point anterior = rutaCompleta.get(i - 1);
+            Point actual = rutaCompleta.get(i);
+            Point siguiente = rutaCompleta.get(i + 1);
+
+            // Calculate direction vectors
+            double dx1 = actual.x() - anterior.x();
+            double dy1 = actual.y() - anterior.y();
+            double dx2 = siguiente.x() - actual.x();
+            double dy2 = siguiente.y() - actual.y();
+
+            // If direction changes, keep this point
+            if (Math.abs(dx1 - dx2) > 0.0001 || Math.abs(dy1 - dy2) > 0.0001) {
+                rutaSimplificada.add(actual);
+            }
+        }
+
+        rutaSimplificada.add(rutaCompleta.get(rutaCompleta.size() - 1)); // Always keep the end point
+        return rutaSimplificada;
     }
-  }
+
+    private static String clave(Nodo n) {
+        return clave(n.punto);
+    }
+
+    private static String clave(Point p) {
+        return p.x() + "," + p.y();
+    }
+
+    private static class Nodo implements Comparable<Nodo> {
+        Point punto;
+        LocalDateTime tiempo;
+        Nodo parent;
+        double costo; // g-cost
+        double fCost; // f-cost (g-cost + h-cost)
+
+        Nodo(Point punto, LocalDateTime tiempo, Nodo parent, double costo, double heuristic) {
+            this.punto = punto;
+            this.tiempo = tiempo;
+            this.parent = parent;
+            this.costo = costo;
+            this.fCost = heuristic;
+        }
+
+        Nodo(Point punto, LocalDateTime tiempo) {
+            this(punto, tiempo, null, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY);
+        }
+
+        @Override
+        public int compareTo(Nodo o) {
+            // Compare f-costs (this.heuristic field stores f-cost)
+            int fCompare = Double.compare(this.fCost, o.fCost);
+            if (fCompare == 0) {
+                // f-costs are equal, tie-break by h-cost.
+                // h-cost = f-cost - g-cost
+                double hThis = this.fCost - this.costo;
+                double hOther = o.fCost - o.costo;
+                // Prefer node with smaller h-cost
+                return Double.compare(hThis, hOther);
+            }
+            return fCompare;
+        }
+    }
 }

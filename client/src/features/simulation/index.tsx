@@ -13,6 +13,7 @@ import {
   useStatusSimulation,
   useWatchSimulation,
 } from './hooks/useSimulation'
+import { useSimulationStore } from './store/simulation'
 const truckTypeColors: Record<string, string> = {
   TA: '#a855f7', // purple-500
   TB: '#38bdf8', // sky-400
@@ -34,6 +35,7 @@ export default function Simulation() {
     routes,
     truckProgress,
   } = useWatchSimulation()
+  const { realStartSimulation } = useSimulationStore()
   const { data: status } = useStatusSimulation()
 
   // Get selected truck info
@@ -79,7 +81,7 @@ export default function Simulation() {
           // Función para calcular distancia entre dos puntos
           const getDistance = (p1: [number, number], p2: [number, number]) => {
             return Math.sqrt(
-              Math.pow(p2[0] - p1[0], 2) + Math.pow(p2[1] - p1[1], 2),
+              (p2[0] - p1[0]) ** 2 + (p2[1] - p1[1]) ** 2,
             )
           }
 
@@ -233,6 +235,7 @@ export default function Simulation() {
           simulationTime={simulationTime ?? null}
           isSimulationActive={!!network}
           acceleration={status.timeAcceleration || 1}
+          startTime={realStartSimulation}
         />
         {selectedTruck && (
           <TruckSelectionBanner

@@ -66,7 +66,8 @@ public class MockData {
                   Integer.parseInt(orderLineMatcher.group(7)),
                   0,
                   Duration.ofHours(Long.parseLong(orderLineMatcher.group(8))),
-                  OrderStatus.PENDING));
+                  OrderStatus.PENDING,
+                  null)); // blockEndTime starts as null
 
               orderCount++;
             } else {

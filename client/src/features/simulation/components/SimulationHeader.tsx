@@ -1,18 +1,49 @@
+'use client'
+
 import { cn } from '@/lib/utils'
 import { PauseCircle, PlayCircle } from 'lucide-react'
+import { useEffect, useState } from 'react'
 
 interface SimulationHeaderProps {
   simulationTime: string | null
   isSimulationActive: boolean
   acceleration: number
+  startTime: Date | null
+}
+
+function formatDuration(ms: number) {
+  const totalSeconds = Math.floor(ms / 1000)
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+  return `${hours.toString().padStart(2, '0')}:${minutes
+    .toString()
+    .padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
 }
 
 export default function SimulationHeader({
   simulationTime,
   isSimulationActive,
   acceleration,
+  startTime,
 }: SimulationHeaderProps) {
   const simulatedTimeDate = simulationTime ? new Date(simulationTime) : null
+  const [duration, setDuration] = useState<string>('00:00:00')
+
+  useEffect(() => {
+    if (!isSimulationActive || !startTime) return
+
+    const updateDuration = () => {
+      const now = new Date()
+      const diff = now.getTime() - startTime.getTime()
+      setDuration(formatDuration(diff))
+    }
+
+    updateDuration() // set immediately
+    const interval = setInterval(updateDuration, 1000) // update every second
+
+    return () => clearInterval(interval) // clean up
+  }, [isSimulationActive, startTime])
 
   return (
     <header className="px-2">
@@ -33,6 +64,11 @@ export default function SimulationHeader({
             {isSimulationActive ? 'Simulación en curso' : 'Simulación detenida'}
           </p>
           <p>{isSimulationActive ? `${acceleration.toFixed(1)}x` : ''}</p>
+          <p>
+            {isSimulationActive && startTime
+              ? `Tiempo simulando: ${duration}`
+              : ''}
+          </p>
         </div>
         <div className="text-right">
           {isSimulationActive && simulatedTimeDate ? (

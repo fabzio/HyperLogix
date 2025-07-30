@@ -46,7 +46,8 @@ public class OperationController {
         request.getRequestedGLP(),
         0, // deliveredGLP starts at 0
         request.getDeliveryLimit(),
-        com.hyperlogix.server.domain.OrderStatus.PENDING);
+        com.hyperlogix.server.domain.OrderStatus.PENDING,
+        null); // blockEndTime starts as null
 
     registerOrderUseCase.registerOrder(order);
     return ResponseEntity.ok().build();

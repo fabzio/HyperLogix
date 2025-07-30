@@ -8,7 +8,7 @@ public class OrderMapper {
     if (entity == null)
       return null;
     Order order = new Order(entity.getId(), entity.getClientId(), entity.getDate(), entity.getLocation(),
-        entity.getRequestedGLP(), entity.getDeliveredGLP(), entity.getDeliveryLimit(), entity.getStatus());
+        entity.getRequestedGLP(), entity.getDeliveredGLP(), entity.getDeliveryLimit(), entity.getStatus(), null);
     return order;
   }
 

@@ -66,13 +66,38 @@ public class PlanificationEngine implements Runnable {
     log.info("Planification starting with {} total orders, {} calculating orders, {} stations and {} incidents",
         network.getOrders().size(), calculatingOrdersCount, network.getStations().size(), (incidents != null ? incidents.size() : 0));
 
+    // Debug crítico para el día 3 de enero 2025 a las 4:30+ AM
+    if (algorithmTime.getYear() == 2025 && algorithmTime.getMonthValue() == 1 && 
+        algorithmTime.getDayOfMonth() == 3 && algorithmTime.getHour() >= 4 && algorithmTime.getMinute() >= 30) {
+      
+      log.error("=== CRITICAL PLANIFICATION DEBUG === Time: {}", algorithmTime);
+      log.error("=== NETWORK VALIDATION === Orders: {}, CalculatingOrders: {}, Trucks: {}, Stations: {}", 
+               network.getOrders().size(), calculatingOrdersCount, 
+               network.getTrucks().size(), network.getStations().size());
+      
+      // Validar integridad de la red
+      if (network.getOrders().isEmpty()) {
+        log.error("=== CRITICAL ERROR === Empty orders list in planification network!");
+      }
+      if (network.getTrucks().stream().noneMatch(t -> t.getStatus() == com.hyperlogix.server.domain.TruckState.IDLE || t.getStatus() == com.hyperlogix.server.domain.TruckState.ACTIVE)) {
+        log.error("=== CRITICAL ERROR === No available trucks for planification!");
+      }
+      
+      // Log detalles de órdenes calculando
+      network.getOrders().stream()
+          .filter(order -> order.getStatus() == com.hyperlogix.server.domain.OrderStatus.CALCULATING)
+          .forEach(order -> log.error("  Calculating order: {} at ({},{}) requested: {}m3", 
+                                    order.getId(), order.getLocation().x(), order.getLocation().y(), 
+                                    order.getRequestedGLP()));
+    }
+
     // Log order details for debugging
     network.getOrders().forEach(order -> log.debug("Order {}: status={}, clientId={}, requestedGLP={}",
         order.getId(), order.getStatus(), order.getClientId(), order.getRequestedGLP()));
 
     try {
       AntColonyConfig config = new AntColonyConfig(
-          4,
+          8,
           5,
           1.0,
           2.0,
