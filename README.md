@@ -1,6 +1,7 @@
 # HyperLogix
 
 Sistema de Planificación y Simulación de Transporte Logístico
+<img width="1855" height="920" alt="image" src="https://github.com/user-attachments/assets/450fc55a-2d78-4624-8e18-fca3e13baff4" />
 
 ## Descripción
 
